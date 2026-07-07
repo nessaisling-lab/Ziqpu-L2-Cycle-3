@@ -13,11 +13,12 @@ license-file.workspace = true
 # Default permissive backend: pure-Rust VSOP87 (planets) + Meeus (Moon), no data files.
 default = ["analytic"]
 analytic = ["dep:vsop87"]
-# High-accuracy permissive backend: ANISE + JPL DE440 (wired next in Phase 0).
-anise-backend = []
+# High-accuracy permissive backend: ANISE + JPL DE440 (runtime kernel).
+anise-backend = ["dep:anise"]
 # Private/commercial backend — native Chiron + houses + best accuracy.
 # Intentionally a no-op stub in the public tree; the real impl is not committed here.
 swisseph = []
 
 [dependencies]
+anise = { version = "0.10.3", optional = true }
 vsop87 = { version = "3", optional = true }

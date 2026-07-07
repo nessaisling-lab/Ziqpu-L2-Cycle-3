@@ -24,6 +24,9 @@ allow = [
     "CC0-1.0",
     "Unicode-3.0",
     "Unicode-DFS-2016",
+    # Permissive, non-copyleft licenses in the ANISE ephemeris tree:
+    "BlueOak-1.0.0",        # modern MIT-like permissive license
+    "CDLA-Permissive-2.0",  # permissive data-sharing license (no copyleft)
 ]
 confidence-threshold = 0.9
 private = { ignore = true }
