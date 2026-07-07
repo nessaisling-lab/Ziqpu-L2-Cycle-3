@@ -39,6 +39,27 @@ pub enum Body {
     Chiron,
 }
 
+impl Body {
+    /// Canonical display name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Body::Sun => "Sun",
+            Body::Moon => "Moon",
+            Body::Mercury => "Mercury",
+            Body::Venus => "Venus",
+            Body::Mars => "Mars",
+            Body::Jupiter => "Jupiter",
+            Body::Saturn => "Saturn",
+            Body::Uranus => "Uranus",
+            Body::Neptune => "Neptune",
+            Body::Pluto => "Pluto",
+            Body::MeanNode => "MeanNode",
+            Body::TrueNode => "TrueNode",
+            Body::Chiron => "Chiron",
+        }
+    }
+}
+
 /// The backend seam. Implemented by the ANISE backend (default) and, privately, by the
 /// Swiss Ephemeris backend behind the `swisseph` feature.
 pub trait Ephemeris {

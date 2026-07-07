@@ -34,6 +34,17 @@ impl Aspect {
     pub fn is_harmonious(self) -> bool {
         matches!(self, Aspect::Conjunction | Aspect::Sextile | Aspect::Trine)
     }
+
+    /// Canonical display name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Aspect::Conjunction => "Conjunction",
+            Aspect::Sextile => "Sextile",
+            Aspect::Square => "Square",
+            Aspect::Trine => "Trine",
+            Aspect::Opposition => "Opposition",
+        }
+    }
 }
 
 /// Angular separation of two ecliptic longitudes, normalized to `0.0..=180.0` degrees.
