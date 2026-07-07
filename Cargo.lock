@@ -12,3 +12,12 @@ dependencies = [
 [[package]]
 name = "ephemeris"
 version = "0.0.0"
+dependencies = [
+ "vsop87",
+]
+
+[[package]]
+name = "vsop87"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37cde47f1fc639613a2a48a6a8685db063693c55ea6b09260b78f95c9e775575"

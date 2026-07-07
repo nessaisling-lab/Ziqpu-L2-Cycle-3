@@ -58,6 +58,35 @@ impl core::fmt::Display for EphemerisError {
 
 impl std::error::Error for EphemerisError {}
 
+/// Convert a UT calendar date + fractional hour to a Julian Day (Meeus, Gregorian calendar).
+pub fn julian_day(year: i32, month: u32, day: u32, hour_ut: f64) -> f64 {
+    let (y, m) = if month <= 2 {
+        (year - 1, month + 12)
+    } else {
+        (year, month)
+    };
+    let a = (y as f64 / 100.0).floor();
+    let b = 2.0 - a + (a / 4.0).floor();
+    let day_frac = day as f64 + hour_ut / 24.0;
+    (365.25 * (y as f64 + 4716.0)).floor() + (30.6001 * (m as f64 + 1.0)).floor() + day_frac + b
+        - 1524.5
+}
+
+/// Julian centuries from J2000.0 (JD 2451545.0).
+pub fn jd_to_t(jd: f64) -> f64 {
+    (jd - 2_451_545.0) / 36_525.0
+}
+
+/// Normalize an angle in degrees to `0.0..360.0`.
+pub fn norm360(deg: f64) -> f64 {
+    deg.rem_euclid(360.0)
+}
+
+#[cfg(feature = "analytic")]
+pub mod analytic;
+#[cfg(feature = "analytic")]
+pub use analytic::AnalyticBackend;
+
 #[cfg(test)]
 mod tests {
     use super::*;
