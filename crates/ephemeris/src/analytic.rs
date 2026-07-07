@@ -100,6 +100,12 @@ pub fn moon_longitude(t: f64) -> f64 {
     norm360(lp + sigma)
 }
 
+/// Mean lunar node (ascending, Ω) ecliptic longitude (°), Meeus 47.7. The mean node regresses
+/// ~0.053°/day. True node ≈ mean here (its ±1.5° libration is a documented later refinement).
+pub fn mean_node(t: f64) -> f64 {
+    norm360(125.0445 - 1934.1362 * t + 0.0020762 * t * t)
+}
+
 /// Ecliptic longitude (°) for a body this backend supports, else `None`.
 fn analytic_longitude(body: Body, jde: f64) -> Option<f64> {
     Some(match body {
@@ -112,6 +118,7 @@ fn analytic_longitude(body: Body, jde: f64) -> Option<f64> {
         | Body::Saturn
         | Body::Uranus
         | Body::Neptune => geocentric(body, jde).0,
+        Body::MeanNode | Body::TrueNode => mean_node(jd_to_t(jde)),
         _ => return None,
     })
 }
@@ -149,11 +156,7 @@ impl Ephemeris for AnalyticBackend {
                     "Pluto is not in the VSOP87 analytic backend; use the anise backend".into(),
                 ))
             }
-            Body::MeanNode | Body::TrueNode => {
-                return Err(EphemerisError(
-                    "lunar nodes are not yet wired in the analytic backend".into(),
-                ))
-            }
+            Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jde)), 0.0, 0.0),
             Body::Chiron => {
                 return Err(EphemerisError(
                     "Chiron requires the precomputed table or the swisseph backend".into(),
@@ -245,5 +248,16 @@ mod tests {
     fn unsupported_bodies_error_cleanly() {
         assert!(AnalyticBackend.position(Body::Pluto, aapl_jd()).is_err());
         assert!(AnalyticBackend.position(Body::Chiron, aapl_jd()).is_err());
+    }
+
+    #[test]
+    fn mean_node_is_in_range_and_regresses() {
+        let p = AnalyticBackend.position(Body::MeanNode, aapl_jd()).unwrap();
+        assert!((0.0..360.0).contains(&p.longitude));
+        assert!(
+            p.speed_lon < 0.0,
+            "the lunar node regresses, got {}",
+            p.speed_lon
+        );
     }
 }
