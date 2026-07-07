@@ -65,6 +65,11 @@ impl Body {
 pub trait Ephemeris {
     /// Geocentric ecliptic position of `body` at Julian day (UT).
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError>;
+
+    /// Human-readable backend name, surfaced so a reading can say how it was measured.
+    fn name(&self) -> &'static str {
+        "ephemeris"
+    }
 }
 
 /// Failure to compute a position (for example, a date outside a backend's valid range).

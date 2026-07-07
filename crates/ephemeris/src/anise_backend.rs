@@ -91,6 +91,10 @@ fn signed_daily_motion(a: f64, b: f64) -> f64 {
 }
 
 impl Ephemeris for AniseBackend {
+    fn name(&self) -> &'static str {
+        "ANISE/DE440"
+    }
+
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError> {
         let (longitude, latitude, distance_au) = match body {
             Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
