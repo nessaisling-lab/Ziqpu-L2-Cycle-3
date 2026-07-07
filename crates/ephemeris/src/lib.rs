@@ -133,6 +133,9 @@ pub fn ascendant_mc(jd_ut: f64, lat_deg: f64, lon_east_deg: f64) -> (f64, f64) {
     (asc, mc)
 }
 
+mod chiron;
+pub use chiron::chiron_longitude;
+
 #[cfg(feature = "analytic")]
 pub mod analytic;
 #[cfg(feature = "analytic")]

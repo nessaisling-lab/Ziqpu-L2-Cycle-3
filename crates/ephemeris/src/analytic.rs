@@ -119,6 +119,7 @@ fn analytic_longitude(body: Body, jde: f64) -> Option<f64> {
         | Body::Uranus
         | Body::Neptune => geocentric(body, jde).0,
         Body::MeanNode | Body::TrueNode => mean_node(jd_to_t(jde)),
+        Body::Chiron => return crate::chiron_longitude(jde),
         _ => return None,
     })
 }
@@ -161,11 +162,14 @@ impl Ephemeris for AnalyticBackend {
                 ))
             }
             Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jde)), 0.0, 0.0),
-            Body::Chiron => {
-                return Err(EphemerisError(
-                    "Chiron requires the precomputed table or the swisseph backend".into(),
-                ))
-            }
+            Body::Chiron => match crate::chiron_longitude(jde) {
+                Some(l) => (l, 0.0, 0.0),
+                None => {
+                    return Err(EphemerisError(
+                        "Chiron: date outside the 1900–2100 table".into(),
+                    ))
+                }
+            },
         };
         let speed_lon = match (
             analytic_longitude(body, jde + 0.5),
@@ -249,9 +253,10 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_bodies_error_cleanly() {
+    fn pluto_errors_but_chiron_works_on_analytic() {
+        // Pluto is not in VSOP87; Chiron comes from the bundled Horizons table, so it works here.
         assert!(AnalyticBackend.position(Body::Pluto, aapl_jd()).is_err());
-        assert!(AnalyticBackend.position(Body::Chiron, aapl_jd()).is_err());
+        assert!(AnalyticBackend.position(Body::Chiron, aapl_jd()).is_ok());
     }
 
     #[test]

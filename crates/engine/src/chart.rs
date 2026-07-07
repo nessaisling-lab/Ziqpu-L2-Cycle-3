@@ -127,8 +127,8 @@ mod tests {
     fn aapl_chart_has_expected_bodies_and_angles() {
         let jd = julian_day(1980, 12, 12, 14.5);
         let chart = compute_chart(&AnalyticBackend, jd, 40.7589, -73.9851, true);
-        // Analytic backend supplies all but Pluto + Chiron → 11 of 13.
-        assert_eq!(chart.bodies.len(), 11);
+        // Analytic backend supplies all but Pluto → 12 of 13 (Chiron via the bundled table).
+        assert_eq!(chart.bodies.len(), 12);
         assert!(chart.ascendant.is_some() && chart.midheaven.is_some());
         let sun = chart.bodies.iter().find(|b| b.body == Body::Sun).unwrap();
         assert_eq!(sun.sign, "Sagittarius");
