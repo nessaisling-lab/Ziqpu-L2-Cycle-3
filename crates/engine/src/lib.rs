@@ -5,6 +5,9 @@
 //! or copyleft) ever reaches the interpretation logic. That separation is what keeps
 //! a future commercial edition clean.
 
+pub mod chart;
+pub use chart::{compute_chart, sign_of, BodyPosition, NatalChart};
+
 /// The five Ptolemaic aspects Ziqpu scores, with their exact angles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Aspect {
