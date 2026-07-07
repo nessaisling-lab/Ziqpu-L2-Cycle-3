@@ -1,0 +1,13 @@
+[package]
+name = "engine"
+version = "0.0.0"
+description = "Ziqpu interpretation engine: aspects, dignities, patterns, synastry scoring (author IP)."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ephemeris = { path = "../ephemeris" }

@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repository (keeps Linux CI + rustfmt consistent).
+* text=auto eol=lf
+
+# Binary asset types (added in later phases)
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.bsp binary
+*.se1 binary

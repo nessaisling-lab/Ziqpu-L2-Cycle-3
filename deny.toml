@@ -1,0 +1,40 @@
+# cargo-deny configuration.
+#
+# Purpose: keep the PUBLIC dependency tree permissive-only. A single AGPL/GPL/SSPL
+# dependency in-tree would poison the future closed-source commercial edition, so
+# copyleft licenses are denied by omission from the allow-list below. MPL-2.0 is
+# permitted (file-level copyleft only; ANISE, the default ephemeris backend, is MPL-2.0).
+#
+# Our own workspace crates carry PolyForm Noncommercial 1.0.0 (not an SPDX/OSI id);
+# they are `publish = false`, so `private.ignore = true` exempts them from this check.
+
+[graph]
+all-features = true
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.9
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[advisories]
+yanked = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "allow"

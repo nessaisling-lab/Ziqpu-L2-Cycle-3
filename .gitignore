@@ -1,0 +1,30 @@
+# Rust build artifacts
+/target/
+**/target/
+**/*.rs.bk
+
+# Secrets — NEVER commit. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Ephemeris data files (large; fetched at build/deploy, licensing tracked separately)
+*.bsp
+*.se1
+/data/ephemeris/
+
+# Archives / stray extraction artifacts — never vendor zips into the tree
+*.zip
+
+# Audio assets are kept out of the code repo
+*.mp3
+*.wav
+*.ogg
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

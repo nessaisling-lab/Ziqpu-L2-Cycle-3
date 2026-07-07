@@ -1,0 +1,20 @@
+[package]
+name = "ephemeris"
+version = "0.0.0"
+description = "Pluggable ephemeris trait for Ziqpu (ANISE default; Swiss Ephemeris behind a private feature)."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+# The permissive default backend (wired in Phase 0): pure-Rust ANISE + JPL DE440.
+default = ["anise-backend"]
+anise-backend = []
+# Private/commercial backend — native Chiron + houses + best accuracy.
+# Intentionally a no-op stub in the public tree; the real impl is not committed here.
+swisseph = []
+
+[dependencies]

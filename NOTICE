@@ -1,0 +1,25 @@
+Ziqpu L2 Cycle 3
+Copyright (c) 2026 Aisling Leiva-Davila
+
+This project's original source code is licensed under the PolyForm Noncommercial
+License 1.0.0 — see the LICENSE file.
+
+Third-party components are used under their own licenses:
+
+- ANISE (default ephemeris backend) — Mozilla Public License 2.0
+  https://github.com/nyx-space/anise
+- NASA JPL Development Ephemerides (DE440/DE441) — U.S. Government work, not subject
+  to domestic copyright; freely redistributable.
+  https://ssd.jpl.nasa.gov/planets/eph_export.html
+- rig-core (agent orchestration) — MIT OR Apache-2.0
+- Dioxus, Tauri, axum, tokio, serde, reqwest — MIT OR Apache-2.0
+- Fonts: Cinzel Decorative, Spectral, Inter, Fraunces, Source Serif 4, JetBrains Mono,
+  Noto Sans Cuneiform — SIL Open Font License 1.1
+
+NOT included in this repository:
+
+- The Swiss Ephemeris backend (private `swisseph` feature). Swiss Ephemeris is
+  available under the GNU AGPL-3.0 or a paid Swiss Ephemeris Professional License
+  from Astrodienst AG. When that backend is enabled it is governed by that license,
+  separately from and outside this repository, so no AGPL obligation attaches to
+  this public tree.

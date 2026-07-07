@@ -1,0 +1,60 @@
+/*
+ * Ziqpu design tokens — inherited from the Nisaba "Oracle" design system.
+ * Two themes: light "Sunlit Clay Tablet" (:root) and dark "Gold on Bitumen"
+ * ([data-theme="dark"]). Values extracted from the Nisaba Brand Kit.
+ */
+
+:root {
+  /* Light — "Sunlit Clay Tablet" */
+  --z-alabaster: #f6efe1; /* page ground — the clay tablet */
+  --z-parchment: #fdfaf2; /* raised surfaces, cards */
+  --z-ink: #2a2017; /* primary text (bitumen brown-black) */
+  --z-ink-soft: #5d5142;
+  --z-ink-faint: #8d7f6a;
+  --z-lapis: #27408b; /* divine accent */
+  --z-lapis-bright: #3a5cb8;
+  --z-gold: #b07d12; /* hairlines, wealth */
+  --z-gold-deep: #8a6109;
+  --z-carnelian: #b1452c; /* CTA / power */
+  --z-malachite: #2f7d57; /* gains / success */
+
+  --z-bg: var(--z-alabaster);
+  --z-surface: var(--z-parchment);
+  --z-text: var(--z-ink);
+  --z-accent: var(--z-lapis);
+  --z-good: var(--z-malachite);
+  --z-bad: var(--z-carnelian);
+
+  /* Typography */
+  --z-font-display: "Cinzel Decorative", Georgia, serif;
+  --z-font-body: "Spectral", Georgia, serif;
+  --z-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --z-font-cuneiform: "Noto Sans Cuneiform", serif;
+
+  /* Spacing scale (from design-tokens.json) */
+  --z-s-hair: 1px;
+  --z-s-1: 40px;
+  --z-s-2: 48px;
+  --z-s-3: 64px;
+  --z-s-4: 72px;
+  --z-s-5: 77px;
+  --z-s-section: 176px;
+  --z-s-page: 300px;
+
+  --z-radius: 1px; /* minimal rounding — inscriptional, not soft */
+}
+
+[data-theme="dark"] {
+  /* Dark — "Gold on Bitumen" */
+  --z-bg: #0f0a07;
+  --z-bg-dark: #0a0604;
+  --z-surface: rgba(31, 26, 20, 0.85);
+  --z-text: #f3ecd8;
+  --z-ink-soft: #c8b88e;
+  --z-ink-faint: #8c7d57;
+  --z-gold: #c9a44a;
+  --z-gold-bright: #ffd86b;
+  --z-accent: #b87a3a;
+  --z-good: #6fa86b;
+  --z-bad: #c25a3c;
+}
