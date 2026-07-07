@@ -84,3 +84,57 @@ jobs:
           ver=8.24.3
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
           /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
+
+  # ---- integration: run the sidecar against a real Postgres and probe the endpoints ----
+  integration:
+    name: integration (sidecar + Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ziqpu
+          POSTGRES_PASSWORD: ziqpu_dev
+          POSTGRES_DB: ziqpu
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ziqpu -d ziqpu"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://ziqpu:ziqpu_dev@localhost:5433/ziqpu
+      PGPASSWORD: ziqpu_dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Apply schema + seed
+        run: |
+          for f in db/init/*.sql; do
+            echo "applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          echo -n "seeded tickers: "; psql "$DATABASE_URL" -tAc "SELECT count(*) FROM company_metadata;"
+      - name: Build sidecar
+        run: cargo build -p sidecar
+      - name: Run sidecar and assert endpoints
+        run: |
+          cargo run -p sidecar &
+          pid=$!
+          for _ in $(seq 1 40); do curl -sf http://localhost:8787/health >/dev/null && break || sleep 1; done
+          echo "== /chart/AAPL =="
+          curl -sf http://localhost:8787/chart/AAPL | grep -q '"sign":"Sagittarius"'
+          echo "  AAPL Sun in Sagittarius: OK"
+          echo "== /synastry/AAPL/MSFT =="
+          curl -sf http://localhost:8787/synastry/AAPL/MSFT | grep -q '"aspect"'
+          echo "  cross-aspects present: OK"
+          echo "== edge: unknown ticker -> 404 =="
+          [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/chart/ZZZZ)" = "404" ]
+          echo "  404: OK"
+          echo "== edge: date-unknown ticker -> 422 =="
+          nd=$(psql "$DATABASE_URL" -tAc "SELECT ticker FROM company_metadata WHERE ipo_date IS NULL LIMIT 1" | tr -d '[:space:]')
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8787/chart/$nd")" = "422" ]
+          echo "  422 ($nd): OK"
+          kill "$pid"
