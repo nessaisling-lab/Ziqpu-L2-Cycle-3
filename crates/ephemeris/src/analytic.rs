@@ -135,6 +135,10 @@ fn signed_daily_motion(lon_after: f64, lon_before: f64) -> f64 {
 }
 
 impl Ephemeris for AnalyticBackend {
+    fn name(&self) -> &'static str {
+        "analytic (VSOP87 + Meeus)"
+    }
+
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError> {
         // ΔT (~70 s) is ignored: <0.001° even at the Moon's speed — negligible for astrology.
         let jde = jd_ut;

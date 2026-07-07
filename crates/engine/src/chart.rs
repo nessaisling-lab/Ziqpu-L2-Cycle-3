@@ -71,7 +71,7 @@ pub struct NatalChart {
 
 /// Compute a natal chart from a birth moment (Julian day UT) and location. Bodies the backend
 /// cannot supply are silently skipped; angles are included only when `time_known` is true.
-pub fn compute_chart<E: Ephemeris>(
+pub fn compute_chart<E: Ephemeris + ?Sized>(
     eph: &E,
     jd_ut: f64,
     latitude: f64,

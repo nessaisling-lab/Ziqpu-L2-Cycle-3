@@ -117,16 +117,23 @@ jobs:
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
           echo -n "seeded tickers: "; psql "$DATABASE_URL" -tAc "SELECT count(*) FROM company_metadata;"
-      - name: Build sidecar
-        run: cargo build -p sidecar
+      - name: Fetch DE440s kernel (for the ANISE backend)
+        run: bash scripts/fetch-ephemeris.sh
+      - name: Build sidecar (ANISE backend)
+        run: cargo build -p sidecar --features anise
       - name: Run sidecar and assert endpoints
         run: |
-          cargo run -p sidecar &
+          cargo run -p sidecar --features anise &
           pid=$!
           for _ in $(seq 1 40); do curl -sf http://localhost:8787/health >/dev/null && break || sleep 1; done
           echo "== /chart/AAPL =="
-          curl -sf http://localhost:8787/chart/AAPL | grep -q '"sign":"Sagittarius"'
+          chart=$(curl -sf http://localhost:8787/chart/AAPL)
+          echo "$chart" | grep -q '"backend":"ANISE/DE440"'
+          echo "  backend = ANISE/DE440: OK"
+          echo "$chart" | grep -q '"sign":"Sagittarius"'
           echo "  AAPL Sun in Sagittarius: OK"
+          echo "$chart" | grep -q '"body":"Pluto"'
+          echo "  Pluto present: OK"
           echo "== /synastry/AAPL/MSFT =="
           curl -sf http://localhost:8787/synastry/AAPL/MSFT | grep -q '"aspect"'
           echo "  cross-aspects present: OK"

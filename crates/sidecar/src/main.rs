@@ -13,11 +13,11 @@ use axum::{
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 use engine::{compute_chart, find_aspect, NatalChart};
-use ephemeris::{julian_day, AnalyticBackend};
+use ephemeris::{julian_day, AnalyticBackend, Ephemeris};
 use serde::Serialize;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use std::sync::Arc;
 
-const BACKEND: &str = "analytic (VSOP87 + Meeus)";
 const SYNASTRY_ORB: f64 = 6.0;
 const NOT_ADVICE: &str =
     "Symbolic reflection of how these charts aspect — not a prediction, not financial advice.";
@@ -25,6 +25,26 @@ const NOT_ADVICE: &str =
 #[derive(Clone)]
 struct AppState {
     pool: PgPool,
+    backend: Arc<dyn Ephemeris + Send + Sync>,
+}
+
+/// Choose the ephemeris backend at startup: ANISE/DE440 when the `anise` feature is built and a
+/// kernel loads (adds Pluto), otherwise the pure-Rust analytic backend.
+fn build_backend() -> Arc<dyn Ephemeris + Send + Sync> {
+    #[cfg(feature = "anise")]
+    {
+        let path = std::env::var("EPHEMERIS_KERNEL")
+            .unwrap_or_else(|_| "data/ephemeris/de440s.bsp".to_string());
+        match ephemeris::AniseBackend::from_kernel(&path) {
+            Ok(backend) => {
+                println!("ephemeris backend: ANISE/DE440 ({path})");
+                return Arc::new(backend);
+            }
+            Err(e) => eprintln!("ANISE kernel unavailable ({e}); using the analytic backend"),
+        }
+    }
+    println!("ephemeris backend: analytic (VSOP87 + Meeus)");
+    Arc::new(AnalyticBackend)
 }
 
 #[tokio::main]
@@ -42,7 +62,10 @@ async fn main() {
         .route("/chart/:ticker", get(chart_handler))
         .route("/synastry/:a/:b", get(synastry_handler))
         .route("/transits/:date", get(transits_handler))
-        .with_state(AppState { pool });
+        .with_state(AppState {
+            pool,
+            backend: build_backend(),
+        });
 
     let addr = "0.0.0.0:8787";
     let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
@@ -151,7 +174,7 @@ struct ChartMeta {
 
 /// Load a ticker's metadata and compute its natal chart, or an HTTP error.
 async fn load_chart(
-    pool: &PgPool,
+    state: &AppState,
     ticker: &str,
 ) -> Result<(ChartMeta, NatalChart), (StatusCode, String)> {
     let t = ticker.to_uppercase();
@@ -160,7 +183,7 @@ async fn load_chart(
          FROM company_metadata WHERE ticker = $1",
     )
     .bind(&t)
-    .fetch_optional(pool)
+    .fetch_optional(&state.pool)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .ok_or((StatusCode::NOT_FOUND, format!("unknown ticker {t}")))?;
@@ -185,7 +208,7 @@ async fn load_chart(
     })?;
 
     let (jd, time_known) = birth_jd(ipo_date, ipo_time, tz);
-    let chart = compute_chart(&AnalyticBackend, jd, latitude, longitude, time_known);
+    let chart = compute_chart(state.backend.as_ref(), jd, latitude, longitude, time_known);
     Ok((
         ChartMeta {
             ticker: t,
@@ -204,7 +227,7 @@ async fn chart_handler(
     State(st): State<AppState>,
     Path(ticker): Path<String>,
 ) -> Result<Json<ChartResponse>, (StatusCode, String)> {
-    let (meta, chart) = load_chart(&st.pool, &ticker).await?;
+    let (meta, chart) = load_chart(&st, &ticker).await?;
     Ok(Json(ChartResponse {
         ticker: meta.ticker,
         company_name: meta.company_name,
@@ -212,7 +235,7 @@ async fn chart_handler(
         ipo_date: meta.ipo_date.to_string(),
         ipo_time: meta.ipo_time.map(|t| t.format("%H:%M").to_string()),
         time_known: chart.time_known,
-        backend: BACKEND.to_string(),
+        backend: st.backend.name().to_string(),
         ascendant: chart.ascendant.map(round2),
         midheaven: chart.midheaven.map(round2),
         bodies: bodies_json(&chart),
@@ -224,8 +247,8 @@ async fn synastry_handler(
     State(st): State<AppState>,
     Path((a, b)): Path<(String, String)>,
 ) -> Result<Json<SynastryResponse>, (StatusCode, String)> {
-    let (ma, ca) = load_chart(&st.pool, &a).await?;
-    let (mb, cb) = load_chart(&st.pool, &b).await?;
+    let (ma, ca) = load_chart(&st, &a).await?;
+    let (mb, cb) = load_chart(&st, &b).await?;
     let mut aspects = Vec::new();
     for pa in &ca.bodies {
         for pb in &cb.bodies {
@@ -244,13 +267,14 @@ async fn synastry_handler(
     Ok(Json(SynastryResponse {
         a: ma.ticker,
         b: mb.ticker,
-        backend: BACKEND.to_string(),
+        backend: st.backend.name().to_string(),
         aspects,
         note: NOT_ADVICE.to_string(),
     }))
 }
 
 async fn transits_handler(
+    State(st): State<AppState>,
     Path(date): Path<String>,
 ) -> Result<Json<TransitsResponse>, (StatusCode, String)> {
     let d: NaiveDate = date.parse().map_err(|_| {
@@ -261,10 +285,10 @@ async fn transits_handler(
     })?;
     // Transits are sky positions (bodies only), computed for noon UT at Greenwich.
     let jd = julian_day(d.year(), d.month(), d.day(), 12.0);
-    let chart = compute_chart(&AnalyticBackend, jd, 0.0, 0.0, false);
+    let chart = compute_chart(st.backend.as_ref(), jd, 0.0, 0.0, false);
     Ok(Json(TransitsResponse {
         date: d.to_string(),
-        backend: BACKEND.to_string(),
+        backend: st.backend.name().to_string(),
         bodies: bodies_json(&chart),
         note: NOT_ADVICE.to_string(),
     }))
