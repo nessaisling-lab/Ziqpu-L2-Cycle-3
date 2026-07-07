@@ -133,6 +133,11 @@ pub mod analytic;
 #[cfg(feature = "analytic")]
 pub use analytic::AnalyticBackend;
 
+#[cfg(feature = "anise-backend")]
+mod anise_backend;
+#[cfg(feature = "anise-backend")]
+pub use anise_backend::AniseBackend;
+
 #[cfg(test)]
 mod tests {
     use super::*;

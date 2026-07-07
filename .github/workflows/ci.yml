@@ -138,3 +138,16 @@ jobs:
           [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8787/chart/$nd")" = "422" ]
           echo "  422 ($nd): OK"
           kill "$pid"
+
+  # ---- anise: fetch the JPL DE440 kernel and cross-check the analytic backend (<1 deg) ----
+  anise:
+    name: anise cross-check (DE440)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Fetch DE440s kernel (public-domain JPL data)
+        run: bash scripts/fetch-ephemeris.sh
+      - name: Analytic vs ANISE cross-check
+        run: cargo test -p ephemeris --features anise-backend -- --ignored
