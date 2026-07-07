@@ -98,11 +98,15 @@ impl Ephemeris for AniseBackend {
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError> {
         let (longitude, latitude, distance_au) = match body {
             Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
-            Body::Chiron => {
-                return Err(EphemerisError(
-                    "Chiron requires a JPL Horizons small-body kernel (not yet loaded)".into(),
-                ))
-            }
+            // Chiron comes from the bundled Horizons table (ANISE cannot read its Type-21 SPK).
+            Body::Chiron => match crate::chiron_longitude(jd_ut) {
+                Some(l) => (l, 0.0, 0.0),
+                None => {
+                    return Err(EphemerisError(
+                        "Chiron: date outside the 1900–2100 table".into(),
+                    ))
+                }
+            },
             _ => self.ecliptic(body, jd_ut)?,
         };
         let speed_lon = match body {
@@ -110,6 +114,13 @@ impl Ephemeris for AniseBackend {
                 mean_node(jd_to_t(jd_ut + 0.5)),
                 mean_node(jd_to_t(jd_ut - 0.5)),
             ),
+            Body::Chiron => match (
+                crate::chiron_longitude(jd_ut + 0.5),
+                crate::chiron_longitude(jd_ut - 0.5),
+            ) {
+                (Some(a), Some(b)) => signed_daily_motion(a, b),
+                _ => 0.0,
+            },
             _ => match (
                 self.ecliptic(body, jd_ut + 0.5),
                 self.ecliptic(body, jd_ut - 0.5),

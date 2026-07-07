@@ -134,6 +134,8 @@ jobs:
           echo "  AAPL Sun in Sagittarius: OK"
           echo "$chart" | grep -q '"body":"Pluto"'
           echo "  Pluto present: OK"
+          echo "$chart" | grep -q '"body":"Chiron"'
+          echo "  Chiron present: OK"
           echo "== /synastry/AAPL/MSFT =="
           curl -sf http://localhost:8787/synastry/AAPL/MSFT | grep -q '"aspect"'
           echo "  cross-aspects present: OK"
