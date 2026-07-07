@@ -1,0 +1,29 @@
+# Contained, isolated Postgres for Ziqpu development.
+#   docker compose up -d db      # start
+#   ./scripts/db-apply.sh        # (re)apply schema + seed to an already-running DB
+#   docker compose down -v       # stop and wipe (forces a fresh re-seed on next up)
+#
+# On first start with an empty volume, the files in ./db/init are applied automatically
+# in filename order. The password below is a throwaway DEV credential (isolated container,
+# not a secret); production uses DATABASE_URL from an untracked .env / CI secret.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ziqpu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ziqpu_dev}
+      POSTGRES_DB: ziqpu
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ziqpu_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ziqpu -d ziqpu"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  ziqpu_pgdata:

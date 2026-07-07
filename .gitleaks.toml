@@ -1,0 +1,16 @@
+title = "Ziqpu gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local dev-only Postgres credential + generated public data — not secrets."
+# `ziqpu_dev` is a throwaway password for the isolated local dev container (see docker-compose.yml
+# and SECURITY.md); production credentials come from an untracked .env / CI secret.
+regexes = ['''ziqpu_dev''']
+paths = [
+  '''db/init/02_seed\.sql''',   # generated public ticker data
+  '''Cargo\.lock''',            # dependency checksums, not secrets
+  '''(^|/)target/''',           # build artifacts
+  '''company_metadata\.csv''',  # gitignored raw export
+]

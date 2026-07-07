@@ -5,6 +5,9 @@
 //! or copyleft) ever reaches the interpretation logic. That separation is what keeps
 //! a future commercial edition clean.
 
+pub mod chart;
+pub use chart::{compute_chart, sign_of, BodyPosition, NatalChart};
+
 /// The five Ptolemaic aspects Ziqpu scores, with their exact angles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Aspect {
@@ -30,6 +33,17 @@ impl Aspect {
     /// Whether tradition reads the aspect as flowing (vs. frictional).
     pub fn is_harmonious(self) -> bool {
         matches!(self, Aspect::Conjunction | Aspect::Sextile | Aspect::Trine)
+    }
+
+    /// Canonical display name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Aspect::Conjunction => "Conjunction",
+            Aspect::Sextile => "Sextile",
+            Aspect::Square => "Square",
+            Aspect::Trine => "Trine",
+            Aspect::Opposition => "Opposition",
+        }
     }
 }
 

@@ -71,8 +71,16 @@ jobs:
       - name: License + ban policy (no AGPL/GPL in tree)
         run: cargo deny check licenses bans sources
       - name: Advisory audit
-        run: cargo audit
+        # RUSTSEC-2023-0071 (`rsa` "Marvin" timing attack) is pulled transitively by sqlx-postgres
+        # and has no fixed release. Not exploitable here: the sidecar authenticates to a local/
+        # private Postgres via SCRAM/md5, never RSA key operations. Justified in .cargo/audit.toml
+        # and SECURITY.md; revisit when `rsa` ships a fix.
+        run: cargo audit --ignore RUSTSEC-2023-0071
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Direct gitleaks binary (filesystem scan of the checkout) instead of the action, which
+        # mis-handles a PR whose base is the repo's root commit. Config allowlists the dev-only
+        # DB credential and generated data; every real secret pattern still fails the job.
+        run: |
+          ver=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
+          /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1

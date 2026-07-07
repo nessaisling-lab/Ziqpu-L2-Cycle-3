@@ -16,6 +16,9 @@
 # Archives / stray extraction artifacts — never vendor zips into the tree
 *.zip
 
+# Raw data export from the private Nisaba DB — we commit the GENERATED seed, not this
+/company_metadata.csv
+
 # Audio assets are kept out of the code repo
 *.mp3
 *.wav
