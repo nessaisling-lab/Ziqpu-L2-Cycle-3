@@ -71,7 +71,11 @@ jobs:
       - name: License + ban policy (no AGPL/GPL in tree)
         run: cargo deny check licenses bans sources
       - name: Advisory audit
-        run: cargo audit
+        # RUSTSEC-2023-0071 (`rsa` "Marvin" timing attack) is pulled transitively by sqlx-postgres
+        # and has no fixed release. Not exploitable here: the sidecar authenticates to a local/
+        # private Postgres via SCRAM/md5, never RSA key operations. Justified in .cargo/audit.toml
+        # and SECURITY.md; revisit when `rsa` ships a fix.
+        run: cargo audit --ignore RUSTSEC-2023-0071
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:

@@ -16,6 +16,13 @@ or email the maintainer. You'll get an acknowledgement within a few days.
   (advisories), and `cargo deny` (license/ban policy). GitHub secret scanning + push
   protection are enabled on the repository.
 
+## Accepted advisories
+
+- **RUSTSEC-2023-0071** (`rsa` "Marvin" timing attack) — pulled transitively by `sqlx-postgres`;
+  no fixed `rsa` release exists. Not exploitable here: the sidecar authenticates to a local/private
+  Postgres via SCRAM/md5 and never performs RSA key operations. Scoped-ignored in `.cargo/audit.toml`
+  so the audit still fails on any *other* advisory. To be removed when a patched `rsa` ships.
+
 ## Note on imported material
 
 Source archives used to seed this project contained committed credentials. Those keys were
