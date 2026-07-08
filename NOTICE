@@ -4,17 +4,26 @@ Copyright (c) 2026 Aisling Leiva-Davila
 This project's original source code is licensed under the PolyForm Noncommercial
 License 1.0.0 — see the LICENSE file.
 
-Third-party components are used under their own licenses:
+Third-party code components (MIT/Apache-2.0/MPL-2.0/BlueOak/CDLA — all permissive):
 
-- ANISE (default ephemeris backend) — Mozilla Public License 2.0
+- vsop87 (default analytic ephemeris backend) — MIT OR Apache-2.0
+  https://crates.io/crates/vsop87
+- ANISE (optional high-accuracy ephemeris backend, `--features anise`) — Mozilla Public License 2.0
   https://github.com/nyx-space/anise
-- NASA JPL Development Ephemerides (DE440/DE441) — U.S. Government work, not subject
-  to domestic copyright; freely redistributable.
-  https://ssd.jpl.nasa.gov/planets/eph_export.html
-- rig-core (agent orchestration) — MIT OR Apache-2.0
-- Dioxus, Tauri, axum, tokio, serde, reqwest — MIT OR Apache-2.0
+- axum, tokio, sqlx, serde, serde_json, chrono, chrono-tz — MIT OR Apache-2.0
+- rig-core (agent orchestration, Phase 1–2) — MIT OR Apache-2.0
+- Dioxus, Tauri (Phase 4) — MIT OR Apache-2.0
 - Fonts: Cinzel Decorative, Spectral, Inter, Fraunces, Source Serif 4, JetBrains Mono,
   Noto Sans Cuneiform — SIL Open Font License 1.1
+
+Third-party data (public-domain / freely redistributable U.S. Government works):
+
+- NASA JPL Development Ephemerides (DE440) — used by the ANISE backend (kernel fetched at build,
+  not committed). https://ssd.jpl.nasa.gov/planets/eph_export.html
+- JPL Horizons Chiron ephemeris — sampled into the committed table crates/ephemeris/data/chiron.bin.
+  https://ssd.jpl.nasa.gov/horizons/
+- SEC EDGAR (Form 8-A listing dates) — used to enrich the stock seed. https://www.sec.gov/edgar
+- Stock IPO dates originate from a Polygon.io-sourced dataset (public listing facts).
 
 NOT included in this repository:
 
