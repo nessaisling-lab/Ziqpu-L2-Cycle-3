@@ -16,13 +16,18 @@ On a first `up` with an empty volume, both files run automatically (filename ord
 (NYSE / NASDAQ / NYSE American / CBOE), exported from the private Nisaba Postgres and
 transformed here. Every ticker keeps its exchange coordinates as the chart location.
 
+**Route-3 enrichment (`data_source = 'sec-8a'`):** tickers Polygon left date-unknown were
+backfilled with their earliest **SEC EDGAR Form 8-A** filing date — the registration of
+securities at listing, a reliable listing-date proxy for post-1994 IPOs. Only 8-A dates in
+`[1994, today]` were used; the rest stay `NULL` (honestly unknown). This raised chartable
+coverage from ~2,351 to ~4,507 of 5,271. Time uses the same 09:30 market-open convention.
+
 ## Validation / transform rules (the "double-check")
 - Exchange → `tz` = `America/New_York` (all listings are US exchanges).
 - IPO dates outside `[1792-01-01, today]` are treated as **UNKNOWN** (`NULL`) — impossible for a
   US-listed security, so not fabricated into a bogus chart (3 such rows were caught).
-- ~2,351 tickers have a usable IPO date (fully chartable); ~2,920 are date-unknown (charted
-  partially, flagged). Filling the unknowns from public sources (SEC EDGAR / exchange
-  directories) is **route-3** follow-up work.
+- ~4,507 tickers have a usable IPO/listing date (fully chartable); ~764 remain date-unknown
+  (charted partially, flagged) — tickers with no SEC CIK or no Form 8-A on record.
 
 ## Regenerate the seed
 1. Export from the source DB:

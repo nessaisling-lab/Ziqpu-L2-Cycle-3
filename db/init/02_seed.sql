@@ -1,12 +1,12 @@
 -- Ziqpu company_metadata seed — GENERATED, do not hand-edit. See db/README.md to regenerate.
--- 5,271 US-market tickers (NYSE / NASDAQ / NYSE American / CBOE). IPO dates outside
--- [1792, today] were gated to NULL (unknown birth moment, flagged not fabricated).
+-- 5,271 US-market tickers. Dates: Polygon list_date + SEC Form 8-A listing dates (route-3
+-- enrichment); dates outside [1792, today] gated to NULL. 764 remain date-unknown (flagged).
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict xJJerdLIfcHqggtu7OImMYAji3fq07KfbwUrD1idNA4JIG2D2SwYhvcgjauuOZM
+\restrict QgovadXBMexdbdRG0y9nW4IVPdhszflBRQmh1CB0m1dLvzvJg4x2JHQgAwI4YL1
 
 -- Dumped from database version 16.14
 -- Dumped by pg_dump version 16.14
@@ -254,7 +254,6 @@ ALLO	Allogene Therapeutics, Inc. Common Stock	2018-09-14	09:30:00	NASDAQ	America
 ALLR	Allarity Therapeutics, Inc. Common Stock	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ALLT	Allot Ltd. Ordinary Shares	2006-10-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ALLY	Ally Financial Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ALM	Almonty Industries Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ALMR	Alamar Biosciences, Inc. Common Stock	2026-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ALMS	Alumis Inc. Common Stock	2024-06-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ALMU	Aeluma, Inc. Common Stock	2021-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -381,7 +380,6 @@ APXT	Apex Treasury Corporation Class A Ordinary Share	2025-08-11	09:30:00	NASDAQ
 APYX	Apyx Medical Corporation Common Stock	2007-03-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 AQB	AquaBounty Technologies, Inc.	2017-03-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 AQMS	Aqua Metals, Inc. Common Stock	2015-06-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-AQN	Algonquin Power & Utilities Corp	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 AQST	Aquestive Therapeutics, Inc. Common Stock	2007-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 AR	ANTERO RESOURCES CORPORATION	2002-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ARAI	Arrive AI Inc. Common Stock	2024-12-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -402,7 +400,6 @@ AREN	The Arena Group Holdings, Inc.	1996-07-30	09:30:00	NYSE American	America/Ne
 ARES	Ares Management Corporation Class A Common Stock	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ARHS	Arhaus, Inc. Class A Common Stock	2021-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ARI	APOLLO COMMERCIAL REAL ESTATE FINANCE, INC.	2010-03-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ARIS	Aris Mining Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ARKO	ARKO Corp. Common Stock	2021-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ARKR	Ark Restaurants Corp	1995-12-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ARL	American Realty Investors, Inc.	2002-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -485,7 +482,6 @@ ATR	AptarGroup, Inc.	1992-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	
 ATRA	Atara Biotherapeutics, Inc	2014-06-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ATRC	AtriCure, Inc.	2005-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ATRO	Astronics Corp	1997-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ATS	ATS Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ATXG	Addentax Group Corp. Common Stock	2015-08-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ATYR	aTyr Pharma, Inc. Common Stock	2015-04-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 AU	AngloGold Ashanti plc	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -565,7 +561,6 @@ BAND	Bandwidth Inc. Class A Common Stock	2017-10-13	09:30:00	NASDAQ	America/New_
 BANF	Bancfirst Corp	1996-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BANL	CBL International Limited Class B Ordinary Shares	2022-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BANR	Banner Corp.	1996-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-BANX	ArrowMark Financial Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BAOS	Baosheng Media Group Holdings Limited Ordinary shares	2020-07-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BAP	Credicorp LTD	1995-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BARK	BARK, Inc.	2020-09-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -655,7 +650,6 @@ BGM	BGM Group Ltd. Class A Ordinary Shares	2019-11-04	09:30:00	NASDAQ	America/Ne
 BGMS	Bio Green Med Solution, Inc. Common Stock	2000-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BGS	B&G Foods, Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BGSF	BGSF, Inc.	2013-10-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-BGSI	Boyd Group Services Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BH	Biglari Holdings Inc. Class B Common Stock	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BH.A	Biglari Holdings Inc. Class A Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BHAV	BHAV Acquisition Corp Class A Ordinary Shares	2026-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -670,7 +664,6 @@ BHFAO	Brighthouse Financial, Inc. Depositary Shares 6.75% Non-Cum Pfd Series B	2
 BHM	Bluerock Homes Trust, Inc.	2023-03-22	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BHR	Braemar Hotels & Resorts Inc. Common Stock	2013-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BHRB	Burke & Herbert Financial Services Corp. Common Stock	2024-03-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-BHST	BioHarvest Sciences Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BHVN	Biohaven Ltd.	2022-10-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BIAF	bioAffinity Technologies, Inc. Common Stock	2022-04-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BIIB	Biogen Inc. Common Stock	1997-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -683,7 +676,6 @@ BIOX	Bioceres Crop Solutions Corp. Ordinary Shares	2019-05-31	09:30:00	NASDAQ	Am
 BIP	Brookfield Infrastructure Partners L.P. Limited Partnership Units	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BIPC	Brookfield Infrastructure Corporation Class A Exchangeable Subordinate Voting Shares	2019-09-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BIRD	Allbirds, Inc. Class A Common Stock	2021-08-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-BIRK	Birkenstock Holding plc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BIVI	BioVie, Inc. Common Stock	2013-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BIXI	Bitcoin Infrastructure Acquisition Corp Ltd. Class A Ordinary Shares	2025-08-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BIYA	Baiya International Group Inc. Ordinary Shares	2023-10-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -770,14 +762,12 @@ BOX	BOX, INC.	2009-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	poly
 BOXL	Boxlight Corporation Class A Common Stock	2015-06-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BPAC	Blueport Acquisition Ltd Class A Ordinary Shares	2025-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BPOP	Popular Inc	1994-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-BPRE	Bluerock Private Real Estate Fund	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BPRN	Princeton Bancorp, Inc. Common Stock (PA)	2023-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BPYPM	Brookfield Property Partners L.P. 6.25% Class A Cumulative Redeemable Preferred Units, Series 1	2013-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BPYPN	Brookfield Property Partners L.P. 5.750% Class A Cumulative Redeemable Perpetual Preferred Units, Series 3	2013-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BPYPO	Brookfield Property Partners L.P. 6.375% Class A Cumulative Redeemable Perpetual Preferred Units, Series 2	2013-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BQ	Boqii Holding Limited	2020-09-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BR	Broadridge Financial Solutions Inc	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-BRAG	Bragg Gaming Group Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BRAI	Braiin Limited Common Stock	2025-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 BRBR	BellRing Brands, Inc.	2019-09-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 BRBS	Blue Ridge Bankshares, Inc.	2020-04-14	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -935,7 +925,6 @@ CCB	Coastal Financial Corporation	2018-06-19	09:30:00	NASDAQ	America/New_York	40
 CCBG	Capital City Bank Group Inc	1994-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CCC	CCC Intelligent Solutions Holdings Inc. Common Stock	1942-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CCCC	C4 Therapeutics, Inc.	2020-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-CCD	Calamos Dynamic Convertible & Income Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CCEC	Capital Clean Energy Carriers Corp. Common Share	2007-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CCEL	Cryo-Cell International Inc.	2008-02-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CCEP	Coca-Cola Europacific Partners plc Ordinary Shares	2017-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -997,7 +986,6 @@ CFBK	CF Bankshares Inc. Common Stock	1998-09-23	09:30:00	NASDAQ	America/New_York
 CFFI	C&F Financial Corp	1998-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CFFN	Capitol Federal Financial, Inc.	2010-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CFG	Citizens Financial Group, Inc.	1871-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-CFND	C1 Fund Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CFR	Cullen/Frost Bankers Inc.	1868-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CG	The Carlyle Group Inc. Common Stock	2011-09-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGABL	The Carlyle Group Inc. 4.625% Subordinated Notes due 2061	2011-09-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1009,7 +997,6 @@ CGEM	Cullinan Therapeutics, Inc. Common Stock	2020-12-18	09:30:00	NASDAQ	America
 CGEN	Compugen Ltd	2002-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGNT	Cognyte Software Ltd. Ordinary Shares	2021-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGNX	Cognex Corp	1995-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-CGO	Calamos Global Total Return Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGON	CG Oncology, Inc. Common stock	2024-01-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGTL	Creative Global Technology Holdings Limited Class A Ordinary Shares	2023-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CGTX	Cognition Therapeutics, Inc. Common Stock	2021-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1025,7 +1012,6 @@ CHEC	Chenghe Acquisition III Co. Class A Ordinary Share	2025-07-03	09:30:00	NASD
 CHEF	The Chef's Warehouse Inc	2011-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHGG	CHEGG, INC.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CHH	Choice Hotels Intnl.	1939-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-CHI	Calamos Convertible Opportunities and Income Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHKP	Check Point Software Technologies Ltd	2000-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHMG	Chemung Financial Corp	1995-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHMI	CHERRY HILL MORTGAGE INVESTMENT CORPORATION	2014-03-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1039,9 +1025,7 @@ CHRS	Coherus Oncology, Inc. Common Stock	2014-09-25	09:30:00	NASDAQ	America/New_
 CHRW	C.H. Robinson Worldwide, Inc.	1997-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHSN	Chanson International Holding Class A Ordinary Shares	2021-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHTR	Charter Comm Inc Del CL A New	1999-07-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-CHW	Calamos Global Dynamic Income Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHWY	Chewy, Inc.	2011-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-CHY	Calamos Convertible and High Income Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CHYM	Chime Financial, Inc. Class A Common Stock	2025-05-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CI	The Cigna Group	1982-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CIA	Citizens, Inc.	1996-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1201,7 +1185,6 @@ CPS	Cooper-Standard Automotive Inc.	1936-01-01	09:30:00	NYSE	America/New_York	40
 CPSH	CPS Technologies Corp. Common Stock	1997-03-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CPSS	Consumer Portfolio Services	1997-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CPT	Camden Property Trust	1981-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-CPZ	Calamos Long/Short Equity & Dynamic Income Trust Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CQP	Cheniere Energy Partners, LP	2006-12-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CR	Crane Company	1855-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CRAC	Crown Reserve Acquisition Corp. I Class A Ordinary Shares	2025-05-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1258,7 +1241,6 @@ CSHR	CoinShares PLC Ordinary Shares	2026-03-31	09:30:00	NASDAQ	America/New_York	
 CSIQ	Canadian Solar Inc. Common Shares (ON)	2006-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CSL	Carlisle Companies, Inc.	1917-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CSPI	CSP Inc.	1995-11-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-CSQ	Calamos Strategic Total Return Fund	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CSR	Centerspace	1995-07-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 CSTE	Caesarstone Ltd.	2012-02-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 CSTL	Castle Biosciences, Inc. Common Stock	2019-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1375,7 +1357,6 @@ DBRG	DigitalBridge Group, Inc.	1991-01-01	09:30:00	NYSE	America/New_York	40.7069
 DBVT	DBV Technologies S.A.	2014-09-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DBX	Dropbox, Inc. Class A	2018-02-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DC	Dakota Gold Corp.	2022-03-28	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-DCBO	Docebo Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DCGO	DocGo Inc. Common Stock	2020-09-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DCH	Dauch Corporation	1998-05-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 DCI	Donaldson Company, Inc.	1915-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1464,7 +1445,6 @@ DOGZ	Dogness (International) Corporation Class A Common Stock	2017-09-20	09:30:0
 DOLE	Dole plc	1851-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 DOMH	Dominari Holdings Inc. Common Stock	1998-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DOMO	Domo, Inc. Class B Common Stock	2018-06-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-DOO	BRP Inc. Common Subordinate Voting Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DORM	Dorman Products, Inc. New	1997-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DOUG	Douglas Elliman Inc.	2021-12-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 DOV	Dover Corporation	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1517,7 +1497,6 @@ DXLG	Destination XL Group, Inc. Common Stock	1995-04-28	09:30:00	NASDAQ	America/
 DXPE	DXP Enterprises Inc	1997-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DXR	Daxor Corporation Common Stock	1995-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DXST	Decent Holding Inc Class A Ordinary Shares	2024-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-DXYZ	Destiny Tech100 Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 DY	Dycom Industries, Inc.	1995-10-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 DYAI	Dyadic International, Inc.	2003-01-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 DYN	Dyne Therapeutics, Inc. Common Stock	1984-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1558,7 +1537,6 @@ EFSC	Enterprise Financial Services Corporation	1996-10-24	09:30:00	NASDAQ	Americ
 EFSI	Eagle Financial Services Inc Common Stock	1997-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EFTY	Etoiles Capital Group Co., Ltd. Class A Ordinary Shares	2025-05-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EFX	Equifax, Incorporated	1899-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-EFXT	Enerflex Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EG	Everest Group, Ltd.	1973-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EGAN	eGain Corporation	1999-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EGBN	Eagle Bancorp Inc	1997-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1576,7 +1554,6 @@ EHTH	eHealth, Inc.	2006-04-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	
 EIG	Employers Holdings, Inc.	2006-12-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EIKN	Eikon Therapeutics, Inc. Common Stock	2026-01-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EIX	Edison International	1886-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FCNCA	First Citizens BancShares Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EJH	E-Home Household Service Holdings Limited Ordinary Shares	2019-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EKSO	Ekso Bionics Holdings, Inc. Common Stock	2012-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EL	The Estee Lauder Companies Inc. Class A	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1601,7 +1578,6 @@ ELV	Elevance Health, Inc.	1940-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.
 ELVA	Electrovaya Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ELVN	Enliven Therapeutics, Inc. Common Stock	2020-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ELWT	Elauwit Connection, Inc. Common Stock	2025-08-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-EMA	Emera Incorporated	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EMAT	Evolution Metals & Technologies Corp. Common Stock	2021-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EMBC	Embecta Corp. Common Stock	2022-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EME	EMCOR Group, Inc.	1994-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -1642,7 +1618,6 @@ EPM	Evolution Petroleum Corporation	1998-03-30	09:30:00	NYSE American	America/Ne
 EPOW	E-Power Inc. Class A Ordinary Shares	2019-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EPR	EPR Properties	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EPRT	Essential Properties Realty Trust, Inc.	2019-02-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-EPRX	Eupraxia Pharmaceuticals Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EPSM	Epsium Enterprise Limited Class A Ordinary Shares	2022-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EPSN	Epsilon Energy Ltd.	2019-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EQ	Equillium, Inc. Common Stock	2018-09-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1714,7 +1689,6 @@ EXC	Exelon Corporation	2000-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9
 EXE	Expand Energy Corporation Common Stock	1996-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EXEL	Exelixis Inc	2000-02-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EXFY	Expensify, Inc. Class A Common Stock	2021-10-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-EXK	Endeavour Silver Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EXLS	ExlService Holdings, Inc.	2004-12-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EXOD	Exodus Movement, Inc.	2025-03-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 EXOZ	eXoZymes Inc. Common Stock	2024-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
@@ -1729,1034 +1703,403 @@ EYE	National Vision Holdings, Inc. Common Stock	2017-09-29	09:30:00	NASDAQ	Ameri
 EYPT	EyePoint, Inc. Common Stock	2006-01-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EZGO	EZGO Technologies Ltd. Ordinary Shares	2020-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 EZPW	Ezcorp Inc	1996-12-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-EZRA	Reliance Global Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 F	Ford Motor Company	1903-06-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FA	First Advantage Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FACT	FACT II Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FAF	First American Financial Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FAMI	Farmmi, Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FANG	Diamondback Energy, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FARM	Farmer Bros Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FAST	Fastenal Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FATE	Fate Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FATN	FatPipe, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FBGL	FBS Global Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FBIN	Fortune Brands Innovations, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FBIO	Fortress Biotech, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FBIZ	First Business Financial Services, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FBK	FB Financial Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FBLA	FB Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FBLG	FibroBiologics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FBNC	First Bancorp/NC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FBP	First BanCorp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FBRT	Franklin BSP Realty Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FBRX	Forte Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FBYD	Falcon's Beyond Global, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FC	Franklin Covey Company	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FCAP	First Capital Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCBC	First Community Bankshares, Inc. (VA)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCCO	First Community Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCEL	FuelCell Energy Inc  NEW (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCF	First Commonwealth Financial Corporation	1857-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FCFS	FirstCash Holdings, Inc. Common Stock	1984-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FCHL	Fitness Champs Holdings Limited Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCN	FTI Consulting, Inc.	1982-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GERN	Geron Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FCNCN	First Citizens BancShares, Inc. Depositary Shares, each representing a 1/40th interest in a share of 6.625% Non-Cumulative Perpetual Preferred Stock, Series E	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCPT	Four Corners Property Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FCRS	FutureCrest Acquisition Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FCUV	Focus Universal Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FCX	Freeport-McMoran Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FDBC	Fidelity D & D Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FDMT	4D Molecular Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FDP	Fresh Del Monte Produce Inc.	1886-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FDS	Factset Research Systems	1978-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FDSB	Fifth District Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FDUS	Fidus Investment Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FDX	FedEx Corporation	1971-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FE	FirstEnergy Corp.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FEAM	5E Advanced Materials, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FEBO	Fenbo Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FEED	ENvue Medical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FEIM	Frequency Electronics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FELE	Franklin Electric Co Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FEMY	Femasys Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FENC	Fennec Pharmaceuticals Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FER	Ferrovial SE Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FERA	Fifth Era Acquisition Corp I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FERG	Ferguson Enterprises Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FET	Forum Energy Technologies, Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FF	Future Fuel Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FFAI	Faraday Future Intelligent Electric Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FFBC	First Financial Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FFIC	Flushing Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FFIN	First Financial Bankshares Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FFIV	F5, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FG	F&G Annuities & Life, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FGBI	FIRST GUARANTY BANCSHARES INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FGI	FGI Industries Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FGII	FG Imperii Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FGL	Founder Group Limited Class A Ordinary Shares	1959-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FGMC	FG Merger II Corp. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FGNX	FG Nexus Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FHB	First Hawaiian, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FHI	Federated Hermes, Inc.	1957-10-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FHN	First Horizon Corporation	1864-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FHTX	Foghorn Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FIBK	First Interstate BancSystem, Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FICO	Fair Isaac Corporation	1956-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FIEE	FiEE, Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIG	Figma, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FIGR	Figure Technology Solutions, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIGS	FIGS, Inc.	2013-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FIGX	FIGX Capital Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIHL	Fidelis Insurance Holdings Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FINW	FinWise Bancorp Common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIP	FTAI Infrastructure Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIS	Fidelity National Information Services, Inc.	2006-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FISI	Financial Institutions Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FISV	Fiserv, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FITB	Fifth Third Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MTA	Metalla Royalty & Streaming Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FITBM	Fifth Third Bancorp Depositary Shares Representing a 1/40th Ownership Interest in a Share of 6.875% Fixed-Rate Reset Non-Cumulative Perpetual Preferred Stock, Series M	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FITBO	Fifth Third Bancorp Depositary Shares each representing a 1/1000th ownership interest in a share of Non-Cumulative Perpetual Preferred Stock, Series K	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIVE	Five Below, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIVN	FIVE9, INC.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FIX	Comfort Systems USA, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FIZZ	National Beverage Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FJET	Starfighters Space, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FKWL	Franklin Wireless Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLD	Fold Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLEX	Flex Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLG	Flagstar Bank, National Association	1993-11-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FLGT	Fulgent Genetics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLL	Full House Resorts, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLNA	Filana Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLNC	Fluence Energy, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLNG	FLEX LNG Ltd. Ordinary Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FLNT	Fluent, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLO	Flowers Foods, Inc.	1919-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FLOC	Flowco Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FLR	Fluor Corporation	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FLS	Flowserve Corporation	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FLUT	Flutter Entertainment plc	2016-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FLUX	Flux Power Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLWS	1-800-FLOWERS.COM Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FLXS	Flexsteel Industries	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLY	Firefly Aerospace Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLYE	Fly-E Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLYW	Flywire Corporation Voting Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FLYX	flyExclusive, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FMAO	Farmers & Merchants Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FMBH	First Mid Bancshares, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FMC	FMC Corporation	1883-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FMFC	Kandal M Venture Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FMNB	Farmers National Banc Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FMST	Foremost Clean Energy Ltd. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FN	Fabrinet	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FNB	F.N.B. Corp	1864-02-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FND	Floor & Decor Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FNF	Fidelity National Financial, Inc.	1847-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FNGR	FingerMotion, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FNKO	Funko, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FNLC	First Bancorp, Inc. (ME)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FNUC	Frontier Nuclear and Minerals Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FNV	Franco-Nevada Corporation	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FNWB	First Northwest Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FNWD	Finward Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOA	Finance of America Companies Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FOFO	Hang Feng Technology Innovation Co., Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FOLD	Amicus Therapeutics, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FONR	Fonar Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOR	Forestar Group Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FORA	Forian Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FORM	FormFactor Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FORR	Forrester Research Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOSL	Fossil Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOUR	Shift4 Payments, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FOX	Fox Corporation Class B Common Stock	1985-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOXA	Fox Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOXF	Fox Factory Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FOXX	Foxx Development Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FPH	Five Point Holdings, LLC Class A Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FPI	Farmland Partners Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FPS	Forgent Power Solutions, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FR	First Industrial Realty Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FRAF	Franklin Financial Services Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FRBA	First Bank	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRD	Friedman Industries Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRGT	Freight Technologies, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRHC	Freedom Holding Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRME	First Merchants Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRMEP	First Merchants Corporation Depository Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRMI	Fermi Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRMM	Forum Markets, Incorporated Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FRO	Frontline Plc	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FROG	JFrog Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FRPH	FRP Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRPT	Freshpet, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FRSH	Freshworks Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FRST	Primis Financial Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FRT	Federal Realty Investment Trust	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FSBC	Five Star Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FSBW	FS Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FSCO	FS Credit Opportunities Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FSEA	First Seacoast Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FSHP	Flag Ship Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FSI	Flexible Solutions International, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FSK	FS KKR Capital Corp. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FSLR	First Solar, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FSLY	Fastly, Inc. Class A Common Stock	2011-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FSM	Fortuna Mining Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FSP	Franklin Street Properties Corp	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FSS	Federal Signal Corp.	1901-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FSSL	FS Specialty Lending Fund	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FSTR	Foster (Lb) Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FSUN	FirstSun Capital Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FSV	FirstService Corporation Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTAI	FTAI Aviation Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTCI	FTC Solar, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FTDR	Frontdoor, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTEK	Fuel Tech, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTFT	Future FinTech Group Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTHM	Fathom Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FTI	TechnipFMC plc Ordinary Share	2000-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FTK	Flotek Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FTLF	FitLife Brands, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FTNT	Fortinet, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTRE	Fortrea Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTRK	FAST TRACK GROUP Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FTS	Fortis Inc. Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FTV	Fortive Corporation	2016-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FTW	Presidio Production Company	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FUBO	FuboTV Inc.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FUFU	BitFuFu Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FUL	H.B. Fuller Company	1887-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FULC	Fulcrum Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FULT	Fulton Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FULTP	Fulton Financial Corporation Depositary Shares, Each Representing a 1/40th Interest in a Share of Fixed Rate Non-Cumulative Perpetual Preferred Stock, Series A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FUN	Six Flags Entertainment Corporation	2024-07-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FUNC	First United Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FUND	Sprott Focus Trust, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FURY	Fury Gold Mines Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 FUSB	First US Bancshares, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FUSE	Fusemachines Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FVAV	Fortress Value Acquisition Corp. V Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FVCB	FVCBankcorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FVN	Future Vision II Acquisition Corporation Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FVR	FrontView REIT, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FVRR	Fiverr International Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-FWDI	Forward Industries, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FWONA	Liberty Media Corporation Series A Liberty Formula One Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FWONK	Liberty Media Corporation Series C Liberty Formula One Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 FWRD	Forward Air Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FWRG	First Watch Restaurant Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-FXNC	FIRST NATL CORP STRASBURG VA	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 G	GENPACT LIMITED	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GABC	German American Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GAIA	Gaia, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAIN	Gladstone Investment Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAING	Gladstone Investment Corporation 7.125% Notes due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAINI	Gladstone Investment Corporation 7.875% Notes due 2030	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GAINN	Gladstone Investment Corporation 5.00% Notes Due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAINZ	Gladstone Investment Corporation 4.875% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GALT	Galectin Therapeutics Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAMB	Gambling.com Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GAME	GameSquare Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GANX	Gain Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GAP	The Gap, Inc.	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GASS	StealthGas, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GATX	GATX Corporation	1933-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GAU	Galiano Gold Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GAUZ	Gauzy Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GBCI	Glacier Bancorp Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GBDC	Golub Capital BDC, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GBFH	GBank Financial Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GBLI	Global Indemnity Group, LLC Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GBR	New Concept Energy Inc	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GBTG	Global Business Travel Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GBX	The Greenbrier Companies, Inc.	1981-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GCBC	Greene County Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GCDT	Green Circle Decarbonize Technology Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GCL	GCL Global Holdings Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GCMG	GCM Grosvenor Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GCO	Genesco Inc.	1924-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GCT	GigaCloud Technology Inc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GCTK	GlucoTrack, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GCTS	GCT Semiconductor Holding, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GD	General Dynamics Corporation	1952-02-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GDC	GD Culture Group Limited Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GDDY	GoDaddy Inc	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GDEN	Golden Entertainment, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GDEV	GDEV Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GDHG	Golden Heaven Group Holdings Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GDOT	Green Dot Corporation	1999-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GDRX	GoodRx Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GDTC	CytoMed Therapeutics Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GDYN	Grid Dynamics Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GE	GE Aerospace	1917-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GECC	Great Elm Capital. Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GECCG	Great Elm Capital Corp. 7.75% Notes Due 2030	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GECCH	Great Elm Capital Corp. 8.125% Notes Due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GECCI	Great Elm Capital Corp. 8.50% NOTES DUE 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GECCO	Great Elm Capital Corp. 5.875% Notes due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GEF	Greif, Inc.	1877-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GEF.B	Greif, Inc. Class B	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GEG	Great Elm Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GEGGL	Great Elm Group, Inc. 7.25% Notes due 2027	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GEHC	GE HealthCare Technologies Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GEL	Genesis Energy, L.P.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GELS	Gelteq Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GEMI	Gemini Space Station, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GEN	Gen Digital Inc. Common Stock	2001-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GENB	Generate Biomedicines, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GENC	Gencor Industries, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GENI	Genius Sports Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GENK	GEN Restaurant Group, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GEO	The GEO Group, Inc.	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GEOS	Geospace Technologies Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GETY	Getty Images Holdings, Inc.	1995-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GEV	GE Vernova Inc.	2023-02-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GEVO	Gevo, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GFAI	Guardforce AI Co., Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GFF	Griffon Corp	1995-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GFL	GFL Environmental Inc. Subordinate Voting Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GFR	Greenfire Resources Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GFS	GlobalFoundries Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GGG	Graco Inc	1926-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GGR	Gogoro Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GGRP	The Glimpse Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GH	Guardant Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GHC	GRAHAM HOLDINGS COMPANY	1889-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GHM	Graham Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GHRS	GH Research PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIB	CGI Inc.	1976-06-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GIBO	GIBO Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIC	Global Industrial Company	1949-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GIFT	Giftify, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIG	GigCapital7 Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIGM	GigaMedia Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIII	G-Iii Apparel Group Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIL	Gildan Activewear Inc.	1984-05-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GILD	Gilead Sciences Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GILT	Gilat Satellite Networks Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GIPR	Generation Income Properties Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GIS	General Mills, Inc.	1856-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GITS	Global Interactive Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GIW	GigCapital8 Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GIX	GigCapital9 Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GKOS	Glaukos Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GL	Globe Life Inc.	1900-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLAD	Gladstone Capital Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLBE	Global-E Online Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLBS	Globus Maritime Limited	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GLDG	GoldMining Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLE	Global Engine Group Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLED	GalaxyEdge Acquisition Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLIBA	GCI Liberty, Inc. Series A GCI Group Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLIBK	GCI Liberty, Inc. Series C GCI Group Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLMD	Galmed Pharmaceuticals Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLND	Greenland Energy Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GLNG	Golar LNG Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GLOB	GLOBANT S.A.	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLOO	Gloo Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLP	Global Partners LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLPI	Gaming and Leisure Properties, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLRE	Greenlight Captial RE, LTD. Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLSI	Greenwich LifeSciences, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLUE	Monte Rosa Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GLW	Corning Incorporated	1851-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GLXG	Galaxy Payroll Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GLXY	Galaxy Digital Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GM	General Motors Company	1908-09-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GME	GameStop Corp. Class A	1980-08-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GMED	GLOBUS MEDICAL INC	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GMEX	GMEX ROBOTICS CORPORATION Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GMHS	Gamehaus Holdings Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GMM	Global Mofy AI Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GNE	GENIE ENERGY LTD	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GNK	GENCO SHIPPING & TRADING LTD	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GNL	Global Net Lease, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GNLN	Greenlane Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GNLX	Genelux Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GNPX	Genprex, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GNRC	GENERAC HOLDINGS INC	1959-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GNS	Genius Group Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GNSS	Genasys Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GNTX	Gentex Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GNW	Genworth Financial, Inc.	2004-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GO	Grocery Outlet Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GOAI	Eva Live Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GOCO	GoHealth, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GOGO	Gogo Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GOLD	Gold.com, Inc.	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GOLF	Acushnet Holdings Corp.	1910-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GOOD	Gladstone Commercial Corporation - REIT	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GOOG	Alphabet Inc. Class C Capital Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GOOGL	Alphabet Inc.	2004-08-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	1998-09-04	manual	Dutch auction IPO, opened at $100.01
-GOOS	Canada Goose Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GORO	Gold Resource Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GOSS	Gossamer Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GOVX	GeoVax Labs, Inc. New	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GP	GreenPower Motor Company Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GPAC	General Purpose Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GPAT	GP-Act III Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GPC	Genuine Parts Company	1925-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GPGI	GPGI, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GPI	Group 1 Automotive, Inc.	1995-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GPK	Graphic Packaging Holding Company	1978-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GPMT	Granite Point Mortgage Trust Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GPN	Global Payments, Inc.	2000-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GPOR	Gulfport Energy Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GPRE	Green Plains, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GPRK	GEOPARK LIMITED	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GPRO	GoPro, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GPUS	Hyperscale Data, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRAB	Grab Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRAF	Graf Global Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GRAL	GRAIL, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRAN	Grande Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRBK	Green Brick Partners, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GRC	The Gorman-Rupp Company Common Shares	1933-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRCE	Grace Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRDN	Guardian Pharmacy Services, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRDX	GridAI Technologies Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GREE	Greenidge Generation Holdings Inc. Class A Common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GREEL	Greenidge Generation Holdings Inc. 8.50% Senior Notes due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRI	GRI Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRML	Greenland Mines Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GRMN	Garmin Ltd	1989-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GRND	Grindr Inc.	2009-03-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRNQ	Greenpro Capital Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRNT	Granite Ridge Resources, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRO	Brazil Potash Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GROV	Grove Collaborative Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GROW	US Global Investors Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GROY	Gold Royalty Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GRPN	Groupon, Inc.Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRRR	Gorilla Technology Group Inc. Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GRWG	GROW GENERATION CORP	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GS	Goldman Sachs Group Inc.	1869-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GSAT	Globalstar, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GSBC	Great Southern Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSBD	Goldman Sachs BDC, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GSHD	Goosehead Insurance, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSHR	Gesher Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSIT	GSI Technology	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSIW	Garden Stage Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GSL	Global Ship Lease, Inc.	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GSM	Ferroglobe PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSRF	GSR IV Acquisition Corp. Class A ordinary share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GSUN	Golden Sun Technology Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GT	Goodyear Tire & Rubber	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTBP	GT Biopharma Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GTE	Gran Tierra Energy Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GTEC	Greenland Technologies Holding Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTEN	Gores Holdings X, Inc. Class A ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTERA	Globa Terra Acquisition Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GTES	Gates Industrial Corporation plc	1911-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GTIM	Good Times Restaurants Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTLB	GitLab Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTLS	Chart Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GTM	ZoomInfo Technologies Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GTN	Gray Media, Inc.	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GTN.A	Gray Media, Inc. Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GTX	Garrett Motion Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GTY	Getty Realty Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GURE	Gulf Resources, Inc. (NV) Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GUTS	Fractyl Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GV	Visionary Holdings Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GVA	Granite Construction Inc.	1922-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GVH	Globavend Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GWAV	Greenwave Technology Solutions, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GWH	ESS Tech, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GWRE	GUIDEWIRE SOFTWARE, INC.	2001-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GWRS	Global Water Resources, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GWW	W.W. Grainger, Inc.	1927-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-GXAI	Gaxos.ai Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 GXO	GXO Logistics, Inc.	2021-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 GYRE	Gyre Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-GYRO	Gyrodyne, LLC Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 H	Hyatt Hotels Corporation	1957-09-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HACQ	HCM IV Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HAE	Haemonetics Corporation	1971-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HAFC	Hanmi Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HAFN	Hafnia Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HAIN	Hain Celestial Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HAL	Halliburton Company	1919-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HALO	Halozyme Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HAO	Haoxi Health Technology Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HAS	Hasbro, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HASI	HA Sustainable Infrastructure Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HAVA	Harvard Ave Acquisition Corporation Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HAVAR	Harvard Ave Acquisition Corporation Rights that convert on a 1/10th of 1 basis to Class A ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HAYW	Hayward Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HBAN	Huntington Bancshares Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBANL	Huntington Bancshares Incorporated Depositary Shares, Each Representing a 1/40th Interest in a Share of 6.875% Series J Non-Cumulative Perpetual Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBANM	Huntington Bancshares Incorporated Depositary Shares each representing a 1/1000th interest in a share of Huntington Series I Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBANZ	Huntington Bancshares Incorporated Depositary Shares, Each Representing a 1/1000th Interest in a Share of 5.50% Series L Non-Cumulative Perpetual Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HBB	Hamilton Beach Brands Holding Company Class A Common Stock	1910-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HBCP	Home Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBIO	Harvard Bioscience Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HBM	Hudbay Minerals Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HBNB	Hotel101 Global Holdings Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBNC	Horizon Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HBT	HBT Financial, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HCA	HCA Healthcare, Inc.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HCAC	Hall Chadwick Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCAI	Huachen AI Parking Management Technology Holding Co., Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCAT	Health Catalyst, Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HCC	Warrior Met Coal, Inc.	1974-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HCHL	Happy City Holdings Limited Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCI	HCI Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HCIC	Hennessy Capital Investment Corp. VIII Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCKT	Hackett Group Inc (The).	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCMA	HCM III Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HCSG	Healthcare Services Group	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCTI	Healthcare Triangle, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCWB	HCW Biologics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HCWC	Healthy Choice Wellness Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HD	Home Depot, Inc.	1978-02-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HDSN	Hudson Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HE	Hawaiian Electric Industries, Inc.	1891-10-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HEI	HEICO Corporation	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HEI.A	HEICO CORP CL A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HELE	Helen Of Troy Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HELP	Cybin Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HERZ	Herzfeld Credit Income Fund, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HESM	Hess Midstream LP Class A Share representing a limited partner Interest	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HFBL	Home Federal Bancorp, Inc. of Louisiana	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HFFG	HF Foods Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HFWA	Heritage Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HG	Hamilton Insurance Group, Ltd. Class B Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HGBL	HERITAGE GLOBAL INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HGTY	Hagerty, Inc.	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HGV	Hilton Grand Vacations Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HHH	Howard Hughes Holdings Inc.	1913-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HHS	Harte-Hanks, Inc. Common Stock	1923-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HIFS	Hingham Institution for Saving	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HIG	The Hartford Insurance Group, Inc.	1810-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HIHO	Highway Holdings Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HII	Huntington Ingalls Industries, Inc.	2011-03-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HIMS	Hims & Hers Health, Inc.	2017-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HIND	Vyome Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HIPO	Hippo Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HIT	Health In Tech, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HITI	High Tide Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HIVE	HIVE Digital Technologies Ltd. Common Shares	2006-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HIW	Highwoods Properties Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HKIT	Hitek Global Inc. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HKPD	Cellyan Biotechnology Co., Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HL	Hecla Mining Company	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HLF	Herbalife Ltd.	1980-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HLI	Houlihan Lokey, Inc.	1972-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HLIO	Helios Technologies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HLIT	Harmonic Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HLLY	Holley Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HLMN	Hillman Solutions Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HLNE	Hamilton Lane Incorporated Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HLP	Hongli Group Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HLT	Hilton Worldwide Holdings Inc.	1919-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HLX	Helix Energy Solutions Group, Inc.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HLXC	Helix Acquisition Corp. III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HMH	HMH Holding Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HMN	Horace Mann Educators Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HMR	Heidmar Maritime Holdings Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HNGE	Hinge Health, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HNI	HNI Corporation	1944-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HNNA	Hennessy Advisors, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HNNAZ	Hennessy Advisors, Inc. 4.875% Notes due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HNRG	Hallador Energy Company	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HNST	The Honest Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HNVR	Hanover Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOFT	Hooker Furnishings Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOG	Harley-Davidson, Inc.	1903-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HOLO	MicroCloud Hologram Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOMB	Home BancShares, Inc.	1999-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HON	Honeywell International, Inc.	1885-04-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOOD	Robinhood Markets, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOPE	Hope Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOTH	Hoth Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HOUR	Hour Loop, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HOV	Hovnanian Enterprises, Inc. Class A	1959-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HOVR	New Horizon Aircraft Ltd. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HOWL	Werewolf Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HP	Helmerich & Payne, Inc.	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HPAI	Helport AI Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HPE	Hewlett Packard Enterprise Company	2015-11-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HPK	HighPeak Energy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HPP	Hudson Pacific Properties, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HPQ	HP Inc.	2015-11-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HQ	Horizon Quantum Holdings Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HQI	HireQuest, Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HQY	HealthEquity, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HR	Healthcare Realty Trust Incorporated	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HRB	H&R Block, Inc.	1955-01-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HRI	Herc Holdings Inc.	1965-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HRL	Hormel Foods Corporation	1891-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HRMY	Harmony Biosciences Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HROW	Harrow, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HRTG	HERITAGE INSURANCE HOLDINGS INC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HRTX	Heron Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HRZN	Horizon Technology Finance Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HSAI	Hesai Group American Depositary Share, each ADS represents one Class B ordinary share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HSCS	HeartSciences Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HSDT	Solana Company Class A Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HSHP	Himalaya Shipping Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HSIC	Henry Schein Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HSLV	Highlander Silver Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HSPT	Horizon Space Acquisition II Corp. Ordinary share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HST	Host Hotels & Resorts, Inc.	1993-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HSTM	HealthStream Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HSY	The Hershey Company	1894-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HTB	HomeTrust Bancshares, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HTBK	Heritage Commerce Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTCO	High-Trend International Group Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTCR	Heartcore Enterprises, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTFL	Heartflow, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTGC	Hercules Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HTH	HILLTOP HOLDINGS INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HTLD	Heartland Express Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTLM	HomesToLife Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTO	H2O America Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HTOO	Fusion Fuel Green PLC Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HTZ	Hertz Global Holdings, Inc Common Stock	1977-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HUBB	Hubbell Incorporated	1905-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HUBC	Hub Cyber Security Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HUBG	HUB Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HUBS	HUBSPOT, INC.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HUDI	Huadi International Group Co., Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HUHU	HUHUTECH International Group Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HUM	Humana Inc.	1961-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HUMA	Humacyte, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HUN	Huntsman Corporation	1982-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HURA	TuHURA Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HURC	Hurco Cos Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HURN	Huron Consulting Group Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HUT	Hut 8 Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HVII	Hennessy Capital Investment Corp. VII Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HVMC	Highview Merger Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HVT	Haverty Furniture Companies, Inc.	1885-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HVT.A	Haverty Furniture Companies, Inc. Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HWBK	Hawthorn Bancshars Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HWC	Hancock Whitney Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HWCPZ	Hancock Whitney Corporation 6.25% Subordinated Notes due 2060	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HWH	HWH International Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HWKN	Hawkins Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HWM	Howmet Aerospace Inc.	2016-11-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HXHX	Haoxin Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HXL	Hexcel Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 HY	Hyster-Yale, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HYFM	Hydrofarm Holdings Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 HYFT	MindWalk Holdings Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HYLN	Hyliion Holdings Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-HYMC	Hycroft Mining Holding Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HYNE	Hoyne Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HYPD	Hyperion DeFi, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HYPR	Hyperfine, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-HZO	MarineMax, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IAC	IAC Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IACO	Idea Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IAG	IAMGold Corporation	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IART	Integra LifeSciences Holdings	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IAUX	i-80 Gold Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IBAC	IB Acquisition Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IBCP	Independent Bank Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IBEX	IBEX Limited Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IBG	Innovation Beverage Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IBIO	iBio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IBKR	Interactive Brokers Group, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IBM	International Business Machines Corporation	1911-06-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IBO	Impact BioMedical, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IBOC	International Bancshares Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IBP	INSTALLED BUILDING PRODUCTS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IBRX	ImmunityBio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IBTA	Ibotta, Inc.	2011-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ICCC	Immucell Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICCM	IceCure Medical Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ICE	Intercontinental Exchange  Inc.	2000-05-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ICFI	ICF International, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICHR	Ichor Holdings	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ICL	ICL Group Ltd.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ICLR	Icon Plc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICMB	Investcorp Credit Management BDC, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICON	Icon Energy Corp. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICU	SeaStar Medical Holding Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ICUI	ICU Medical Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IDA	IDACORP, Inc.	1998-10-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IDAI	T Stamp Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IDCC	InterDigital, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IDN	Intellicheck, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IDR	Idaho Strategic Resources, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IDT	IDT Corporation Class B	1990-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IDXX	Idexx Laboratories Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IDYA	IDEAYA Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IE	Ivanhoe Electric Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IEAG	Infinite Eagle Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IEP	Icahn Enterprises L.P	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IESC	IES Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IEX	IDEX Corporation	1988-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IFBD	Infobird Co., Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IFF	International Flavors & Fragrances Inc.	1958-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IFRX	InflaRx N.V. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IFS	Intercorp Financial Services Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IGAC	Invest Green Acquisition Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IGC	IGC Pharma, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IGIC	International General Insurance Holdings Ltd. Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IHRT	iHeartMedia, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IHS	IHS Holding Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IHT	InnSuites Hospitality Trust	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-III	Information Services Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IIIN	Insteel Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IIIV	i3 Verticals, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IINN	Inspira Technologies Oxy B.H.N. Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IIPR	Innovative Industrial Properties, Inc. Common stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IKT	Inhibikase Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ILLR	Triller Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ILMN	Illumina Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMA	ImageneBio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IMAX	Imax Corp	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IMCC	IM Cannabis Corp. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMDX	Insight Molecular Diagnostics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IMKTA	Ingles Markets Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMMR	Immersion Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMMX	Immix Biopharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMNM	Immunome, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IMNN	Imunon, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IMO	Imperial Oil Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IMPP	Imperial Petroleum Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMPPP	Imperial Petroleum Inc. 8.75% Series A Cumulative Redeemable Perpetual Preferred Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMRX	Immuneering Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMSR	Terrestrial Energy Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMTE	Integrated Media Technology Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMTX	Immatics N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMUX	Immunic, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMVT	Immunovant, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IMXI	International Money Express, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INAB	IN8bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INAC	Indigo Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INBK	First Internet Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INBKZ	First Internet Bancorp 6.0% Fixed-to-Floating Rate Subordinated Notes Due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INBS	Intelligent Bio Solutions Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INBX	Inhibrx Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INCR	Intercure Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INCY	Incyte Genomics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INDB	Independent Bank Corp/MA	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INDI	indie Semiconductor, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INDO	Indonesia Energy Corporation Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INDP	Indaptus Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INDV	Indivior Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INEO	INNEOVA Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INFQ	Infleqtion, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INFU	InfuSystem Holdings, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 INGM	Ingram Micro Holding Corporation	1979-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INGN	Inogen Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INGR	Ingredion Incorporated	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INHD	Inno Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INKT	MiNK Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INLF	INLIF LIMITED Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INLX	Intellinetics, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INM	InMed Pharmaceuticals Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INMB	INmune Bio Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INMD	InMode Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INN	Summit Hotel Properties, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INNV	InnovAge Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INO	Inovio Pharmaceuticals, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INOD	Innodata Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INR	Infinity Natural Resources, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INSE	Inspired Entertainment, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INSG	Inseego Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INSM	Insmed, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INSP	Inspire Medical Systems, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INSW	International Seaways, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INTA	Intapp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INTC	Intel Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INTG	Intergroup Corporation (The)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INTJ	Intelligent Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INTR	Inter & Co. Inc. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INTS	Intensity Therapeutics, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INTT	inTEST Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 INTU	Intuit Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INTZ	Intrusion Inc New	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INUV	Inuvo, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INV	Innventure, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INVA	Innoviva, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 INVE	Identive, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-INVH	Invitation Homes Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INVX	Innovex International, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-INVZ	Innoviz Technologies Ltd. Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IONQ	IonQ, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IONS	Ionis Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IOR	Income Opportunity Realty Investors, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IOSP	Innospec Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IOT	Samsara Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IOTR	iOThree Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IOVA	Iovance Biotherapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IP	International Paper Co.	1898-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IPAR	Interparfums, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPCX	Inflection Point Acquisition Corp. III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPDN	Professional Diversity Network, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPEX	Inflection Point Acquisition Corp. V Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IPGP	IPG Photonics Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IPI	Intrepid Potash, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IPM	Intelligent Protection Management Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IPOD	Dune Acquisition Corporation II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPSC	Century Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPST	IP Strategy Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPW	iPower, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IPWR	Ideal Power Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IQST	IQSTEL INC. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IQV	IQVIA Holdings Inc.	2016-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 IR	Ingersoll Rand Inc. Common Stock	2020-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IRAB	Iris Acquisition Corp II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IRD	Opus Genetics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IRDM	Iridium Communications Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IREN	IREN Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IRHO	Iron Horse Acquisitions II Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IRIX	Iridex Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IRM	Iron Mountain Inc.	1951-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IRMD	iRadimed Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IRON	Disc Medicine, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IRT	Independence Realty Trust Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IRTC	iRhythm Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IRWD	Ironwood Pharmaceuticals, Inc. - Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ISBA	Isabella Bank Corporation Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ISOU	IsoEnergy Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ISPC	iSpecimen Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ISPR	Ispire Technology Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ISRG	Intuitive Surgical Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ISSC	Innovative Solutions & Support	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ISTR	Investar Holding Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IT	Gartner, Inc.	1979-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ITGR	Integer Holdings Corporation	1970-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ITHA	ITHAX Acquisition Corp III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ITIC	Investors Title Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ITOC	iTonic Holdings Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ITP	IT Tech Packaging, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ITRG	Integra Resources Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ITRI	Itron Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ITRN	Ituran Location and Control Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ITT	ITT Inc.	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ITW	Illinois Tool Works Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IVDA	Iveda Solutions, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IVF	INVO Fertility, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IVR	Invesco Mortgage Capital Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IVT	InvenTrust Properties Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IVVD	Invivyd, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 IVZ	Invesco LTD	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-IZEA	IZEA Worldwide, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-IZM	ICZOOM Group Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 J	Jacobs Solutions Inc.	1947-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JACK	Jack in the Box Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JACS	Jackson Acquisition Company II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JAGU	Jaguar Uranium Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JAGX	Jaguar Health, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JAKK	Jakks Pacific Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JAN	Janus Living, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JANX	Janux Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JATT	JATT II Acquisition Corp Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JAZZ	Jazz Pharmaceuticals, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JBDI	JBDI Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JBGS	JBG SMITH Properties Common Shares	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JBHT	JB Hunt Transport Services Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JBI	Janus International Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JBIO	Jade Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JBL	Jabil Inc.	1966-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JBLU	JetBlue Airways Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JBS	JBS N.V.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JBSS	John B. Sanfilippo & SON	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JBTM	JBT Marel Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JCAP	Jefferson Capital, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JCI	Johnson Controls International plc	1885-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JCSE	JE Cleantech Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JCTC	Jewett-Cameron Trading	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JDZG	JIADE LIMITED Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JEF	Jefferies Financial Group Inc.	1962-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JELD	JELD-WEN Holding, Inc.	1960-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JEM	707 Cayman Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JENA	Jena Acquisition Corporation II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JFB	JFB Construction Holdings Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JHG	Janus Henderson Group plc Ordinary Shares	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JHX	James Hardie Industries plc	1888-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JILL	J.Jill, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JJSF	J&J Snack Foods Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JKHY	Henry (Jack) & Associates	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JL	J-Long Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JLHL	Julong Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JLL	Jones Lang LaSalle, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JMG	JM Group Limited	1882-01-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JMSB	John Marshall Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 JNJ	Johnson & Johnson	1886-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JOB	GEE Group Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JOBY	Joby Aviation, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JOE	St. Joe Company	1936-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JOUT	Johnson Outdoors Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KMPR	Kemper Corporation	1990-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 JPM	JPMorgan Chase & Co.	2000-12-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	1799-09-01	manual	Current entity formed by Chase Manhattan + J.P. Morgan merger Dec 2000
-JRSH	Jerash Holdings (US), Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JRVR	James River Group Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JSM	Navient Corporation 6% Senior Notes due December 15, 2043	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JSPR	Jasper Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JTAI	Jet.AI Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JUNS	Jupiter Neurosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JVA	Coffee Holding Co., Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JWEL	Jowell Global Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JXG	JX Luxventure Limited Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JXN	Jackson Financial Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-JYD	Jayud Global Logistics Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JYNT	The Joint Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-JZXN	Jiuzi Holdings, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KAI	Kadant Inc.	1991-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KALA	KALA BIO, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KALU	Kaiser Aluminum Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KALV	KalVista Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KAPA	Kairos Pharma, Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KARO	Karooooo Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KBDC	Kayne Anderson BDC, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KBH	KB Home	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KBON	Karbon Capital Partners Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KBR	KBR, Inc.	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KBSX	FST Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KCHV	Kochav Defense Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KD	Kyndryl Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KDK	Kodiak AI, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KDP	Keurig Dr Pepper Inc.	2018-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KE	Kimball Electronics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KEEL	Keel Infrastructure Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KELYA	Kelly Services Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KELYB	Kelly Services Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KEN	KENON HOLDINGS LTD.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KEQU	Kewaunee Scientific Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KEX	Kirby Corporation	1921-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KEY	KeyCorp	1825-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KEYS	Keysight Technologies, Inc.	2014-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KFFB	Kentucky First Federal Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KFII	K&F Growth Acquisition Corp. II Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KFRC	Kforce Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KFS	Kingsway Financial Services, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KFY	Korn Ferry	1969-11-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KG	Kestrel Group, Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KGC	Kinross Gold Corporation	1993-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KGEI	Kolibri Global Energy Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KGS	Kodiak Gas Services, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KHC	The Kraft Heinz Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KIDS	OrthoPediatrics Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KIDZ	Classover Holdings, Inc. Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KIM	Kimco Realty Corp.	1958-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KINS	Kingstone Companies, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KITT	Nauticus Robotics, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KKR	KKR & Co. Inc.	1976-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KLAC	KLA Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KLAR	Klarna Group plc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KLC	KinderCare Learning Companies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KLIC	Kulicke & Soffa Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KLRA	Kailera Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KLRS	Kalaris Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KLTR	Kaltura, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KLXE	KLX Energy Services Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KMB	Kimberly-Clark Corp.	1872-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KMDA	Kamada Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KMI	Kinder Morgan, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KMRK	K-Tech Solutions Company Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KMT	Kennametal Inc.	1938-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KMTS	Kestra Medical Technologies, Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KMX	CarMax Inc.	1993-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KN	KNOWLES CORPORATION	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KNDI	Kandi Technologies Group, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KNF	Knife River Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KNOP	KNOT OFFSHORE PARTNERS LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KNRX	KNOREX LTD.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KNSA	Kiniksa Pharmaceuticals International, plc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KNSL	Kinsale Capital Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KNTK	Kinetik Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KNX	Knight-Swift Transportation Holdings Inc. Class A Common Stock	2017-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KO	Coca-Cola Company	1886-05-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KOD	Kodiak Sciences Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KODK	EASTMAN KODAK COMPANY	1882-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KOP	Koppers Holdings, Inc.	1988-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KOPN	Kopin Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KORE	KORE Group Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KOS	Kosmos Energy Ltd.	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KOSS	Koss Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KOYN	CSLM Digital Asset Acquisition Corp III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KPLT	Katapult Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KPRX	Kiora Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KPTI	Karyopharm Therapeutics Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KR	The Kroger Co.	1883-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KRAQ	KRAKacquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KRC	Kilroy Realty Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KREF	KKR Real Estate Finance Trust Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KRG	Kite Realty Group Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KRMD	KORU Medical Systems, Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRMN	Karman Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KRNT	Kornit Digital Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRNY	Kearny Financial Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KRO	Kronos Worldwide, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KROS	Keros Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRP	Kimbell Royalty Partners, LP Common Units representing Limited Partner Interests	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KRRO	Korro Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRSP	Rice Acquisition Corporation 3	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KRT	Karat Packaging Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRUS	Kura Sushi USA, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KRYS	Krystal Biotech, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KSCP	Knightscope, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KSS	Kohls Corporation	1962-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KTB	Kontoor Brands, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KTCC	KEY Tronic Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KTOS	Kratos Defense & Security Solutions, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KTTA	Pasithea Therapeutics Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KTWO	K2 Capital Acquisition Corporation Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KULR	KULR Technology Group, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KURA	Kura Oncology, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KUST	Kustom Entertainment, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KVAC	Keen Vision Acquisition Corporation Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KVHI	KVH Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KVUE	Kenvue Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KVYO	Klaviyo, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 KW	KENNEDY-WILSON HOLDINGS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KWM	K Wave Media, Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KWR	Quaker Houghton	1918-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-KXIN	Kaixin Holdings Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KYIV	Kyivstar Group Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KYMR	Kymera Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KYNB	Kyntra Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-KYTX	Kyverna Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 KZR	Kezar Life Sciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 L	Loews Corporation	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LAB	Standard BioTools Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LAC	Lithium Americas Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LAD	Lithia Motors, Inc.	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LADR	LADDER CAPITAL CORP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LAES	SEALSQ Corp Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LAFA	LaFayette Acquisition Corp. Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LAKE	Lakeland Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LAMR	Lamar Advertising Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LAND	Gladstone Land Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LANDO	Gladstone Land Corporation 6.00% Series B Cumulative Redeemable Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LANV	Lanvin Group Holdings Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LAR	Lithium Argentina AG	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LARK	Landmark Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LASE	Laser Photonics Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LASR	nLIGHT, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LATA	Galata Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LAUR	Laureate Education, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LAW	CS Disco, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LAZ	Lazard, Inc.	1848-07-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LB	LandBridge Company LLC	1963-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LBGJ	Li Bang International Corporation Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LBRDA	Liberty Broadband Corporation Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LBRDK	Liberty Broadband Corporation Class C	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LBRT	Liberty Energy Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LBRX	LB Pharmaceuticals Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LBTYA	Liberty Global Ltd. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LBTYB	Liberty Global Ltd. Class B Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LBTYK	Liberty Global Ltd. Class C Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LC	LendingClub Corporation	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LCCC	Lakeshore Acquisition III Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LCFY	Locafy Limited Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LCID	Lucid Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LCII	LCI Industries	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LCNB	LCNB Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LCTX	Lineage Cell Therapeutics, Inc.	1990-01-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LCUT	Lifetime Brands, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LDI	loanDepot, Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -2764,984 +2107,401 @@ LDOS	Leidos Holdings, Inc.	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74
 LE	Lands' End, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LEA	Lear Corporation	1917-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LECO	Lincoln Electric Holdings Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LEDS	SemiLEDS Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LEE	Lee Enterprises, Inc.	1890-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LEG	Leggett & Platt, Inc.	1883-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LEGH	Legacy Housing Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LEGO	Legato Merger Corp. IV	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LEGT	Legato Merger Corp. III	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LEN	Lennar Corporation Class A	1954-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LEN.B	Lennar Corporation Class B	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LENZ	LENZ Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LESL	Leslie's, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LEU	Centrus Energy Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LEVI	Levi Strauss & Co. Class A Common Stock	1853-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LEXX	Lexaria Bioscience Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFAC	Leapfrog Acquisition Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LFCR	Lifecore Biomedical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFMD	LifeMD, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFST	LifeStance Health Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFT	Lument Finance Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LFUS	Littelfuse Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFVN	Lifevantage Corporation Common Stock (Delaware)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LFWD	Lifeward Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LGCB	Linkage Global Inc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LGCL	Lucas GC Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LGCY	Legacy Education Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LGHL	Lion Group Holding Ltd. American Depositary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LGIH	LGI Homes, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LGL	The LGL Group, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LGN	Legence Corp. Class A Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LGND	Ligand Pharmaceuticals Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LGO	Largo Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LGPS	LogProstyle Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LGVN	Longeveron Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LH	Labcorp Holdings Inc.	1978-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LHAI	Linkhome Holdings Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LHSW	Lianhe Sowell International Group Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LHX	L3Harris Technologies, Inc.	2019-06-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LICN	Lichen China Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIDR	AEye, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIEN	Chicago Atlantic BDC, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIF	Life360, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIFE	Ethos Technologies Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LII	Lennox International Inc.	1999-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LILA	Liberty Latin America Ltd. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LILAK	Liberty Latin America Ltd. Class C Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LIMN	Liminatus Pharma, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LIN	Linde plc Ordinary Share	1994-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LINC	Lincoln Educational Services	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LIND	Lindblad Expeditions Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LINE	Lineage, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LINK	Interlink Electronics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LION	Lionsgate Studios Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LIQT	LiqTech International, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LITE	Lumentum Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LITS	Lite Strategy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIVE	Live Ventures Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LIVN	LivaNova PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LIXT	Lixte Biotechnology Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LKFN	Lakeland Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LKQ	LKQ Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LKSP	Lake Superior Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LLY	Eli Lilly & Co.	1875-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LLYVA	Liberty Live Holdings, Inc. Series A Liberty Live Group Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LLYVK	Liberty Live Holdings, Inc. Series C Liberty Live Group Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LMAT	LeMaitre Vascular, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LMB	Limbach Holdings, Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LMFA	LM Funding America, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LMND	Lemonade, Inc.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LMNR	Limoneira Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LMRI	Lumexa Imaging Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LMT	Lockheed Martin Corp.	1995-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LNAI	Lunai Bioworks Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LNC	Lincoln National Corp.	1905-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LNG	Cheniere Energy Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LNKB	LINKBANCORP, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LNKS	Linkers Industries Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LNN	Lindsay Corporation	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LNSR	LENSAR, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LNT	Alliant Energy Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LNTH	Lantheus Holdings, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LNZA	LanzaTech Global, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOAN	Manhattan Bridge Capital, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOAR	Loar Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LOB	Live Oak Bancshares, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LOBO	LOBO TECHNOLOGIES LTD. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOCL	Local Bounti Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LOCO	El Pollo Loco Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LODE	Comstock Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LOGI	Logitech International SA	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOKV	Live Oak Acquisition Corp. V Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LONA	LeonaBio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOOP	Loop Industries, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LOPE	Grand Canyon Education, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LOVE	The Lovesac Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LOW	Lowe's Companies Inc.	1921-03-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LPA	Logistic Properties of the Americas	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LPAA	Launch One Acquisition Corp. Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPBB	Launch Two Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPCN	Lipocine Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPCV	Launchpad Cadenza Acquisition Corp I Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPG	DORIAN LPG LTD	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LPLA	LPL Financial Holdings Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPRO	Open Lending Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPSN	LivePerson Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LPTH	Lightpath Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LPX	Louisiana-Pacific Corp.	1973-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LQDA	Liquidia Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LQDT	Liquidity Services, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LRCX	Lam Research Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LRHC	La Rosa Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LRMR	Larimar Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LRN	Stride, Inc.	2000-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LSAK	Lesaka Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LSBK	Lake Shore Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LSCC	Lattice Semiconductor Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LSE	Leishen Energy Holding Co., Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LSF	Laird Superfood, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LSH	Lakeside Holding Limited Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LSPD	Lightspeed Commerce Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LSTA	Lisata Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LSTR	Landstar System Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LTBR	Lightbridge Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LTC	LTC Properties, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LTH	Life Time Group Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LTRN	Lantern Pharma Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LTRX	Lantronix Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LUCD	Lucid Diagnostics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LUCK	Lucky Strike Entertainment Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LUCY	Innovative Eyewear, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LUD	Luda Technology Group Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LULU	lululemon athletica inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LUMN	Lumen Technologies, Inc.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LUNG	Pulmonx Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LUNR	Intuitive Machines, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LUV	Southwest Airlines Co.	1967-03-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LVLU	Lulu's Fashion Lounge Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LVO	LiveOne, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LVS	Las Vegas Sands Corp.	1937-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LVWR	LiveWire Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LW	Lamb Weston Holdings, Inc.	1950-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LWAC	LightWave Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LWAY	Lifeway Foods Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LWLG	Lightwave Logic, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LXEO	Lexeo Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LXFR	Luxfer Holdings PLC Ordinary Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LXP	LXP Industrial Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LXRX	Lexicon Pharmaceuticals, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LXU	LSB INDUSTRIES INC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 LYB	LyondellBasell Industries N.V. Class A	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LYEL	Lyell Immunopharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-LYFT	Lyft, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LYTS	LSI Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LYV	Live Nation Entertainment Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LZ	LegalZoom.com, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 LZB	La-Z-Boy Incorporated	1927-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LZM	Lifezone Metals Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-LZMH	LZ Technology Holdings Limited Class B Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 M	Macy's Inc.	1929-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MA	Mastercard Incorporated	1966-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MAA	Mid-America Apartment Communities, Inc.	1977-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MAAS	Maase Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAC	The Macerich Company	1964-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MACI	Melar Acquisition Corp. I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MAGH	Magnitude International Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAGN	Magnera Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MAIA	MAIA Biotechnology, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MAIN	Main Street Capital Corporation	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MAIR	Madison Air Solutions Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MAKO	Mako Mining Corp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MAMA	Mama's Creations, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MAMK	MaxsMaking Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MAMO	Massimo Group Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAN	ManpowerGroup	1948-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MANE	Veradermics, Incorporated	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MANH	Manhattan Associates Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MANU	MANCHESTER UNITED PLC	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MAPS	WM Technology, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAR	Marriott International Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MARA	MARA Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MARPS	Marine Petroleum Trust	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAS	Masco Corporation	1929-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MASI	Masimo Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MASK	3 E Network Technology Group Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MASS	908 Devices Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAT	Mattel, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MATH	Metalpha Technology Holding Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MATV	Mativ Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MATW	Matthews International Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MATX	Matsons, Inc.	1882-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MAX	MediaAlpha, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MAXN	Maxeon Solar Technologies, Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MAYS	Mays (J.W.) Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MAZE	Maze Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MB	MasterBeef Group Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBAI	Check-Cap Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBAV	M3-Brigade Acquisition V Corp. Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBBC	Marathon Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MBC	MasterBrand, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MBI	MBIA Inc.	1973-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MBIN	Merchants Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBINL	Merchants Bancorp Depositary Shares, Each Representing a 1/40thInterest in a Share of 7.25% Fixed Rate Series E Non-CumulativePerpetual Preferred Stock, without par value	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBINM	Merchants Bancorp Depositary Shares, Each Representing a 1/40th Interest in a Share of 8.25% Fixed-Rate Reset Series D Non-Cumulative Perpetual Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBINN	Merchants Bancorp Depositary Shares Preferred Series C	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBIO	Mustang Bio, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MBLY	Mobileye Global Inc. Class A Common Stock	1998-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MBOT	Microbot Medical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBRX	Moleculin Biotech, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBUU	Malibu Boats, Inc. Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBVI	M3-Brigade Acquisition VI Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBWM	Mercantile Bank Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MBX	MBX Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MC	MOELIS & COMPANY	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MCB	Metropolitan Bank Holding Corp. Common Stock, $0.01 par value per share	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MCBS	METROCITY BANKSHARES INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCD	McDonald's Corporation	1940-05-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MCFT	MasterCraft Boat Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MCGA	Yorkville Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCHB	Mechanics Bancorp Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MCHP	Microchip Technology Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MCHPP	Microchip Technology Incorporated Depositary Shares Each Representing a 1/20th Interest in a Share of 7.50% Series A Mandatory Convertible Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCHX	Marchex, Inc. Class B	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCK	McKesson Corporation	1833-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MCO	Moody's Corporation	1909-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MCRB	Seres Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCRI	Monarch Casino & Resort Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MCRP	Micropolis AI Robotics	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MCS	The Marcus Corporation	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MCTA	Charming Medical Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCW	Mister Car Wash, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MCY	Mercury General Corp.	1961-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MD	Pediatrix Medical Group, Inc.	1979-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MDA	MDA Space Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MDAI	Spectral AI, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MDB	MongoDB, Inc. Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDBH	MDB Capital Holdings, LLC Class A common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDCX	Medicus Pharma Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MDGL	Madrigal Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MDIA	Mediaco Holding Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDLN	Medline Inc. Class A common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDLZ	Mondelez International, Inc. Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDRR	Medalist Diversified, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MDT	Medtronic plc	1949-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MDU	MDU Resources Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MDV	Modiv Industrial, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MDWD	MediWound Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDXG	MiMedx Group, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MDXH	MDxHealth SA Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MEC	Mayville Engineering Company, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MED	Medifast, Inc.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MEDP	Medpace Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MEG	Montrose Environmental Group, Inc.	1940-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MEGL	Magic Empire Global Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MEHA	Functional Brands, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MEI	Methode Electronics	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MELI	Mercado Libre, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MENS	Jyong Biotech Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MEOH	Methanex Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MERC	Mercer International Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MESH	Meshflow Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MET	MetLife, Inc.	1868-03-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 META	Meta Platforms Inc.	2012-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	2004-02-04	manual	Largest tech IPO at the time, $38/share open
-METC	Ramaco Resources, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-METCB	Ramaco Resources, Inc. Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-METCI	Ramaco Resources, Inc. 8.250% Senior Notes due 2030	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-METCZ	Ramaco Resources, Inc. 8.375% Senior Notes due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MEVO	M Evo Global Acquisition Corp II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MFA	MFA Financial, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MFC	Manulife Financial Corp.	1887-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MFI	mF International Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MFIC	MidCap Financial Investment Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MFICL	MidCap Financial Investment Corporation 8.00% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MFIN	Medallion Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MG	Mistras Group Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MGA	Magna International	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MGEE	MGE Energy Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGIH	Millennium Group International Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGLD	The Marygold Companies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MGM	MGM RESORTS INTERNATIONAL	2000-05-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MGN	Megan Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGNI	Magnite, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGNX	MacroGenics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MGPI	MGP Ingredients Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MGRC	Mcgrath Rentcorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGRT	Mega Fortune Company Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGRX	Mangoceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGTX	MeiraGTx Holdings plc Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGX	Metagenomi Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MGY	Magnolia Oil & Gas Corporation Class A Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MGYR	Magyar Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MH	McGraw Hill, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MHH	Mastech Digital, Inc.	1986-01-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MHK	Mohawk Industries, Inc.	1878-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MHO	M/I Homes, Inc.	1976-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MI	NFT Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MIAX	Miami International Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MICC	The Magnum Ice Cream Company N.V.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MIDD	Middleby Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MIGI	Mawson Infrastructure Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MIMI	Mint Incorporation Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MIND	MIND Technology, Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MINE	Mayfair Gold Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MIR	Mirion Technologies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MIRA	MIRA Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MIRM	Mirum Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MIST	Milestone Pharmaceuticals Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MITK	Mitek Systems, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MITQ	Moving iMage Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MITT	TPG Mortgage Investment Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MKC	McCormick & Company, Incorporated Non-VTG CS	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MKC.V	McCormick & Company, Incorporated Voting CS	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MKDW	MKDWELL Tech Inc. Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MKL	Markel Group Inc.	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MKLY	McKinley Acquisition Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MKSI	MKS Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MKTW	MarketWise, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MKTX	MarketAxess Holdings Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MKZR	MacKenzie Realty Capital, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLAA	Mountain Lake Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MLAB	Mesa Laboratories Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MLAC	Mountain Lake Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLCI	Mount Logan Capital Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLCIL	Mount Logan Capital Inc. 8.00% Notes Due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLEC	Moolec Science SA Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLGO	MicroAlgo, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MLI	Mueller Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MLKN	MillerKnoll, Inc. Common Stock	1938-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MLM	Martin Marietta Materials	1993-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MLP	Maui Land & Pineapple Co.	1903-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MLR	Miller Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MLSS	Milestone Scientific, Inc. Common Stock	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MLTX	MoonLake Immunotherapeutics Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MLYS	Mineralys Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MMA	Mixed Martial Arts Group Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MMED	MiniMed Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MMI	MARCUS & MILLICHAP	1971-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MMLP	Martin Midstream Partners LP	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MMM	3M Company	1902-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MMS	MAXIMUS, Inc.	1975-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MMSI	Merit Medical Systems Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MMTX	Miluna Acquisition Corp Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MMYT	MakeMyTrip Limited	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNDO	Mind CTI Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNDR	Mobile-health Network Solutions Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNDY	monday.com Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MNKD	Mannkind Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNOV	Medicinova, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNPR	Monopar Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNRO	Monro, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNSB	MainStreet Bancshares, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNSBP	MainStreet Bancshares, Inc. Depositary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MNST	Monster Beverage Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNTK	Montauk Renewables, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNTN	MNTN, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MNTS	Momentus Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MNY	MoneyHero Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MO	Altria Group, Inc.	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MOBX	Mobix Labs, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MOD	Modine Manufacturing Co	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MODD	Modular Medical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MOG.A	Moog Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MOG.B	MOOG INC CL B	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MOH	Molina Healthcare, Inc.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MORN	Morningstar, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MOS	The Mosaic Company	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MOV	Movado Group, Inc.	1881-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MOVE	Corvex, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MP	MP Materials Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MPAA	Motorcar Parts of America, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MPB	Mid Penn Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MPC	MARATHON PETROLEUM CORPORATION	2009-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MPLT	MapLight Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MPLX	MPLX LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MPT	Medical Properties Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MPTI	M-tron Industries, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MPU	Mega Matrix Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MPWR	Monolithic Power Systems, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MPX	Marine Products Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MQ	Marqeta, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRAM	Everspin Technologies, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MRBK	Meridian Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRCY	Mercury Systems Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRDN	Meridian Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MRK	Merck & Co., Inc.	1891-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MRKR	Marker Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRLN	Merlin, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MRNA	Moderna, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRNO	Murano Global Investments PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRP	Millrose Properties, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MRSH	Marsh	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MRT	Marti Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MRTN	Marten Transport Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MRVI	Maravai LifeSciences Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MRVL	Marvell Technology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MRX	Marex Group plc Ordinary Shares	1988-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MS	Morgan Stanley	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MSA	Mine Safety Incorporated	1914-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSAI	MultiSensor AI Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSB	Mesabi Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSBI	Midland States Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSCI	MSCI, Inc.	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSDL	Morgan Stanley Direct Lending Fund	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MSEX	Middlesex Water Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSFT	Microsoft Corporation	1986-03-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	1975-04-04	manual	Listed on NASDAQ at market open
 MSGE	Madison Square Garden Entertainment Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSGM	Motorsport Games Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSGS	Madison Square Garden Sports Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSGY	Masonglory Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSI	Motorola Solutions, Inc. New	2011-01-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSIF	MSC Income Fund, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSLE	Satellos Bioscience Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MSM	MSC Industrial Direct Co., Inc. Class A	1941-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MSN	Emerson Radio Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MSS	Maison Solutions Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MSTR	Strategy Inc Common Stock Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MSW	Ming Shing Group Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MT	ArcelorMittal	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MTAL	Metals Acquisition Corp. II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTB	M&T Bank Corp.	1856-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MTC	MMTec, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MTCH	Match Group, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTD	Mettler-Toledo International	1991-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTDR	MATADOR RESOURCES COMPANY	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MTEK	Maris-Tech Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MTEN	Mingteng International Corporation Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTEX	Mannatech Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTG	MGIC Investment Corp.	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTH	Meritage Homes Corporation	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTN	Vail Resorts, Inc.	1962-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MTNB	Matinas BioPharma Holdings, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTR	Mesa Royalty Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTRN	Materion Corporation	1931-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTRX	Matrix Service Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTSI	MACOM Technology Solutions Holdings, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTUS	Metallus Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MTVA	MetaVia Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MTW	The Manitowoc Company, Inc.	1925-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTX	Minerals Technologies Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MTZ	MasTec, Inc.	1994-03-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MU	Micron Technology, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MUR	Murphy Oil Corp.	1964-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MUSA	MURPHY USA INC.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 MUX	McEwen Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MUZE	Muzero Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MVBF	MVB Financial Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MVIS	Microvision Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MVO	MV Oil Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MVST	Microvast Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MWA	Mueller Water Products, Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MWG	Multi Ways Holdings Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MWH	SOLV Energy, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MWYN	Marwynn Holdings, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MX	Magnachip Semiconductor Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MXC	Mexco Energy Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MXCT	MaxCyte, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MXL	MaxLinear, Inc. Common Stock	2004-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MYE	Myers Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MYFW	First Western Financial, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MYGN	Myriad Genetics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MYO	Myomo Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-MYPS	PLAYSTUDIOS, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 MYRG	MYR Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MYSE	Myseum.AI, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MYSZ	My Size, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-MZTI	The Marzetti Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NA	Nano Labs Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NABL	N-able, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NAGE	Niagen Bioscience, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NAII	Natural Alternatives International Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAK	Northern Dynasty Minerals, Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NAKA	Nakamoto Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAMM	Namib Minerals Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAMS	NewAmsterdam Pharma Company N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAT	Nordic American Tanker	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NATH	Nathan's Famous Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NATL	NCR Atleos Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NATR	Nature's Sunshine Products Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAUT	Nautilus Biotechnolgy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAVI	Navient Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NAVN	Navan, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NB	NioCorp Developments Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NBBK	NB Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NBHC	NATIONAL BANK HOLDINGS CORP.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NBIS	Nebius Group N.V. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NBIX	Neurocrine Biosciences Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NBN	Northeast Bank Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NBR	Nabors Industries Ltd.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NBRG	Newbridge Acquisition Limited Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NBTB	NBT Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NC	NACCO Industries, Inc.	1913-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NCDL	Nuveen Churchill Direct Lending Corp	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NCEL	NewcelX Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCEW	New Century Logistics (BVI) Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCI	Neo-Concept International Group Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCL	Northann Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NCLH	Norwegian Cruise Line Holdings Ltd. Ordinary Shares	2011-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NCMI	National CineMedia, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NCNO	nCino, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCPL	Netcapital Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCRA	Nocera, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCSM	NCS Multistage Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NCT	Intercont (Cayman) Limited Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NDAQ	Nasdaq, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NDLS	Noodles & Company Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NDRA	ENDRA Life Sciences Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NDSN	Nordson Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NE	Noble Corporation plc	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NECB	Northeast Community Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NEE	NextEra Energy, Inc.	1925-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NEGG	Newegg Commerce, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NEM	Newmont Corporation	1916-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NEN	New England Realty Associates Limited Partnership	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NEO	NeoGenomics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NEOG	Neogen Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEON	Neonode Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEOV	NeoVolta Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEPH	Nephros Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NERV	Minerva Neurosciences, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NESR	National Energy Services Reunited Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NET	Cloudflare, Inc. Class A common stock, par value $0.001 per share	2009-11-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NEU	NewMarket Corporation	1887-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NEWP	New Pacific Metals Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NEWT	NewtekOne, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEWTG	NewtekOne, Inc. 8.50% Fixed Rate Senior Notes due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEWTH	NewtekOne, Inc. 8.625% Fixed Rate Senior Notes due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEWTI	NewtekOne, Inc. 8.00% Fixed Rate Senior Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEWTO	NewtekOne, Inc. 8.50% Fixed Rate Senior Notes due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEXA	Nexa Resources S.A. Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NEXM	NexMetals Mining Corp. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEXN	Nexxen International Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEXR	Nexera Technologies Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NEXT	NextDecade Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NFBK	Northfield Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NFE	New Fortress Energy Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NFG	National Fuel Gas Co.	1902-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NFGC	New Found Gold Corp	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NFLX	NetFlix Inc	1997-08-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NG	NovaGold Resources Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NGEN	NervGen Pharma Corp. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NGL	NGL ENERGY PARTNERS LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NGNE	Neurogene, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NGS	Natural Gas Services Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NGVC	NATURAL GROCERS BY VITAMIN COTTAGE, INC	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NGVT	Ingevity Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NHC	National Healthcare Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NHI	National Health Investors	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NHIC	NewHold Investment Corp III Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NHTC	Natural Health Trends Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NI	NiSource Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NIC	Nicolet Bankshares,Inc.	2000-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NINE	Nine Energy Service, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NIQ	NIQ Global Intelligence plc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NIVF	NewGenIvf Group Limited Class A ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NIXX	Nixxy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NJR	New Jersey Resources Corp	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NKE	Nike, Inc.	1964-01-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NKLR	Terra Innovatum Global N.V. Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NKSH	National Bankshares Inc/VA	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NKTR	Nektar Therapeutics	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NKTX	Nkarta, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NL	NL Industries, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NLOP	Net Lease Office Properties	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NLY	Annaly Capital Management. Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NMAX	Newsmax, Inc.	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NMFC	NEW MOUNTAIN FINANCE CORPORATION	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NMFCZ	New Mountain Finance Corporation 8.250% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NMG	Nouveau Monde Graphite Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NMIH	NMI Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NMM	Navios Maritime Partners L.P.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NMP	NMP Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NMRA	Neumora Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NMRK	Newmark Group, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NMTC	NeuroOne Medical Technologies Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NN	NextNav Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NNBR	NN Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NNE	Nano Nuclear Energy Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NNI	Nelnet, Inc. Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NNN	NNN REIT, Inc.	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NNNN	Anbio Biotechnology Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NNOX	NANO-X IMAGING LTD Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NNVC	NanoViricides Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NOA	North American Construction Group Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NOC	Northrop Grumman Corp.	1994-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NODK	NI Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NOEM	CO2 Energy Transition Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NOG	Northern Oil and Gas, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NOMA	NOMADAR Corp. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NOMD	Nomad Foods Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NOTV	Inotiv, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NOV	NOV Inc.	1862-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NOVT	Novanta Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NOW	SERVICENOW, INC.	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NP	Neptune Insurance Holdings Inc.	1873-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NPAC	New Providence Acquisition Corp. III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NPB	Northpointe Bancshares, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NPCE	Neuropace, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NPK	National Presto Industries, Inc.	1905-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NPKI	NPK International Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NPO	Enpro Inc.	2002-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NPT	Texxon Holding Limited Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NPWR	NET Power Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NRC	National Research Corporation Common Stock (Delaware)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NRDS	NerdWallet, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NRDY	Nerdy Inc.	2021-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NREF	NexPoint Real Estate Finance, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NRG	NRG Energy, Inc.	1905-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NRGV	Energy Vault Holdings, Inc.	2018-08-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NRIM	Northrim BanCorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NRIX	Nurix Therapeutics, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NRP	Natural Resource Partners L.P.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NRSN	NeuroSense Therapeutics Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NRT	North European Oil Royalty Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NRXP	NRX Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NRXS	Neuraxis, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NSA	National Storage Affiliates Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NSC	Norfolk Southern Corp.	1894-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NSIT	Insight Enterprises Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NSP	Insperity, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NSPR	InspireMD, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NSRX	Nasus Pharma Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NSSC	Napco Security Technologies, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NSTS	NSTS Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NSYS	Nortech Systems Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NTAP	NetApp, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTB	The Bank of N.T. Butterfield & Son Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NTCL	NETCLASS TECHNOLOGY INC Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NTCT	Netscout Systems Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NTGR	NETGEAR, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTHI	NeOnc Technologies Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTIC	Northern Technologies International Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTIP	Network-1 Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NTLA	Intellia Therapeutics, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTNX	Nutanix, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NTR	Nutrien Ltd. Common Shares	2018-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NTRA	Natera, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTRB	Nutriband Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTRP	NextTrip, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NTRS	Northern Trust Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTSK	Netskope, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTST	NetSTREIT Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NTWK	NetSol Technologies, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NTWO	Newbury Street II Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NU	Nu Holdings Ltd.	2013-05-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NUAI	New Era Energy & Digital, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NUCL	Eagle Nuclear Energy Corp. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NUE	Nucor Corporation	1955-09-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NUS	NuSkin Enterprises, Inc.	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NUTR	Nusatrip Incorporated Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NUTX	Nutex Health Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NUVB	Nuvation Bio Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NUVL	Nuvalent, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NUWE	Nuwellis, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NVAX	Novavax Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NVCR	NovoCure Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NVCT	Nuvectis Pharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NVDA	NVIDIA Corporation	1999-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	1993-04-05	manual	IPO price $12, raised $42M
 NVEC	NVE Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NVGS	NAVIGATOR HOLDINGS LTD.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NVMI	Nova Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NVNI	Nvni Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NVNO	enVVeno Medical Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NVR	NVR, Inc.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NVRI	Enviri Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NVST	Envista Holdings Corporation Common stock, $0.01 par value per share	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NVT	nVent Electric plc Ordinary Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NVTS	Navitas Semiconductor Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NVVE	Nuvve Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NWAX	New America Acquisition I Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NWBI	Northwest Bancshares, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWE	NorthWestern Energy Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWFL	Norwood Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWL	Newell Brands Inc.	1903-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWN	Northwest Natural Holding Company	1859-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NWPX	NWPX Infrastructure, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWS	News Corporation Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NWSA	News Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NWTG	Newton Golf Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NX	Quanex Building Products Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NXDR	Nextdoor Holdings, Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NXE	NexGen Energy Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NXGL	NexGel, Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXL	Nexalin Technology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NXPI	NXP Semiconductors N.V.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXPL	NextPlat Corp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXRT	NexPoint Residential Trust Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NXST	Nexstar Media Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXT	Nextpower Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXTC	NextCure, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXTS	Nexentis Technologies Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXTT	Next Technology Holding Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NXXT	NextNRG, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 NYAX	Nayax Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-NYC	American Strategic Investment Co.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 NYT	New York Times Co.	1851-09-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-NYXH	Nyxoah SA Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 O	Realty Income Corporation	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OABI	OmniAb, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OACC	Oaktree Acquisition Corp. III Life Sciences Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OBA	Oxley Bridge Acquisition Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OBAI	Our Bond, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OBDC	Blue Owl Capital Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OBE	Obsidian Energy Ltd.	2005-01-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OBIO	Orchestra BioMed Holdings, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OBK	Origin Bancorp, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OBT	Orange County Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OBTC	Osprey Bitcoin Trust Common Units of Beneficial Interest	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OC	Owens Corning	1938-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OCC	Optical Cable Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCCI	OFS Credit Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCCIN	OFS Credit Company, Inc. 5.25% Series E Term Preferred Stock Due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCFC	OceanFirst Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCG	Oriental Culture Holding LTD Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCGN	Ocugen, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCS	Oculis Holding AG Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCSL	Oaktree Specialty Lending Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OCUL	Ocular Therapeutix, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ODC	Oil-Dri Corporation of America	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ODD	ODDITY Tech Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ODFL	Old Dominion Freight Line	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ODV	Osisko Development Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ODYS	Odysight.ai Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OEC	Orion S.A.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OESX	Orion Energy Systems, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OFAL	OFA Group Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OFG	OFG BANCORP	1964-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OFIX	Orthofix Medical Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OFLX	Omega Flex, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OFRM	Once Upon a Farm, PBC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OFS	OFS Capital Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OFSSH	OFS Capital Corporation 4.95% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OFSSO	OFS Capital Corporation 7.50% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OGC	OceanaGold Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OGE	OGE Energy Corp.	1902-02-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OGEN	Oragenics Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OGI	Organigram Global Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OGN	Organon & Co.	1923-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OGS	ONE GAS, INC.	2014-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OHI	Omega Healthcare Investors Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OI	O-I Glass, Inc.	1903-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OII	Oceaneering International Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OIM	OneIM Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OIMAU	OneIM Acquisition Corp. Units	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OIO	OIO Group Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OIS	OIL STATES INTERNATIONAL, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OKE	Oneok, Inc.	1906-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OKLO	Oklo Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OKTA	Okta, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OKUR	OnKure Therapeutics, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OKYO	OKYO Pharma Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OLB	The OLB Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OLED	Universal Display Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OLLI	Ollie's Bargain Outlet Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OLMA	Olema Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OLN	Olin Corp.	1892-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OLOX	Olenox Industries Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OLP	One Liberty Properties, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OLPX	Olaplex Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OM	Outset Medical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OMC	Omnicom Group Inc.	1986-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OMCL	Omnicell Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OMDA	Omada Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OMER	Omeros Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OMEX	Odyssey Marine Exploration, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OMF	OneMain Holdings, Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OMH	Ohmyhome Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OMSE	OMS Energy Technologies Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ON	ON Semiconductor Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONB	Old National Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONBPO	Old National Bancorp Depositary Shares, Each Representing a 1/40th Interest in a Share of Series C Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONCH	1RT Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONCO	Onconetix, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONCY	Oncolytics Biotech, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONDS	Ondas Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONEG	OneConstruction Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONEW	OneWater Marine Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ONFO	Onfolio Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ONIT	Onity Group Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ONL	Orion Properties Inc.	2021-11-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ONMD	OneMedNet Corp Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ONON	On Holding AG	2012-09-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ONTO	Onto Innovation Inc.	1940-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OOMA	Ooma, Inc. Common Stock	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPAD	Offerpad Solutions Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPAL	OPAL Fuels Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPBK	OP Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPCH	Option Care Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPEN	Opendoor Technologies Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OPFI	OppFi Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPHC	OptimumBank Holdings, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OPK	Opko Health Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OPLN	OPENLANE, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPRT	Oportun Financial Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPRX	OptimizeRx Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPTT	Ocean Power Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPTU	Optimum Communications, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OPTX	Syntec Optics Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OPXS	Optex Systems Holdings, INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OPY	Oppenheimer Holdings, Inc.	1950-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OR	OR Royalties Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ORA	Ormat Technologies, Inc.	1994-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ORBS	Eightco Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORC	Orchid Island Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ORCL	Oracle Corp	1977-06-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ORGN	Origin Materials, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORGO	Organogenesis Holdings Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORI	Old Republic International Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ORIC	Oric Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ORIO	Orion Digital Corp. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORIQ	Origin Investment Corp I Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ORIS	Oriental Rise Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ORKA	Oruka Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORKT	Orangekloud Technology Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ORLA	Orla Mining Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ORLY	O'Reilly Automotive, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORMP	Oramed Pharmaceuticals Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ORN	Orion Group Holdings, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ORRF	Orrstown Financial Services Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OSBC	Old Second Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OSCR	Oscar Health, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OSG	Octave Specialty Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OSIS	OSI Systems Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OSK	Oshkosh Corp.	1917-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OSPN	OneSpan Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OSRH	OSR Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OSS	One Stop Systems, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OST	Ostin Technology Group Co., Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OSTX	OS Therapies Incorporated	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OSUR	OraSure Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OSW	OneSpaWorld Holdings Limited Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OTEX	Open Text Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OTF	Blue Owl Technology Finance Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OTGA	OTG Acquisition Corp. I Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OTH	Off The Hook YS Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OTIS	Otis Worldwide Corporation	1853-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OTLK	Outlook Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OTTR	Otter Tail Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OUST	Ouster, Inc.	2015-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OUT	OUTFRONT Media Inc.	1938-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 OVBC	Ohio Valley Banc Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OVID	Ovid Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OVLY	Oak Valley Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OVV	Ovintiv Inc.	2020-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OWL	Blue Owl Capital Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OWLS	OBOOK Holdings Inc. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OWLT	Owlet, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OXBR	Oxbridge Re Holdings Limited	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLC	Oxford Lane Capital Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLCG	Oxford Lane Capital Corp. 7.95% Notes due 2032	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLCI	Oxford Lane Capital Corp. 8.75% Notes due 2030	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLCL	Oxford Lane Capital Corp. 6.75% Notes due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLCO	Oxford Lane Capital Corp. Preferred Stock Shares, 6.00% Series 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXLCZ	Oxford Lane Capital Corp. 5.00% Notes due 2027	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OXM	Oxford Industries, Inc.	1942-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OXSQ	Oxford Square Capital Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXSQG	Oxford Square Capital Corp. 5.50% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-OXSQH	Oxford Square Capital Corp. 7.75% Notes due 2030	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OXY	Occidental Petroleum Corporation	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-OYSE	Oyster Enterprises II Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 OZK	Bank OZK	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 P	Everpure, Inc.	2000-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PAA	Plains All American Pipeline, L.P. Common Units representing Limited Partner Interests	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAAC	Proem Acquisition Corp I Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAAS	Pan American Silver Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PACB	Pacific Biosciences of California, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PACH	Pioneer Acquisition I Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PACK	Ranpak Holdings Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PACS	PACS Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PAG	Penske Automotive Group, Inc.	1990-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PAGP	Plains GP Holdings, L.P. Class A Units representing Limited Partner Interests	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PAGS	PagSeguro Digital Ltd.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PAHC	Phibro Animal Health Corporation Class A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAII	Pyrophyte Acquisition Corp. II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PAL	Proficient Auto Logistics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PALI	Palisade Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PALO	Paloma Acquisition Corp I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PAMT	PAMT CORP Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PANL	Pangaea Logistics Solutions Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PANW	Palo Alto Networks, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAPL	Pineapple Financial Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PAR	PAR Technology Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PARK	Park Dental Partners, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PARR	Par Pacific Holdings, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PASG	Passage Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PASW	Ping An Biomedical Co., Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PATH	UiPath, Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PATK	Patrick Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAVM	PAVmed Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAVS	Paranovus Entertainment Technology Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAX	Patria Investments Limited Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PAY	Paymentus Holdings, Inc.	1981-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PAYC	PAYCOM SOFTWARE, INC.	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PAYO	Payoneer Global Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PAYS	Paysign, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PAYX	Paychex Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PB	Prosperity Bancshares Inc	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PBA	PEMBINA PIPELINE CORPORATION	1954-09-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PBF	PBF ENERGY INC.	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PBFS	Pioneer Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PBH	Prestige Consumer Healthcare Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PBHC	Pathfinder Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PBI	Pitney Bowes Inc.	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PBM	Psyence Biomedical Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PBT	Permian Basin Royalty Trust	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PBYI	PUMA BIOTECHNOLOGY INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PC	Premium Catering (Holdings) Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCAP	ProCap Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PCAR	Paccar Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCB	PCB Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PCG	PG&E Corporation	1905-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PCOR	Procore Technologies, Inc.	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PCRX	Pacira BioSciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCSA	Processa Pharmaceuticals, Inc. Common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCSC	Perceptive Capital Solutions Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCT	PureCycle Technologies, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PCTY	Paylocity Holding Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PCVX	Vaxcyte, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PCYO	Pure Cycle Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PD	PagerDuty, Inc.	2009-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PDCC	Pearl Diver Credit Company Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PDEX	Pro-Dex Inc New	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PDFS	PDF Solutions Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PDLB	Ponce Financial Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PDM	Piedmont Realty Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PDS	Precision Drilling Corporation	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PDSB	PDS Biotechnology Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PDYN	Palladyne AI Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PEB	Pebblebrook Hotel Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PEBK	Peoples Bancorp of North Carol	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PEBO	Peoples Bancorp Inc/OH	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PECO	Phillips Edison & Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PED	PEDEVCO Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PEG	Public Service Enterprise Group Incorporated	1903-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PEGA	Pegasystems Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PEN	Penumbra, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PENG	Penguin Solutions, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PENN	PENN Entertainment, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PEP	PepsiCo, Inc.	1961-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PEPG	PepGen Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PERF	Perfect Corp.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PERI	Perion Network Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PESI	Perma-Fix Environmental Services, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PETS	PetMed Express, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PETZ	TDH Holdings, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PEW	GrabAGun Digital Holdings Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PFAI	Pinnacle Food Group Limited Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PFBC	Preferred Bank	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PFE	Pfizer Inc.	1849-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PFG	Principal Financial Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PFGC	Performance Food Group Company	1885-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PFIS	Peoples Financial Services Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PFLT	PennantPark Floating Rate Capital Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PFS	Provident Financial Services, Inc.	1839-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PFSA	Profusa, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PFSI	PennyMac Financial Services, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PFX	PhenixFIN Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PFXNZ	PhenixFIN Corporation 5.25% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PG	Procter & Gamble Company	1837-10-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PGAC	Pantages Capital Acquisition Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PGC	Peapack-Gladstone Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PGEN	Precigen, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PGNY	Progyny, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PGR	Progressive Corporation	1937-03-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PGY	Pagaya Technologies Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PH	Parker-Hannifin Corporation	1918-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PHAR	Pharming Group N.V. ADS, each representing 10 ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PHAT	Phathom Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PHG	KONINKLIJKE PHILIPS  N.V.	1891-05-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PHGE	BiomX Inc.	2005-01-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PHIN	PHINIA Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PHIO	Phio Pharmaceuticals Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PHM	Pultegroup, Inc.	1950-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PHOE	Phoenix Asia Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PHR	Phreesia, Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PHUN	Phunware, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PHVS	Pharvaris N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PI	Impinj, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PICS	PicS N.V. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PII	Polaris Inc.	1954-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PIII	P3 Health Partners Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PINE	Alpine Income Property Trust, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PINS	Pinterest, Inc. Class A Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PIPR	Piper Sandler Companies	1895-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PJT	PJT Partners Inc.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -3752,1097 +2512,431 @@ PKG	Packaging Corp of America	1959-01-01	09:30:00	NYSE	America/New_York	40.7069	
 PKOH	Park-Ohio Holdings Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PKST	Peakstone Realty Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PL	Planet Labs PBC	2010-12-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLAB	Photronics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLAG	Planet Green Holdings Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLAY	Dave & Buster's Entertainment, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLBC	Plumas Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLBL	Polibeli Group Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLBY	Playboy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLCE	Children's Place, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLD	PROLOGIS, INC.	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLG	Platinum Group Metals LTD.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLMK	Plum Acquisition Corp. IV Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLMR	Palomar Holdings, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLNT	Planet Fitness, Inc.	1992-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLOW	DOUGLAS DYNAMICS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PLPC	Preformed Line Products Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLRX	Pliant Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLRZ	Polyrizon Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLSE	Pulse Biosciences, Inc Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLSM	Pulsenmore Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLTK	Playtika Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLTR	Palantir Technologies Inc. Class A Common Stock	2003-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLTS	Platinum Analytics Cayman Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLUG	Plug Power Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLUR	Pluri Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PLUS	ePlus Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLUT	Plutus Financial Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLX	Protalix BioTherapeutics, Inc. Common Stock	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PLXS	Plexus Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PLYX	Polaryx Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PM	Philip Morris International Inc.	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PMAX	Powell Max Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMCB	PharmaCyte Biotech, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMEC	Primech Holdings Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMI	Picard Medical, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PMN	ProMIS Neurosciences Inc. Common Shares (ON)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMNT	Perfect Moment Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PMT	PennyMac Mortgage Investment Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PMTR	Perimeter Acquisition Corp. I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMTS	CPI Card Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PMVP	PMV Pharmaceuticals, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PN	Skycorp Solar Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PNBK	Patriot National Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PNC	PNC Financial Services Group	1845-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PNFP	Pinnacle Financial Partners, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PNNT	Pennant Investment Corp	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PNR	Pentair plc	1950-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PNRG	PrimeEnergy Resources Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PNTG	The Pennant Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PNW	Pinnacle West Capital Corporation	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-POAS	Phaos Technology Holdings (Cayman) Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-POCI	Precision Optics Corporation, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PODC	PodcastOne, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PODD	Insulet Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-POET	POET Technologies Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-POLA	Polar Power, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-POLE	Andretti Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 POOL	Pool Corporation	1993-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 POR	Portland General Electric Company	1888-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 POST	POST HOLDINGS, INC.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 POWI	Power Integrations Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 POWL	Powell Industries Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-POWW	Outdoor Holding Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PPC	Pilgrims Pride Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PPCB	Propanc Biopharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PPG	PPG Industries, Inc.	1883-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PPHC	Public Policy Holding Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PPIH	Perma-Pipe International Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PPL	PPL Corporation	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PPSI	Pioneer Power Solutions, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PPTA	Perpetua Resources Corp. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PR	Permian Resources Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRA	ProAssurance Corporation	1975-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRAA	PRA Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRAX	Praxis Precision Medicines, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRCH	Porch Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRCT	PROCEPT BioRobotics Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PRDO	Perdoceo Education Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRE	Prenetics Global Limited Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRFX	PRF Technologies Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PRG	PROG Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRGO	PERRIGO COMPANY PLC	1887-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRGS	Progress Software Corp (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRHI	Presurance Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRHIZ	Presurance Holdings, Inc. 9.75% Senior Unsecured Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PRI	PRIMERICA, INC.	1977-02-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PRIM	Primoris Services Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRK	Park National Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRKS	United Parks & Resorts Inc.	1960-03-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRLB	PROTO LABS, INC.	1999-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PRLD	Prelude Therapeutics Incorporated	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRM	Perimeter Solutions, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PRMB	Primo Brands Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PRME	Prime Medicine, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PROF	Profound Medical Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PROK	ProKidney Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PROP	Prairie Operating Co. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PROV	Provident Financial Hldgs	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRPL	Purple Innovation, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRPO	Precipio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRQR	ProQR Therapeutics N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRSO	Peraso, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRSU	Pursuit Attractions and Hospitality, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PRTA	Prothena Corporation plc Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRTH	Priority Technology Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRTS	CarParts.com, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PRU	Prudential Financial, Inc.	1875-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PRVA	Privia Health Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PRZO	ParaZero Technologies Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSA	Public Storage	1972-08-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSBD	Palmer Square Capital BDC Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSEC	Prospect Capital Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSFE	Paysafe Limited	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSHG	Performance Shipping Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PSIG	PS International Group Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PSIX	Power Solutions International, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSKY	Paramount Skydance Corporation Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSMT	Pricesmart Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSN	Parsons Corporation	1944-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSNL	Personalis, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PSNY	Polestar Automotive Holding UK PLC Class A ADS	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PSQH	PSQ Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSTL	Postal Realty Trust, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PSTV	PLUS THERAPEUTICS, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PSX	PHILLIPS 66	2012-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PTC	PTC, INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PTCT	PTC Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTEN	Patterson-UTI Energy Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTGX	Protagonist Therapeutics, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTHS	Pelthos Therapeutics Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PTLE	PTL LTD Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTLO	Portillo's Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTN	Palatin Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PTNM	Pitanium Limited Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PTON	Peloton Interactive, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTOR	Praetorian Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PTRN	Pattern Group Inc. Series A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PUBM	PubMatic, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PULM	Pulmatrix, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PUMP	ProPetro Holding Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PURR	Hyperliquid Strategies Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PVH	PVH Corp.	1881-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PVL	Permianville Royalty Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PVLA	Palvella Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PW	Power REIT	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-PWP	Perella Weinberg Partners Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PWR	Quanta Services, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PXED	Phoenix Education Partners, Inc.	1976-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PXLW	Pixelworks Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PXS	Pyxis Tankers Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PYPD	PolyPid Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 PYPL	PayPal Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PYXS	Pyxis Oncology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-PZG	Paramount Gold Nevada Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 PZZA	Papa John's International Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 Q	Qnity Electronics, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-QBTS	D-Wave Quantum Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-QCLS	Q/C Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QCOM	Qualcomm Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QCRH	QCR Holdings Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QDEL	QuidelOrtho Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QETA	Quetta Acquisition Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QGEN	QIAGEN N.V.	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 QLYS	Qualys, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QMCO	Quantum Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QMMM	QMMM Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QNC	Quantum eMotion Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-QNCX	Quince Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QNST	QuinStreet, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QNTM	Quantum Biopharma Ltd. Class B Subordinate Voting Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QRHC	Quest Resource Holding Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QRVO	Qorvo, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QS	QuantumScape Corporation Class A Common Stock	2010-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QSEA	Quartzsea Acquisition Corporation Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QSI	Quantum-Si Incorporated Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QSR	Restaurant Brands International Inc.	2014-12-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-QTI	QT Imaging Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QTRX	Quanterix Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QTTB	Q32 Bio Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QTWO	Q2 Holdings Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 QUAD	QUAD/GRAPHICS, INC.	1971-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-QUBT	Quantum Computing Inc. Common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QUCY	Mainz Biomed N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QUIK	QuickLogic Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QUMS	Quantumsphere Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QURE	uniQure N.V.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 QVCGA	QVC Group, Inc. Series A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-QXO	QXO, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 R	Ryder System, Inc.	1933-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RAAQ	Real Asset Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RAC	Rithm Acquisition Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RACE	Ferrari N.V.	2013-05-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RAIL	FreightCar America, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RAIN	Rain Enhancement Technologies Holdco, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RAL	Ralliant Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RAMP	LiveRamp Holdings, Inc. Common Stock	2011-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RAND	Rand Capital Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RANG	Range Capital Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RANI	Rani Therapeutics Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RAPP	Rapport Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RARE	Ultragenyx Pharmaceutical Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RAVE	Rave Restaurant Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RAY	Raytech Holding Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RAYA	Erayak Power Solution Group Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RBA	RB Global, Inc.	1958-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RBB	RBB Bancorp Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RBBN	Ribbon Communications Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RBC	RBC Bearings Incorporated	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RBCAA	Republic Bancorp Inc/KY	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RBKB	Rhinebeck Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RBLX	Roblox Corporation	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RBNE	Robin Energy Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RBRK	Rubrik, Inc.	2013-12-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RC	Ready Capital Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RCAT	Red Cat Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RCI	Rogers Communications, Inc.	1960-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RCKT	Rocket Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RCKY	Rocky Brands, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RCL	Royal Caribbean Group	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RCMT	RCM Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RCON	Recon Technology, Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RCT	RedCloud Holdings plc Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RCUS	Arcus Biosciences, Inc.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RDAC	Rising Dragon Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RDAG	Republic Digital Acquisition Company Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDCM	Radcom Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDDT	Reddit, Inc.	2005-06-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RDGT	Ridgetech, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDI	Reading International, Inc Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDIB	Reading International, Inc (Class B	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDN	Radian Group Inc.	1977-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RDNT	RadNet, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RDNW	RideNow Group, Inc. Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDVT	Red Violet, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RDW	Redwire Corporation	2020-06-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RDWR	Radware Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RDZN	Roadzen, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REAL	The RealReal, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 REAX	REAL BROKERAGE INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REBN	Reborn Coffee, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RECT	Rectitude Holdings Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REE	REE Automotive Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REED	Reed's, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-REFI	Chicago Atlantic Real Estate Finance, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REFR	Research Frontiers Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 REG	Regency Centers Corporation	1963-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 REGN	Regeneron Pharmaceuticals Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REI	Ring Energy Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-REKR	Rekor Systems, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RELL	Richardson Electronics Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RELY	Remitly Global, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RENT	Rent the Runway, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RENX	RenX Enterprises Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REPL	Replimune Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REPX	Riley Exploration Permian, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RES	RPC, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RETO	ReTo Eco-Solutions, Inc. Class A Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-REVB	Revelation Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 REX	REX American Resources Corp.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-REXR	REXFORD INDUSTRIAL REALTY, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-REYN	Reynolds Consumer Products Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 REZI	Resideo Technologies, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RF	Regions Financial Corp.	1971-07-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RFAI	RF Acquisition Corp II Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RFAM	RF Acquisition Corp III Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RFIL	RF Industries Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RFL	Rafael Holdings, Inc. Class B Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RGA	Reinsurance Group of America, Incorporated	1973-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RGC	Regencell Bioscience Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RGCO	RGC Resources Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RGEN	Repligen Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RGLD	Royal Gold Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RGNT	Regentis Biomaterials Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RGNX	REGENXBIO Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RGP	Resources Connection	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RGR	Sturm, Ruger & Company, Inc.	1949-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RGS	Regis Corporation	1922-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RGTI	Rigetti Computing, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RH	RH	1979-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RHI	Robert Half Inc.	1948-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RHLD	Resolute Holdings Management, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RHP	Ryman Hospitality Properties, Inc	1925-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RIBB	Ribbon Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RICK	RCI Hospitality Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RIG	Transocean LTD.	1973-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RIGL	Rigel Pharmaceuticals Inc. (New)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILY	BRC Group Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILYG	BRC Group Holdings, Inc. 5.00% Senior Notes due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILYL	BRC Group Holdings, Inc. Depositary Shares each representing 1/1000th in a share of 7.375% Series B Cumulative Perpetual Preferred Stock, par value $0.0001	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILYN	BRC Group Holdings, Inc. 6.50% Senior Notes Due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILYT	BRC Group Holdings, Inc. 6.00% Senior Notes Due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RILYZ	BRC Group Holdings, Inc. 5.25% Senior Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RIME	Algorhythm Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RIOT	Riot Platforms, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RITM	Rithm Capital Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RITR	Reitar Logtech Holdings Limited Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RIVN	Rivian Automotive, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RJET	Republic Airways Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RJF	Raymond James Financial, Inc.	1962-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RKDA	Arcadia Biosciences, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RKLB	Rocket Lab Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RKT	Rocket Companies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RL	Ralph Lauren Corporation	1967-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RLAY	Relay Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RLGT	Radiant Logistics, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RLI	RLI Corp.	1965-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RLJ	RLJ Lodging Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RLMD	Relmada Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RLYB	Rallybio Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RM	REGIONAL MANAGEMENT CORP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RMAX	RE/MAX HOLDINGS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RMBI	Richmond Mutual Bancorporation, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RMBS	Rambus Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RMCF	Rocky Mountain Chocolate Factory, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RMCO	Royalty Management Holding Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RMD	ResMed Inc.	1989-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RMIX	Suncrete, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RMNI	Rimini Street, Inc. (DE) Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RMR	The RMR Group Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RMSG	Real Messenger Corporation Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RMTI	Rockwell Medical, Inc. (DE) Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RNA	Atrium Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RNAC	Cartesian Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RNAZ	TransCode Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RNG	RINGCENTRAL, INC.	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RNGR	Ranger Energy Services, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RNGT	Range Capital Acquisition Corp II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RNR	RenaissanceRe Holdings Ltd.	1993-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RNST	Renasant Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RNTX	Rein Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RNW	ReNew Energy Global plc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RNXT	RenovoRx, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ROAD	Construction Partners, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ROC	Rank One Computing Corporation Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROCK	Gibraltar Industries, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROG	Rogers Corporation	1832-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ROIV	Roivant Sciences Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROK	Rockwell Automation, Inc.	1903-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ROKU	Roku, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROL	Rollins, Inc.	1948-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ROLR	High Roller Technologies, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ROMA	Roma Green Finance Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ROOT	Root, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROP	Roper Technologies, Inc. Common Stock	1808-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ROST	Ross Stores Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RPAY	Repay Holdings Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RPC	Ridgepost Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RPD	Rapid7, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RPGL	Republic Power Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RPID	Rapid Micro Biosystems, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RPM	RPM International, Inc.	1947-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RPRX	Royalty Pharma plc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RPT	Rithm Property Trust Inc.	1950-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RR	Richtech Robotics Inc. Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RRBI	Red River Bancshares, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RRC	Range Resources Corp	1976-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RRGB	Red Robin Gourmet Burgers Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RRR	Red Rock Resorts, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RRX	Regal Rexnord Corporation	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RS	Reliance, Inc.	1939-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RSG	Republic Services Inc.	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RSI	Rush Street Interactive, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RSKD	Riskified Ltd.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RSSS	RESEARCH SOLUTIONS INC	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RSVR	Reservoir Media, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RTAC	Renatus Tactical Acquisition Corp I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RTX	RTX Corporation	2020-04-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RUBI	Rubico Inc. Common Stock	2007-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RUM	Rumble Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RUN	Sunrun Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RUSHA	Rush Enterprises Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RUSHB	Rush Enterprises Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RVLV	Revolve Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RVMD	Revolution Medicines, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RVP	Retractable Technologies, Inc	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RVPH	Reviva Pharmaceuticals Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RVSB	Riverview Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RVSN	Rail Vision Ltd. Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RVTY	Revvity, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RVYL	Ryvyl Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RWAY	Runway Growth Finance Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RWAYI	Runway Growth Finance Corp. 7.25% Notes due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RWAYL	Runway Growth Finance Corp. 7.50% Notes due 2027	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RWT	Redwood Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RXO	RXO, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RXRX	Recursion Pharmaceuticals, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RXST	RxSight, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RXT	Rackspace Technology, Inc. Common Stock	1998-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RY	Royal Bank of Canada	1864-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 RYAM	Rayonier Advanced Materials Inc.	2014-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RYAN	Ryan Specialty Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RYDE	Ryde Group Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RYET	Ruanyun Edai Technology Inc. Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RYM	RYTHM, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 RYN	Rayonier Inc.	1926-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RYOJ	rYojbaba Co., Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RYTM	Rhythm Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RYZ	Ryerson Holding Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-RZLT	Rezolute, Inc. Common Stock (NV)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-RZLV	Rezolve AI PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 S	SentinelOne, Inc.	2013-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SA	Seabridge Gold, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SAAQ	Space Asset Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SABR	Sabre Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SABS	SAB Biotherapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAC	Safeguard Acquisition Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SACH	Sachem Capital Corp. Common Shares	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SAFE	Safehold Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SAFT	Safety Insurance Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAFX	XCF Global, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAGT	SAGTEC GLOBAL LIMITED Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SAH	Sonic Automotive, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SAIA	Saia, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SAIC	Science Applications International Corporation Common Stock	2013-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAIH	SAIHEAT Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAIL	SailPoint, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SAM	Boston Beer Company	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SAMG	Silvercrest Asset Management Group Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SANA	Sana Biotechnology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SANG	Sangoma Technologies Corporation Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SANM	Sanmina  Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SAR	SARATOGA INVESTMENT CORP. NEW	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SARO	StandardAero, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SATL	Satellogic Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SATS	EchoStar Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SB	Safe Bulkers, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SBAC	SBA Communications Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SBC	SBC Medical Group Holdings Incorporated Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBCF	Seacoast Banking Corp of Florida	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBET	Sharplink, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SBEV	Splash Beverage Group, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SBFG	SB Financial Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SBFM	Sunshine Biopharma Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBGI	Sinclair, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBH	Sally Beauty Holdings, Inc.	1964-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SBLK	Star Bulk Carriers Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBLX	StableX Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBR	Sabine Royalty Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SBRA	Sabra Healthcare REIT, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SBSI	Southside Bancshares, Inc.	1960-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SBUX	Starbucks Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SBXD	SilverBox Corp IV	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SBXE	SilverBox Corp V	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SCCO	Southern Copper Corporation	1952-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SCHL	Scholastic Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SCHW	The Charles Schwab Corporation	1971-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SCI	Service Corporation International	1962-07-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SCII	SC II Acquisition Corp. Class A ordinary share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCKT	Socket Mobile, Inc. New	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SCL	Stepan Co.	1932-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SCLX	Scilex Holding Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCM	STELLUS CAPITAL INVESTMENT CORPORATION	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SCNX	Scienture Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCOR	comScore, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCPQ	Social Commerce Partners Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SCSC	Scansource Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SCVL	Shoe Carnival Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCWO	374Water Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SCYX	SCYNEXIS, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SCZM	Santacruz Silver Mining Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SD	SandRidge Energy, Inc.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SDA	SunCar Technology Group Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SDEV	Stablecoin Development Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SDGR	Schrodinger, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SDHC	Smith Douglas Homes Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SDHI	Siddhi Acquisition Corp Class A Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SDHY	PGIM Short Duration High Yield Opportunities Fund	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SDM	Smart Digital Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SDOT	Sadot Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SDRL	Seadrill Limited	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SDST	Stardust Power Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEAT	Vivid Seats Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SEB	Seaboard Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SEDG	SolarEdge Technologies, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEED	Origin Agritech Limited	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEER	Seer, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEG	Seaport Entertainment Group Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SEGG	Sports Entertainment Gaming Global Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEI	Solaris Energy Infrastructure, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SEIC	SEI Investments Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SELF	Global Self Storage, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SELX	Semilux International Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SEM	SELECT MEDICAL HOLDINGS CORP	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SEMR	SEMrush Holdings, Inc.	2008-08-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SENEA	Seneca Foods Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SENEB	Seneca Foods Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SENS	Senseonics Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEPN	Septerna, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SER	Serina Therapeutics, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SERA	Sera Prognostics, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SERV	Serve Robotics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SES	SES AI Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SEV	Aptera Motors Corp. Class B Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEVN	Seven Hills Realty Trust Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SEZL	Sezzle Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SF	Stifel Financial Corp.	1890-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SFBC	Sound Financial Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SFBS	ServisFirst Bancshares Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SFD	Smithfield Foods, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SFHG	Samfine Creation Holdings Group Limited Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SFIX	Stitch Fix, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SFL	SFL Corporation Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SFM	Sprouts Farmers Market, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SFNC	Simmons First National Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SFST	Southern First Bancshares, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SFWL	Shengfeng Development Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SG	Sweetgreen, Inc.	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SGA	Saga Communications, Inc. Class A Common Stock (FL)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGC	Superior Group of Companies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGHC	Super Group (SGHC) Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SGHT	Sight Sciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGI	Somnigroup International Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SGLY	Singularity Future Technology Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SGML	Sigma Lithium Corporation Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SGMO	Sangamo Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGMT	Sagimet Biosciences Inc. Series A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGP	SpyGlass Pharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SGRP	SPAR Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGRY	Surgery Partners, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SGU	Star Group, L.P. Common Units Representing Limited Partner Interest	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SHAK	Shake Shack Inc.	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SHAZ	SharonAI Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SHBI	Shore Bancshares Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHC	Sotera Health Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SHEN	Shenandoah Telecom Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHFS	SHF Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHIM	Shimmick Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHIP	Seanergy Maritime Holdings Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHLS	Shoals Technologies Group, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHMD	SCHMID Group N.V. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHO	Sunstone Hotel Investors, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SHOO	Steven Madden Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SHOP	Shopify Inc. Class A subordinate voting shares	2006-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SHPH	Shuttle Pharmaceuticals Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SHW	The Sherwin-Williams Company	1866-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SI	Shoulder Innovations, Inc.	1894-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SIBN	SI-BONE, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SIDU	Sidus Space, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SIEB	Siebert Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SIF	SIFCO Industries, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SIG	Signet Jewelers Limited	1949-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SIGA	SIGA Technologies Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SIGI	Selective Insurance Group	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SII	Sprott Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SILA	Sila Realty Trust, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SILC	Silicom Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SILO	Silo Pharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SIMA	SIM Acquisition Corp. I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SINT	SiNtx Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SION	Sionna Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SIRI	Sirius XM Holdings,  Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SITC	SITE Centers Corp. Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SITE	SiteOne Landscape Supply, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SITM	SiTime Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SJ	Scienjoy Holding Corporation Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SJM	The J.M. Smucker Company	1897-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SJT	San Juan Basin Royalty Trust UBI	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SKBL	Skyline Builders Group Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKE	Skeena Resources Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SKIL	Skillsoft Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SKIN	The Beauty Health Company Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKK	SKK Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SKLZ	Skillz Inc.	2012-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SKT	Tanger Inc.	1981-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SKWD	Skyward Specialty Insurance Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKY	Champion Homes, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SKYE	Skye Bioscience, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKYH	Sky Harbour Group Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SKYQ	Sky Quarry Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKYT	SkyWater Technology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SKYW	Skywest Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SKYX	SKYX Platforms Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLAB	Silicon Laboratories Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLB	SLB Limited	1926-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLDB	Solid Biosciences Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLDE	Slide Insurance Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLDP	Solid Power, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLE	Super League Enterprise, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLF	Sun Life Financial Inc.	1865-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SLG	SL Green Realty Corp.	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLGB	Smart Logistics Global Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLGL	Sol-Gel Technologies Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLGN	Silgan Holdings Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SLI	Standard Lithium Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SLM	SLM Corporation	1972-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLMT	Brera Holdings PLC Class B Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLND	Southland Holdings, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLNG	Stabilis Solutions, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLNH	Soluna Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLNO	Soleno Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLP	Simulations Plus, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLQT	SelectQuote, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLRC	SLR Investment Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLS	SELLAS Life Sciences Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SLSN	Solesence, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SLSR	Solaris Resources Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLVM	Sylvamo Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SLXN	Silexion Therapeutics Corp Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SM	SM Energy Company	1908-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMA	SmartStop Self Storage REIT, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SMBC	Southern Missouri Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SMBK	SmartFinancial, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SMC	Summit Midstream Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMCI	Super Micro Computer, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SMG	The Scotts Miracle-Gro Company	1868-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SMHI	SEACOR Marine Holdings Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMID	Smith-Midland Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SMJF	SMJ International Holdings Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMMT	Summit Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SMP	Standard Motor Products	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMPL	The Simply Good Foods Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SMR	NuScale Power Corporation	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMRT	SmartRent, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMSI	Smith Micro Software Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SMTC	Semtech Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SMTI	Sanara MedTech Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SMTK	SmartKem, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SMWB	Similarweb Ltd.	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SMX	SMX (Security Matters) Public Limited Company Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SMXT	Solarmax Technology Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SN	SharkNinja, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SNA	Snap-on Incorporated	1920-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SNAL	Snail, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNAP	Snap Inc.	2011-09-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SNBR	Sleep Number Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNCY	Sun Country Airlines Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SND	Smart Sand, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNDA	Sonida Senior Living, Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SNDK	Sandisk Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNDL	Sundial Growers Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNDR	Schneider National, Inc.	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SNDX	Syndax Pharmaceuticals, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNES	SenesTech, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNEX	StoneX Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNFCA	Security National Financial Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNGX	Soligenix, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNOA	Sonoma Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNOW	Snowflake Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SNPS	Synopsys Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNSE	Sensei Biotherapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNT	Senstar Technologies Corporation Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNTG	Sentage Holdings Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNTI	Senti Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SNWV	SANUWAVE Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SNX	TD SYNNEX Corporation	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SNYR	Synergy CHC Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SO	The Southern Company	1945-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SOAR	Volato Group, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SOBO	South Bow Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SOBR	SOBR Safe, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOC	Sable Offshore Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SOCA	Solarius Capital Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SOFI	SoFi Technologies, Inc. Common Stock	2011-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOHU	Sohu.com Limited American Depositary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SOLS	Solstice Advanced Materials Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SOLV	Solventum Corporation	2024-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SON	Sonoco Products Company	1899-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SONM	DNA X, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SONO	Sonos, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SOPA	Society Pass Incorporated Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOPH	SOPHiA GENETICS SA Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SORA	AsiaStrategy Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SORN	Soren Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOS	SOS Limited	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SOTK	Sono-Tek Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOUL	Soulpower Acquisition Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SOUN	SoundHound AI, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SOWG	Sow Good Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPAI	Safe Pro Group Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPB	Spectrum Brands Holdings, Inc.	1906-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPCB	SuperCom, Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPCE	Virgin Galactic Holdings, Inc.	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPEG	Silver Pegasus Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPFI	South Plains Financial, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPG	Simon Property Group, Inc.	1960-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SPGI	S&P Global Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SPH	Suburban Propane Partners L P	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPHL	Springview Holdings Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPHR	Sphere Entertainment Co.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPIR	Spire Global, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPKL	Spark I Acquisition Corp. Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPMC	Sound Point Meridian Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPNT	SiriusPoint Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPOK	Spok Holdings, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPOT	Spotify Technology S.A.	2007-01-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPPL	SIMPPLE LTD. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPRB	Spruce Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPRC	SciSparc Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPRO	Spero Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPRU	Spruce Power Holding Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SPRY	ARS Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPSC	SPS Commerce, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPT	Sprout Social, Inc Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPWH	Sportsman's Warehouse Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SPWR	SunPower Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SPXC	SPX Technologies, Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SQFT	Presidio Property Trust, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SR	Spire Inc.	1857-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SRAD	Sportradar Group AG Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SRBK	SR Bancorp, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SRCE	1st Source Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SRE	Sempra	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SRFM	Surf Air Mobility Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SRG	Seritage Growth Properties Class A common shares of beneficial interest, par value $0.01	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SRI	Stoneridge, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SRL	Scully Royalty Ltd. Common Shares	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SRPT	Sarepta Therapeutics,, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SRRK	Scholar Rock Holding Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SRTA	Strata Critical Medical, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SRTS	Sensus Healthcare, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SRXH	SRX Health Solutions, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SRZN	Surrozen, Inc. Common	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSAC	SPACSphere Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSB	SouthState Bank Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SSBI	Summit State Bank	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SSD	Simpson Manufacturing Co., Inc.	1956-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SSEA	Starry Sea Acquisition Corp Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSII	SS Innovations International Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSM	Sono Group N.V. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSNC	SS&C Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SSP	The E.W. Scripps Company	1878-11-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSRM	SSR Mining Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSSS	SuRo Capital Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SSSSL	SuRo Capital Corp. 6.00% Notes due 2026	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SST	System1, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SSTI	SoundThinking, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SSTK	SHUTTERSTOCK, INC.	2003-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SSYS	Stratasys Inc (ISRAEL)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ST	Sensata Technologies Holding plc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STAA	Staar Surgical Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STAG	STAG INDUSTRIAL, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STAK	STAK Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STBA	S&T Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STC	Stewart Information Services Corporation	1893-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STE	STERIS plc	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STEL	Stellar Bancorp, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STEM	Stem, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STEP	StepStone Group Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STEX	Streamex Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STFS	Star Fashion Culture Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STGW	Stagwell Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STHO	Star Holdings Shares of Beneficial Interest	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STI	Solidion Technology, Inc. Common Stock	1811-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STIM	Neuronetics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STKE	Sol Strategies Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STKL	SunOpta, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STKS	The ONE Group Hospitality, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STLA	Stellantis N.V.	2021-01-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STLD	Steel Dynamics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STM	STMicroelectronics N.V.	1987-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STN	Stantec, Inc.	1954-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STNE	StoneCo Ltd. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STNG	Scorpio Tankers Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STOK	Stoke Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STRA	Strategic Education, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STRL	Sterling Infrastructure, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STRO	Sutro Biopharma, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STRR	Star Equity Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STRS	Stratus Properties Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STRT	Strattec Security Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STRW	Strawberry Fields REIT, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STRZ	Starz Entertainment Corp. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STSS	Sharps Technology Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 STT	State Street Corporation	1792-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STTK	Shattuck Labs, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STUB	StubHub Holdings, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STVN	Stevanato Group S.p.A.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-STWD	STARWOOD PROPERTY TRUST, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STX	Seagate Technology Holdings PLC Ordinary Shares (Ireland)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-STXS	Stereotaxis, Inc. Common Stock	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 STZ	Constellation Brands, Inc.	1945-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SU	Suncor Energy, Inc.	1978-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SUGP	SU Group Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SUI	Sun Communities, Inc	1975-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SUIG	Sui Group Holdings Limited Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SUN	SUNOCO L.P.	1886-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SUNB	Sunbelt Rentals Holdings, Inc.	1947-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SUNC	SunocoCorp LLC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SUNE	SUNation Energy, Inc. Common Stock	1959-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SUNS	Sunrise Realty Trust, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SUPN	Supernus Pharmaceuticals, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SUPV	Grupo Supervielle S.A.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SUPX	SuperX AI Technology Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SURG	SurgePays, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SUUN	PowerBank Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVA	Sinovac Biotech, Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVAC	Spring Valley Acquisition Corp. III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVAQ	Silicon Valley Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVC	Service Properties Trust Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVCC	Stellar V Capital Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVCO	Silvaco Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVIV	Spring Valley Acquisition Corp. IV Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SVM	Silvercorp Metals Inc. Common Shares	1991-10-31	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SVRA	Savara Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SVRN	OceanPal Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SVV	Savers Value Village, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SW	Smurfit Westrock plc	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SWAG	Stran & Company, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SWBI	Smith & Wesson Brands, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SWIM	Latham Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SWK	Stanley Black & Decker, Inc.	1843-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SWKHL	SWK Holdings Corporation 9.00% Senior Notes due 2027	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SWKS	Skyworks Solutions Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SWMR	Swarmer, Inc Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SWVL	Swvl Holdings Corp Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SWX	Southwest Gas Holdings, Inc.	1931-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SXC	SUNCOKE ENERGY INC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SXI	Standex International Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SXT	Sensient Technology Corporation	1882-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SXTC	China SXT Pharmaceuticals, Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SXTP	60 Degrees Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SYBT	Stock Yards Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SYF	SYNCHRONY FINANCIAL	2003-09-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SYK	Stryker Corporation	1946-02-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SYM	Symbotic Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SYNA	Synaptics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SYNX	Silynxcom Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 SYPR	Sypris Solutions Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-SYRE	Spyre Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 SYY	Sysco Corporation	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-SZZL	Sizzle Acquisition Corp. II Class A ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 T	AT&T Inc.	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TAC	TransAlta Corporation	1911-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TACH	Titan Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TACO	Berto Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TACT	Transact Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TALK	Talkspace, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TALO	Talos Energy, Inc. Common Stock	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TANH	Tantech Holdings Ltd. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TAOP	Taoping Inc. BVI Ordinary Shares (0 par)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TAOX	Tao Synergies Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TAP	Molson Coors Beverage Company Class B	2005-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TAP.A	Molson Coors Beverage Company Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TARA	Protara Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TARS	Tarsus Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TASK	TaskUs, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TATT	TAT Technologies Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TAVI	Tavia Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TAYD	Taylor Devices Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TBBB	BBB Foods Inc.	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TBBK	The Bancorp Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBCH	Turtle Beach Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBH	Brag House Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBI	Trueblue, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TBLA	Taboola.com Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBLD	Thornburg Income Builder Opportunities Trust Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBN	Tamboran Resources Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TBPH	Theravance Biopharma, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TBRG	TruBridge, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCBI	Texas Capital Bancshares, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TCBK	Trico Bancshares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCBS	Texas Community Bancshares, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCBX	Third Coast Bancshares, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TCGL	TechCreate Group Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TCI	Transcontinental Realty Investors, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TCMD	Tactile Systems Technology, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCPC	BlackRock TCP Capital Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TCRT	Alaunos Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCRX	TScan Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TCX	Tucows, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TD	Toronto Dominion Bank	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TDAC	Translational Development Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TDAY	USA TODAY Co., Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TDC	TERADATA CORPORATION	1979-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TDG	TransDigm Group Incorporated	1993-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TDIC	Dreamland Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TDOC	Teladoc Health, Inc.	2002-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TDS	Telephone and Data Systems Inc.	1969-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TDUP	ThredUp Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TDW	Tidewater, Inc.	1956-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TDWD	Tailwind 2.0 Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TDY	Teledyne Technologies Incorporated	1960-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TE	T1 Energy Inc.	1899-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TEAD	Teads Holding Co. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TEAM	Atlassian Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TECH	Bio-Techne Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TECK	Teck Resources Limited	1908-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TECX	Tectonic Therapeutic, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TEL	TE Connectivity plc	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TELA	TELA Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TELO	Telomir Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TEM	Tempus AI, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TEN	Tsakos Energy Navigation Ltd.	1930-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TENB	Tenable Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TENX	Tenax Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TER	Teradyne, Inc. Common Stock	1960-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TERN	Terns Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TEX	Terex Corporation	1925-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TFC	Truist Financial Corporation	1872-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TFII	TFI International Inc.	1957-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TFIN	Triumph Financial, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TFPM	Triple Flag Precious Metals Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TFSL	TFS Financial Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TFX	Teleflex Incorporated	1943-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TG	Tredegar Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TGB	Taseko Mines Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TGE	The Generation Essentials Group	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TGEN	Tecogen Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TGHL	The GrowHub Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TGL	Treasure Global Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TGLS	Tecnoglass Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TGT	Target Corporation	1962-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TGTX	TG Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TH	Target Hospitality Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 THC	Tenet Healthcare Corporation New	1967-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-THCH	TH International Limited Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-THFF	First Financial Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 THG	The Hanover Insurance Group, Inc.	1852-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-THH	TryHard Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-THM	International Tower Hill Mines, Ltd.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 THO	Thor Industries, Inc.	1980-08-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 THR	THERMON GROUP HOLDINGS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-THRM	Gentherm Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-THRY	Thryv Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TIC	TIC Solutions, Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TIGO	Millicom International Cellular S.A. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TIGR	UP Fintech Holding Ltd American Depositary Share representing fifteen Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TII	Titan Mining Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TIL	Instil Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TILE	Interface Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TIPT	Tiptree Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TISI	Team, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TITN	Titan Machinery Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TIVC	Tivic Health Systems, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TJGC	TJGC Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TJX	TJX Companies, Inc. (The)	1956-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TK	Teekay Corporation Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TKNO	Alpha Teknova, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TKO	TKO Group Holdings, Inc.	2023-09-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TKR	The Timken Company	1899-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TLF	Tandy Leather Factory, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLIH	Ten-League International Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TLN	Talen Energy Corporation Common Stock	2015-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLNC	Talon Capital Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLPH	Talphera, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLRY	Tilray Brands, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLS	Telos Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLSA	Tiziana Life Sciences Ltd. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TLSI	TriSalus Life Sciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TLYS	Tilly's Inc.	1982-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TMC	TMC the metals company Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMCI	Treace Medical Concepts, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMCR	The Metals Royalty Company Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMDE	TMD Energy Limited	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TMDX	TransMedics Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TMHC	Taylor Morrison Home Corporation Common Stock	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TMO	Thermo Fisher Scientific, Inc.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TMP	Tompkins Financial Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TMQ	Trilogy Metals Inc	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TMTS	Spartacus Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMUS	T-Mobile US, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMUSI	T-Mobile US, Inc. 5.500% Senior Notes due June 2070	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMUSL	T-Mobile US, Inc. 6.250% Senior Notes due 2069	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TMUSZ	T-Mobile US, Inc. 5.500% Senior Notes due March 2070	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TNC	TENNANT COMPANY	1870-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TNDM	Tandem Diabetes Care, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TNET	TRINET GROUP, INC.	1988-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TNGX	Tango Therapeutics, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TNK	Teekay Tankers Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TNL	Travel + Leisure Co.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TNMG	TNL Mediagene Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TNON	Tenon Medical, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TNXP	Tonix Pharmaceuticals Holding Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TNYA	Tenaya Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TOI	The Oncology Institute, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TOL	Toll Brothers, Inc.	1986-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TOMZ	TOMI Environmental Solutions, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TONX	TON Strategy Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TOON	Kartoon Studios, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TOP	TOP Financial Group Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TOPP	Toppoint Holdings Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TOPS	TOP Ships Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TORO	Toro Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TOST	Toast, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TOVX	Theriva Biologics, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TOWN	Towne Bank	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TOYO	TOYO Co., Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TPB	Turning Point Brands, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TPC	Tutor Perini Corporation	1894-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TPCS	Techprecision Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TPET	Trio Petroleum Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TPG	TPG Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TPGXL	TPG Operating Group II, L.P. 6.950% Fixed-Rate Junior Subordinated Notes due 2064	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TPH	Tri Pointe Homes, Inc.	2009-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TPL	Texas Pacific Land Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TPR	Tapestry, Inc. Common Stock	2017-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TPST	Tempest Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TPVG	TRIPLEPOINT VENTURE GROWTH BDC CORP.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TR	Tootsie Roll Industries, Inc.	1896-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRAK	ReposiTrak, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRAW	Traws Pharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRAXV	First Tracks Biotherapeutics, Inc. Ordinary Shares When-Issued	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRC	Tejon Ranch Co.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRDA	Entrada Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TREE	LendingTree, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TREX	Trex Company, Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TRGP	Targa Resources Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TRI	Thomson Reuters Corporation Common Shares	2008-04-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRIN	Trinity Capital Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRINI	Trinity Capital Inc. 7.875% Notes Due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRINZ	Trinity Capital Inc. 7.875% Notes due 2029	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRIP	TripAdvisor, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRMB	Trimble Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRMD	TORM plc Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRMK	Trustmark Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRN	Trinity Industries, Inc.	1933-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRNO	Terreno Realty Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRNR	Interactive Strength Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRNS	Transcat Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRON	Tron Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TROO	TROOPS, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TROW	T Rowe Price Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TROX	TRONOX LIMITED CL A ORDINARY SHARES	2005-11-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TRP	TC Energy Corporation	1951-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TRS	Trimas Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRSG	Tungray Technologies Inc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRST	Trustco Bank Corp NY	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRT	Trio-Tech International	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRTX	TPG RE Finance Trust, Inc. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TRU	TransUnion	1968-02-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRUG	TruGolf Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRUP	Trupanion, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TRV	The Travelers Companies, Inc.	1853-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TRVI	Trevi Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TRX	TRX Gold Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TSAT	Telesat Corporation Class A Common Shares and Class B Variable Voting Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TSBK	Timberland Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TSCO	Tractor Supply Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TSEM	Tower Semiconductor Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TSHA	Taysha Gene Therapies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TSLA	Tesla Inc.	2010-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	2003-07-01	manual	IPO price $17, first US automaker IPO since Ford in 1956
-TSLX	Sixth Street Specialty Lending, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TSN	Tyson Foods, Inc.	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TSQ	TOWNSQUARE MEDIA, INC.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TSSI	TSS, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TT	Trane Technologies plc	1871-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TTAM	Titan America SA	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TTAN	ServiceTitan, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TTC	Toro Company (The)	1914-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TTD	The Trade Desk, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TTE	TotalEnergies SE	1924-03-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TTEC	TTEC Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TTEK	Tetra Tech Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TTGT	TechTarget, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TTI	TETRA Technologies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TTMI	TTM Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TTRX	Turn Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TTWO	Take-Two Interactive Software Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TU	Telus Corporation	1990-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TULP	Bloomia Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TUSK	Mammoth Energy Services, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TVA	Texas Ventures Acquisition III Corp Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TVAI	Thayer Ventures Acquisition Corporation II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TVGN	Tevogen Bio Holdings Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TVRD	Tvardi Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TVTX	Travere Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TW	Tradeweb Markets Inc. Class A Common Stock	2010-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TWAV	TaoWeave, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TWFG	TWFG, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TWG	Top Wealth Group Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TWI	Titan International, Inc.(Delaware)	1990-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TWIN	Twin Disc, Incorporated	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TWLO	Twilio Inc.	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TWLV	Twelve Seas Investment Company III Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TWO	Two Harbors Investment Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TWST	Twist Bioscience Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TXG	10x Genomics, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-TXMD	TherapeuticsMD, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TXN	Texas Instruments Incorporated	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TXNM	TXNM Energy, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TXRH	Texas Roadhouse, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TXT	Textron, Inc.	1923-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 TY	TRI-Continental Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TYGO	Tigo Energy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TYL	Tyler Technologies, Inc.	1966-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-TYRA	Tyra Biosciences, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 TZOO	Travelzoo Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 U	Unity Software Inc.	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UA	Under Armour, Inc. Class C Common Stock, $0.0003 1/3 par value	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UAA	Under Armour, Inc.	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UAC	United Acquisition Corp. I	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UAL	United Airlines Holdings, Inc. Common Stock	1968-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UAMY	United States Antimony Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UAN	CVR Partners, LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UAVS	AgEagle Aerial Systems, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UBCP	United Bancorp Inc/OH	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UBER	Uber Technologies, Inc.	2009-03-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UBS	UBS Group AG	1862-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UBSI	United Bankshares Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UBXG	U-BX Technology Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UCAR	U Power Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UCB	United Community Banks, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UCFI	CN Healthy Food Tech Group Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UCTT	Ultra Clean Holdings, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UDMY	Udemy, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UDR	UDR, Inc.	1972-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
@@ -4850,31 +2944,20 @@ UE	UBRAN EDGE PROPERTIES	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon
 UEC	Uranium Energy Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UEIC	Universal Electronics Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UFCS	United Fire Group Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UFG	Uni-Fuels Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UFI	UNIFI, Inc. New	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UFPI	UFP Industries, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UFPT	UFP Technologies Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UG	United-Guardian, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UGI	UGI Corporation	1882-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UGRO	urban-gro, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UHAL	U-Haul Holding Company	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UHAL.B	U-Haul Holding Company	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UHG	United Homes Group, Inc Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UHS	Universal Health Services, Inc. Class B	1978-09-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UHT	Universal Health Realty Income Trust	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UI	Ubiquiti Inc. Common Stock	2003-10-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UIS	Unisys Corporation	1986-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UK	Ucommune International Ltd Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ULBI	Ultralife Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ULCC	Frontier Group Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ULH	Universal Logistics Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ULS	UL Solutions Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ULTA	Ulta Beauty, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UMAC	Unusual Machines, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UMBF	UMB Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UMH	UMH Properties, Inc.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UNB	Union Bankshares, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UNCY	Unicycive Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UNF	Unifirst Corp	1936-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UNFI	United Natural Foods Inc	1996-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UNH	UnitedHealth Group Inc.	1984-10-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	1977-01-01	manual	Formerly United HealthCare Corporation
@@ -4885,419 +2968,2336 @@ UNTY	Unity Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UONE	Urban One, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UONEK	Urban One, Inc. Class D Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UP	Wheels Up Experience Inc.	2013-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UPB	Upstream Bio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UPBD	Upbound Group, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UPC	Universe Pharmaceuticals Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UPLD	Upland Software, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UPS	United Parcel Service, Inc. Class B	1907-08-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UPST	Upstart Holdings, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UPWK	Upwork Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UPXI	Upexi, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 URBN	Urban Outfitters Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 URG	Ur-Energy Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-URGN	UroGen Pharma Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 URI	United Rentals, Inc.	1997-09-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UROY	Uranium Royalty Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-USAC	USA COMPRESSION PARTNERS LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-USAR	USA Rare Earth, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USAS	Americas Gold and Silver Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 USAU	U.S. Gold Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USB	U.S. Bancorp	1850-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-USBC	USBC, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 USCB	USCB Financial Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USEA	United Maritime Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USEG	U.S. Energy Corp. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USFD	US Foods Holding Corp.	1989-08-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-USGO	U.S. GoldMining Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-USIO	Usio, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USLM	United States Lime & Minerals	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 USNA	USANA Health Sciences Inc	1992-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-USPH	US Physical Therapy Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UTHR	United Therapeutics Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UTI	Universal Technical Institute, Inc.	1965-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UTL	Unitil Corporation	1984-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UTMD	Utah Medical Products Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-UTSI	UTStarcom Holdings Corp Ordinary Shares (Cayman Islands)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UTZ	Utz Brands, Inc.	1921-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UUU	Universal Safety Products, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UUUU	Energy Fuels Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UVE	UNIVERSAL INSURANCE HLDG, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UVSP	Univest Financial Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 UVV	Universal Corporation	1886-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 UWMC	UWM Holdings Corporation	1986-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-UYSC	UY Scuti Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 V	Visa Inc.	2008-03-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	1958-09-18	manual	Largest US IPO at the time, raised $17.9B
-VABK	Virginia National Bankshares Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VAC	MARRIOTT VACATIONS WORLDWIDE CORPORATION	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VACH	Voyager Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VACI	Viking Acquisition Corp. I	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VAL	Valaris Limited	1806-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VALU	Value Line Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VANI	Vivani Medical, Inc. Common Stock (DE)	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VATE	INNOVATE Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VBIX	Viewbix Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VBNK	VersaBank Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VC	VISTEON CORPORATION	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VCEL	Vericel Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VCIG	VCI Global Limited Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VCTR	Victory Capital Holdings, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VCX	Fundrise Innovation Fund, LLC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VCYT	Veracyte, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VECO	Veeco Instruments Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VEEA	Veea Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VEEE	Twin Vee PowerCats Co. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VEEV	Veeva Systems Inc.	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VEL	Velocity Financial, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VELO	Velo3D, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VENU	Venu Holding Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VERA	Vera Therapeutics, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VERI	Veritone, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VERU	Veru Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VERX	Vertex, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VET	VERMILION ENERGY INC.	1994-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VFC	V.F. Corporation	1899-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VFF	Village Farms International, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VFS	VinFast Auto Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VG	Venture Global, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VGAS	Verde Clean Fuels, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VGNT	Versigent PLC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VGZ	Vista Gold Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VHC	VirnetX Holding Corp Common Stock	2005-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VHCP	Vine Hill Capital Investment Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VHI	Valhi, Inc.	1987-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VHUB	VenHub Global, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VIA	Via Transportation, Inc.	2012-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VIAV	Viavi Solutions Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VICI	VICI Properties Inc. Common Stock	2017-10-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VICR	Vicor Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIK	Viking Holdings Ltd	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VINP	Vinci Compass Investments Ltd. Class A Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIR	Vir Biotechnology, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIRC	Virco Mfg. Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIRT	Virtu Financial, Inc. Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VISN	Vistance Networks, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VITL	Vital Farms, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIVO	VivoPower PLC Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VIVS	VivoSim Labs, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VKTX	Viking Therapeutics, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VLGEA	Village Super Market	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VLN	Valens Semiconductor Ltd.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VLO	Valero Energy Corporation	1980-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VLTO	Veralto Corporation	2022-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VLY	Valley National Bancorp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VMAR	Vision Marine Technologies Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VMC	Vulcan Materials Company(Holding Company)	1909-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VMD	Viemed Healthcare, Inc. Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VMET	Versamet Royalties Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VMI	Valmont Industries, Inc.	1946-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VNCE	Vince Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VNDA	Vanda Pharmaceuticals Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VNME	Vendome Acquisition Corporation I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VNO	Vornado Realty Trust	1982-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VNOM	Viper Energy, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VNRX	VolitionRX Limited Common Stock	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VNT	Vontier Corporation	2020-09-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VNTG	Vantage Corp	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VOC	VOC ENERGY TRUST	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VOR	Vor Biopharma Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VOXR	Vox Royalty Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VOYA	VOYA FINANCIAL, INC.	2013-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VOYG	Voyager Technologies, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VPG	Vishay Precision Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VRA	Vera Bradley, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRAX	Virax Biolabs Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRCA	Verrica Pharmaceuticals Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRDN	Viridian Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VRE	Veris Residential, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VREX	Varex Imaging Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRM	Vroom, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRME	VerifyMe, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRNS	Varonis Systems, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VRRM	Verra Mobility Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VRSK	Verisk Analytics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VRSN	VeriSign Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VRT	Vertiv Holdings Co Class A Common Stock	1965-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VRTS	Virtus Investment Partners, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VRTX	Vertex Pharmaceuticals Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VS	Versus Systems Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSAT	Viasat Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSCO	Victorias Secret & Co.	1977-06-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VSEC	VSE Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VSEE	VSee Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSH	Vishay Intertechnology, Inc.	1962-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VSME	VS Media Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSNT	Versant Media Group, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VST	Vistra Corp.	2016-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VSTD	Vestand Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSTM	Verastem, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VSTS	Vestis Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VTAK	Catheter Precision, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VTEX	VTEX	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VTGN	Vistagen Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VTIX	Virtuix Holdings Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VTOL	Bristow Group Inc.	1953-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VTR	Ventas, Inc.	1998-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VTRS	Viatris Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VTS	Vitesse Energy, Inc..	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VTSI	VirTra, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VTVT	vTv Therapeutics Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VUZI	Vuzix Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VVOS	Vivos Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VVV	Valvoline Inc.	1866-09-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VVX	V2X, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-VWAV	VisionWave Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VYGR	Voyager Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-VYNE	VYNE Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 VYX	NCR Voyix Corporation	1884-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VZ	Verizon Communications	1983-10-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 VZLA	Vizsla Silver Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 W	Wayfair Inc.	2002-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WAB	Wabtec Inc.	1999-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WABC	Westamerica Bancorporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAFD	WaFd, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAFDP	WaFd, Inc. Depositary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAFU	Wah Fu Education Group Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAI	Top KingWin Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAL	Western Alliance Bancorporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WALD	Waldencast plc Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WASH	Washington Trust Bancorp Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WAT	Waters Corp	1958-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WATT	Energous Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WAY	Waystar Holding Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WBD	Warner Bros. Discovery, Inc. Series A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WBI	WaterBridge Infrastructure LLC	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WBS	Webster Financial Corporation Waterbury	1935-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WBTN	WEBTOON Entertainment Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WBUY	WEBUY GLOBAL LTD. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WBX	Wallbox N.V.	2015-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WCC	Wesco International Inc.	1922-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WCN	Waste Connections, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WCT	Wellchange Holdings Company Limited Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WD	Walker & Dunlop, Inc.	1937-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WDAY	Workday, Inc. Class A Common Stock	2005-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WDC	Western Digital Corp.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WDFC	Wd-40 Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WEAV	Weave Communications, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WEC	WEC Energy Group, Inc.	1896-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WELL	Welltower Inc.	1970-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WEN	The Wendy's Company	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WENN	Wen Acquisition Corp Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WERN	Werner Enterprises Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WES	Western Midstream Partners, LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WEST	Westrock Coffee Company Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WETH	Wetouch Technology Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WETO	Wetour Robotics Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WEX	WEX Inc.	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WEYS	Weyco Group Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WFC	Wells Fargo & Co.	1852-03-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WFCF	Where Food Comes From, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WFF	WF Holding Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WFG	West Fraser Timber Co. Ltd	2020-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WFRD	Weatherford International plc Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WGO	Winnebago Industries, Inc.	1958-02-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WGRX	Wellgistics Health, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WGS	GeneDx Holdings Corp. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WH	Wyndham Hotels & Resorts, Inc. Common Stock	2018-06-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WHD	Cactus, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WHF	WhiteHorse Finance, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WHFCL	WhiteHorse Finance, Inc. 7.875% Notes due 2028	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WHG	WESTWOOD HOLDINGS GROUP, INC.	1983-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WHLR	Wheeler Real Estate Investment Trust, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WHLRL	Wheeler Real Estate Investment Trust, Inc. 7.00% Senior Subordinated Convertible Notes Due 2031	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WHR	Whirlpool Corp.	1911-11-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WHWK	Whitehawk Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WILC	G Willi-Food International Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WIMI	WiMi Hologram Cloud Inc. Class B Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WINA	Winmark Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WING	Wingstop Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WIX	WIX.com Ltd.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WK	Workiva Inc.	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WKC	World Kinect Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WKHS	Workhorse Group, Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WKSP	Worksport, Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WLAC	Willow Lane Acquisition Corp. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WLDN	Willdan Group, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WLDS	Wearable Devices Ltd. Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WLFC	Willis Lease Finance Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WLII	Willow Lane Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WLK	Westlake Corporation	1986-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WLKP	WESTLAKE CHEMICAL PARTNERS LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WLTH	Wealthfront Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WLY	John Wiley & Sons, Inc. Class A	1807-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WLYB	John Wiley & Sons, Inc. Class B	1807-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WM	Waste Management, Inc.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WMB	Williams Companies Inc.	1908-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WMG	Warner Music Group Corp. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WMK	Weis Markets, Inc.	1912-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WMS	ADVANCED DRAINAGE SYSTEMS, INC.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WMT	Walmart Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WNC	Wabash National Corp.	1985-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WNEB	Western New England Bancorp, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WNW	Meiwu Technology Company Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WOK	WORK Medical Technology Group LTD Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WOLF	Wolfspeed, Inc.	1987-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WOOF	Petco Health and Wellness Company, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WOR	Worthington Enterprises, Inc.	1955-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WPAC	White Pearl Acquisition Corp.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WPC	W.P. Carey Inc. (REIT)	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WPM	Wheaton Precious Metals Corp. Common Stock	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WPRT	Westport Fuel Systems Inc Common Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WRAP	Wrap Technologies, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WRB	W.R. Berkley Corporation	1967-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WRBY	Warby Parker Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WRLD	World Acceptance Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WRN	Western Copper and Gold Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WS	Worthington Steel, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WSBC	WesBanco Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WSBCO	WesBanco, Inc. Depositary Shares each representing 1/40th interest in a share of 7.375% Fixed-Rate Reset Non-Cumulative Perpetual Preferred Stock, Series B	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WSBF	Waterstone Financial, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WSBK	Winchester Bancorp, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WSC	WillScot Holdings Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WSFS	WSFS Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WSHP	WeShop Holdings Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WSM	Williams-Sonoma, Inc.	1983-07-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WSO	Watsco, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WSO.B	Watsco, Inc. Class B	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WSR	Whitestone REIT	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WST	West Pharmaceutical Services, Inc.	1923-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WSTN	Westin Acquisition Corp Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WT	WisdomTree, Inc.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WTBA	West Bancorporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WTF	Waton Financial Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WTFC	Wintrust Financial Corp	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WTG	Wintergreen Acquisition Corp. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WTI	W&T Offshore, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WTM	White Mountains Insurance Group Ltd.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WTO	UTime Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WTRG	Essential Utilities, Inc.	1968-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WTS	Watts Water Technologies, Inc. Class A	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WTTR	Select Water Solutions, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WTW	Willis Towers Watson Public Limited Company Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WU	The Western Union Company	1856-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WULF	TeraWulf Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WVE	Wave Life Sciences Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WVVI	Willamette Valley Vineyards	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WW	WW International, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WWD	Woodward, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WWR	Westwater Resources, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 WWW	Wolverine World Wide, Inc.	1883-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WXM	WF International Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WY	Weyerhaeuser Company	1900-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-WYFI	WhiteFiber, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 WYNN	Wynn Resorts Ltd	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-WYY	WidePoint Corporation	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XAIR	Beyond Air, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XBIO	Xenetic Biosciences, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XBIT	XBiotech Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XBP	XBP Global Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XCBE	X3 Acquisition Corp. Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XCUR	Exicure, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XEL	Xcel Energy, Inc.	1998-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XELB	XCEL BRANDS INC.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XELLL	Xcel Energy Inc. 6.25% Junior Subordinated Notes, Series due 2085	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XENE	Xenon Pharmaceuticals Inc	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XERS	Xeris Biopharma Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XFLH	XFLH Capital Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XFOR	X4 Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XGN	Exagen Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XHLD	TEN Holdings, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XHR	Xenia Hotels & Resorts, Inc.	2014-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XIFR	XPLR Infrastructure, LP	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XLO	Xilio Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XMTR	Xometry, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XNCR	Xencor, Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XNDU	Xanadu Quantum Technologies Limited Class B Subordinate Voting Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XOM	Exxon Mobil Corporation	1882-08-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XOMA	XOMA Royalty Corporation Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XOMAO	XOMA Royalty Corporation Depositary Shares Rep Series B 8.375% Cumulative Preferred Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XOS	Xos, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XP	XP Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XPEL	XPEL, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XPER	Xperi Inc	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XPL	Solitario Resources Corp.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
 XPO	XPO, Inc.	1987-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XPOF	Xponential Fitness, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XPON	Expion360 Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XPRO	Expro Group Holdings N.V.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 XRAY	DENTSPLY SIRONA Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XRN	Chiron Real Estate Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XRPN	Armada Acquisition Corp. II Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XRTX	XORTX Therapeutics Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XRX	Xerox Holdings Corporation Common Stock	1906-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XSLL	Xsolla SPAC 1 Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XTIA	XTI Aerospace, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XTNT	Xtant Medical Holdings, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XWEL	XWELL, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XWIN	XMAX, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-XXI	Twenty One Capital, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XXII	22nd Century Group Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 XYL	Xylem Inc	2011-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 XYZ	Block, Inc.	2009-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-XZO	Exzeo Group, Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YAAS	Youxin Technology Ltd Class A Ordinary shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YCBD	cbdMD, Inc. Common Stock	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YCY	AA Mission Acquisition Corp. II	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YDDL	One and One Green Technologies. Inc Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YDES	YD Bio Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YDKG	Yueda Digital Holding Class A Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 YELP	YELP INC.	2004-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 YETI	YETI Holdings, Inc. Common Stock	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 YEXT	Yext, Inc.	2006-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YHC	LQR House Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YHGJ	Yunhong Green CTI Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YHNA	YHN Acquisition I Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YIBO	Planet Image International Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YMAT	J-Star Holding Co., Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YOOV	Concorde International Group Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 YORW	York Water Co	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 YOU	Clear Secure, Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YSS	York Space Systems Inc.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YSXT	YSX Tech. Co., Ltd Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YTRA	Yatra Online, Inc. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 YUM	Yum! Brands, Inc.	1997-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 YUMC	Yum China Holdings, Inc. Common Stock	2016-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-YYAI	AiRWA Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-YYGH	YY Group Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 Z	Zillow Group, Inc. Class C Capital Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZBAI	ATIF Holdings Limited Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZBAO	Zhibao Technology Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZBH	Zimmer Biomet Holdings, Inc.	1927-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZBIO	Zenas BioPharma, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZBRA	Zebra Technologies Corporation	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZCMD	Zhongchao Inc. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZD	Ziff Davis, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZDAI	DirectBooking Technology Co., Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZDGE	Zedge, Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZENA	ZenaTech, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZEO	Zeo Energy Corporation Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZETA	Zeta Global Holdings Corp.	2008-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ZG	ZILLOW GROUP INC CLASS A	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZGN	Ermenegildo Zegna N.V.	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ZIM	ZIM Integrated Shipping Services Ltd.	1945-06-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ZION	Zions Bancorporation N.A.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZIP	ZipRecruiter, Inc.	2010-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZJK	ZJK Industrial Co., Ltd. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZJYL	JIN MEDICAL INTERNATIONAL LTD. Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZKIN	ZK International Group Co., Ltd Ordinary Share	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZKP	Lafayette Digital Acquisition Corp. I Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZM	Zoom Communications, Inc. Class A Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZNB	Zeta Network Group Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZNTL	Zentalis Pharmaceuticals, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZONE	CleanCore Solutions Inc.	\N	\N	NYSE American	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZOOZ	ZOOZ Strategy Ltd. Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZS	Zscaler, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZSPC	zSpace, Inc. Common stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZSTK	ZeroStack Corp. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZTEK	Zentek Ltd. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZTG	Zenta Group Company Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZTS	ZOETIS INC.	1952-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
 ZUMZ	Zumiez Inc.	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZURA	Zura Bio Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZVIA	Zevia PBC	2007-01-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZVRA	Zevra Therapeutics, Inc. Common Stock	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
-ZWS	Zurn Elkay Water Solutions Corporation	\N	\N	NYSE	America/New_York	40.7069	-74.0089	\N	polygon	\N
-ZYBT	Zhengye Biotechnology Holding Limited Class A Ordinary Shares	\N	\N	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
 ZYME	Zymeworks Inc.	2003-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	polygon	\N
+ALM	Almonty Industries Inc. Common Shares	2025-07-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+AQN	Algonquin Power & Utilities Corp	2009-10-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ARIS	Aris Mining Corporation	2026-02-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ATS	ATS Corporation	2023-05-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BANX	ArrowMark Financial Corp. Common Stock	2013-11-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BGSI	Boyd Group Services Inc.	2025-10-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BHST	BioHarvest Sciences Inc. Common Stock	2024-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BIRK	Birkenstock Holding plc	2023-10-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BPRE	Bluerock Private Real Estate Fund	2025-12-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+BRAG	Bragg Gaming Group Inc. Common Shares	2021-08-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CCD	Calamos Dynamic Convertible & Income Fund	2014-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CFND	C1 Fund Inc.	2025-08-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CGO	Calamos Global Total Return Fund	2005-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CHI	Calamos Convertible Opportunities and Income Fund	2002-06-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CHW	Calamos Global Dynamic Income Fund	2007-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CHY	Calamos Convertible and High Income Fund	2003-05-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CPZ	Calamos Long/Short Equity & Dynamic Income Trust Common Stock	2019-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+CSQ	Calamos Strategic Total Return Fund	2004-03-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+DCBO	Docebo Inc. Common Shares	2020-12-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+DOO	BRP Inc. Common Subordinate Voting Shares	2018-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+DXYZ	Destiny Tech100 Inc.	2023-07-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+EFXT	Enerflex Ltd.	2022-10-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+EMA	Emera Incorporated	2011-10-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+EPRX	Eupraxia Pharmaceuticals Inc. Common Stock	2024-01-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+EXK	Endeavour Silver Corp.	2011-03-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+EZRA	Reliance Global Group, Inc. Common Stock	2021-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FA	First Advantage Corporation Common Stock	2003-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FACT	FACT II Acquisition Corp. Class A Ordinary Shares	2024-11-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FAMI	Farmmi, Inc. Class A Ordinary Shares	2018-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FATE	Fate Therapeutics, Inc.	2013-09-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FATN	FatPipe, Inc. Common Stock	2025-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBGL	FBS Global Limited Ordinary Shares	2025-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBIO	Fortress Biotech, Inc.	2011-12-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBIZ	First Business Financial Services, Inc.	2018-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBK	FB Financial Corporation	2016-09-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBLA	FB Bancorp, Inc. Common Stock	2024-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBLG	FibroBiologics, Inc. Common Stock	2024-01-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBRT	Franklin BSP Realty Trust, Inc.	2014-04-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBRX	Forte Biosciences, Inc. Common Stock	2017-04-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FBYD	Falcon's Beyond Global, Inc. Class A Common Stock	2023-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCAP	First Capital Inc	1998-11-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCHL	Fitness Champs Holdings Limited Common Stock	2025-09-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCNCA	First Citizens BancShares Inc	2020-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCNCN	First Citizens BancShares, Inc. Depositary Shares, each representing a 1/40th interest in a share of 6.625% Non-Cumulative Perpetual Preferred Stock, Series E	2020-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCRS	FutureCrest Acquisition Corp.	2025-09-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FCUV	Focus Universal Inc. Common Stock	2014-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FDBC	Fidelity D & D Bancorp, Inc. Common Stock	2017-10-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FDMT	4D Molecular Therapeutics, Inc. Common Stock	2020-12-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FDSB	Fifth District Bancorp, Inc. Common Stock	2024-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FDUS	Fidus Investment Corp.	2011-06-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FEBO	Fenbo Holdings Limited Class A Ordinary Shares	2023-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FEED	ENvue Medical, Inc. Common Stock	2014-05-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FEIM	Frequency Electronics, Inc.	2006-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FEMY	Femasys Inc. Common Stock	2021-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FENC	Fennec Pharmaceuticals Inc. Common Stock	2017-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FERA	Fifth Era Acquisition Corp I Class A Ordinary Shares	2025-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FF	Future Fuel Corporation	2011-03-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FFAI	Faraday Future Intelligent Electric Inc. Common Stock	2020-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FG	F&G Annuities & Life, Inc.	2023-11-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FGBI	FIRST GUARANTY BANCSHARES INC	2015-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FGI	FGI Industries Ltd. Ordinary Shares	2022-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FGII	FG Imperii Acquisition Corp. Class A Ordinary Shares	2026-01-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FGMC	FG Merger II Corp. Common stock	2025-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FGNX	FG Nexus Inc. Common Stock	2014-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FHB	First Hawaiian, Inc. Common Stock	1998-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FHTX	Foghorn Therapeutics Inc. Common Stock	2020-10-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FIBK	First Interstate BancSystem, Inc. Common Stock (DE)	2022-07-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FIEE	FiEE, Inc Common Stock	2015-11-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FIGR	Figure Technology Solutions, Inc. Class A Common Stock	2025-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FIGX	FIGX Capital Acquisition Corp. Class A Ordinary Share	2025-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FINW	FinWise Bancorp Common	2021-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FISV	Fiserv, Inc. Common Stock	2019-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FITB	Fifth Third Bancorp	2019-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FIZZ	National Beverage Corp.	2007-06-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FJET	Starfighters Space, Inc.	2025-12-10	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FKWL	Franklin Wireless Corp. Common Stock	1997-10-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLD	Fold Holdings, Inc. Class A Common Stock	2021-12-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLGT	Fulgent Genetics, Inc. Common Stock	2016-09-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLL	Full House Resorts, Inc.	2005-07-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLNA	Filana Therapeutics, Inc. Common Stock	2010-02-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLNC	Fluence Energy, Inc. Class A Common Stock	2021-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLNT	Fluent, Inc. Common Stock	2016-09-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLOC	Flowco Holdings Inc.	2025-01-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLUX	Flux Power Holdings, Inc. Common Stock	2020-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLY	Firefly Aerospace Inc. Common Stock	2025-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLYE	Fly-E Group, Inc. Common Stock	2024-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLYW	Flywire Corporation Voting Common Stock	2021-05-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FLYX	flyExclusive, Inc.	2021-05-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FMAO	Farmers & Merchants Bancorp, Inc.	2017-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FMFC	Kandal M Venture Limited Class A Ordinary Shares	2025-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FMST	Foremost Clean Energy Ltd. Common stock	2023-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FN	Fabrinet	2010-06-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FND	Floor & Decor Holdings, Inc.	2017-04-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FNGR	FingerMotion, Inc. Common Stock	2015-07-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FNKO	Funko, Inc. Class A Common Stock	2017-11-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FNUC	Frontier Nuclear and Minerals Inc. Common Shares	2021-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FNWB	First Northwest Bancorp Common Stock	2014-11-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FNWD	Finward Bancorp Common Stock	2021-11-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOA	Finance of America Companies Inc.	2021-04-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOFO	Hang Feng Technology Innovation Co., Ltd. Ordinary Shares	2025-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOR	Forestar Group Inc.	2017-01-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOSL	Fossil Group, Inc.	2021-11-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOUR	Shift4 Payments, Inc.	2020-06-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOXA	Fox Corporation Class A Common Stock	2019-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOXF	Fox Factory Holding Corp. Common Stock	2013-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FOXX	Foxx Development Holdings Inc. Common Stock	2024-09-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FPH	Five Point Holdings, LLC Class A Common Shares	2017-05-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FPI	Farmland Partners Inc.	2014-04-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FPS	Forgent Power Solutions, Inc.	2026-02-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRD	Friedman Industries Inc. Common Stock	2025-04-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRGT	Freight Technologies, Inc. Ordinary Shares	2017-07-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRHC	Freedom Holding Corp.	1999-08-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRME	First Merchants Corp	2022-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRMEP	First Merchants Corporation Depository Shares	2022-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRMI	Fermi Inc. Common Stock	2025-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRMM	Forum Markets, Incorporated Common Stock	2017-05-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FROG	JFrog Ltd. Ordinary Shares	2020-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRPT	Freshpet, Inc.	2014-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FRSH	Freshworks Inc. Class A Common Stock	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSBC	Five Star Bancorp Common Stock	2021-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSBW	FS Bancorp, Inc. Common Stock	2012-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSCO	FS Credit Opportunities Corp.	2022-11-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSEA	First Seacoast Bancorp, Inc. Common Stock	2023-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSHP	Flag Ship Acquisition Corp. Ordinary Shares	2024-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSI	Flexible Solutions International, Inc.	2002-11-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSK	FS KKR Capital Corp. Common Stock	2014-04-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSP	Franklin Street Properties Corp	2005-04-05	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSSL	FS Specialty Lending Fund	2025-11-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FSUN	FirstSun Capital Bancorp Common Stock	2024-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTAI	FTAI Aviation Ltd. Common Stock	2015-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTCI	FTC Solar, Inc. Common Stock	2021-04-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTEK	Fuel Tech, Inc.	2006-10-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTFT	Future FinTech Group Inc.	2009-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTHM	Fathom Holdings Inc. Common Stock	2020-07-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTLF	FitLife Brands, Inc. Common Stock	2006-12-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTRE	Fortrea Holdings Inc. Common Stock	2025-06-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTRK	FAST TRACK GROUP Ordinary shares	2024-11-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTS	Fortis Inc. Common Shares	2016-10-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FTW	Presidio Production Company	2026-03-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FUFU	BitFuFu Inc. Class A Ordinary Shares	2024-02-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FULC	Fulcrum Therapeutics, Inc. Common Stock	2019-07-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FULT	Fulton Financial Corp	2020-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FULTP	Fulton Financial Corporation Depositary Shares, Each Representing a 1/40th Interest in a Share of Fixed Rate Non-Cumulative Perpetual Preferred Stock, Series A	2020-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FUND	Sprott Focus Trust, Inc.	1997-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FUSE	Fusemachines Inc. Common stock	2025-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FVAV	Fortress Value Acquisition Corp. V Class A Ordinary Shares	2026-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FVCB	FVCBankcorp, Inc. Common Stock	2018-09-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FVN	Future Vision II Acquisition Corporation Ordinary shares	2024-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FVR	FrontView REIT, Inc.	2024-10-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FVRR	Fiverr International Ltd.	2019-06-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FWDI	Forward Industries, Inc. Common Stock	2010-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FWONA	Liberty Media Corporation Series A Liberty Formula One Common Stock	2020-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FWONK	Liberty Media Corporation Series C Liberty Formula One Common Stock	2020-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FWRG	First Watch Restaurant Group, Inc. Common Stock	2021-10-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+FXNC	FIRST NATL CORP STRASBURG VA	2019-04-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAIN	Gladstone Investment Corporation	2005-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAING	Gladstone Investment Corporation 7.125% Notes due 2031	2005-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAINI	Gladstone Investment Corporation 7.875% Notes due 2030	2005-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAINZ	Gladstone Investment Corporation 4.875% Notes due 2028	2005-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GALT	Galectin Therapeutics Inc.	2012-03-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAMB	Gambling.com Group Limited Ordinary Shares	2021-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAME	GameSquare Holdings, Inc. Common Stock	2021-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GANX	Gain Therapeutics, Inc. Common Stock	2021-03-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GASS	StealthGas, Inc.	2005-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAU	Galiano Gold Inc.	2007-07-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GAUZ	Gauzy Ltd. Ordinary Shares	2024-06-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GBCI	Glacier Bancorp Inc	2021-12-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GBDC	Golub Capital BDC, Inc.	2020-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GBFH	GBank Financial Holdings Inc. Common Stock	2025-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GBLI	Global Indemnity Group, LLC Class A Common Stock	2015-08-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GBTG	Global Business Travel Group, Inc.	2020-09-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCBC	Greene County Bancorp Inc	1998-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCDT	Green Circle Decarbonize Technology Limited	2026-01-07	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCL	GCL Global Holdings Ltd Ordinary Shares	2025-02-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCMG	GCM Grosvenor Inc. Class A Common Stock	2020-11-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCT	GigaCloud Technology Inc Class A Ordinary Shares	2022-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCTK	GlucoTrack, Inc. Common Stock	2012-08-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GCTS	GCT Semiconductor Holding, Inc.	2021-11-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDC	GD Culture Group Limited Common Stock	2015-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDEV	GDEV Inc. Ordinary Shares	2021-08-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDHG	Golden Heaven Group Holdings Ltd. Class A Ordinary Shares	2023-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDRX	GoodRx Holdings, Inc. Class A Common Stock	2020-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDTC	CytoMed Therapeutics Limited Ordinary Shares	2023-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GDYN	Grid Dynamics Holdings, Inc. Class A Common Stock	2018-10-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GECC	Great Elm Capital. Corp. Common Stock	2016-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GECCG	Great Elm Capital Corp. 7.75% Notes Due 2030	2016-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GECCH	Great Elm Capital Corp. 8.125% Notes Due 2029	2016-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GECCI	Great Elm Capital Corp. 8.50% NOTES DUE 2029	2016-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GEG	Great Elm Group, Inc. Common Stock	2022-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GEGGL	Great Elm Group, Inc. 7.25% Notes due 2027	2022-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GELS	Gelteq Limited Ordinary Shares	2024-10-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GEMI	Gemini Space Station, Inc. Class A Common Stock	2025-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GENB	Generate Biomedicines, Inc. Common Stock	2026-02-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GENC	Gencor Industries, Inc.	1996-04-22	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GENI	Genius Sports Limited	2021-04-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GENK	GEN Restaurant Group, Inc. Class A Common Stock	2023-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GFAI	Guardforce AI Co., Limited Ordinary Shares	2021-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GFL	GFL Environmental Inc. Subordinate Voting Shares	2020-03-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GFR	Greenfire Resources Ltd.	2023-09-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GFS	GlobalFoundries Inc. Ordinary Shares	2021-10-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GGR	Gogoro Inc. Ordinary Shares	2022-03-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GGRP	The Glimpse Group, Inc. Common Stock	2021-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GHM	Graham Corporation	2014-04-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GHRS	GH Research PLC Ordinary Shares	2021-06-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GIBO	GIBO Holdings Limited Class A Ordinary Shares	2025-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GIFT	Giftify, Inc. Common Stock	2024-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GIPR	Generation Income Properties Inc. Common Stock	2021-08-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GITS	Global Interactive Technologies, Inc. Common Stock	2023-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GIW	GigCapital8 Corp. Class A Ordinary Shares	2025-10-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GIX	GigCapital9 Corp. Class A Ordinary Share	2026-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLAD	Gladstone Capital Corp	2001-08-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLBE	Global-E Online Ltd. Ordinary Shares	2021-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLBS	Globus Maritime Limited	2010-11-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLE	Global Engine Group Holding Limited Class A Ordinary Shares	2024-09-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLED	GalaxyEdge Acquisition Corporation	2026-03-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLIBA	GCI Liberty, Inc. Series A GCI Group Common Stock	2025-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLIBK	GCI Liberty, Inc. Series C GCI Group Common Stock	2025-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLMD	Galmed Pharmaceuticals Ltd.	2014-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLND	Greenland Energy Company Common Stock	2026-03-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLOO	Gloo Holdings, Inc. Class A Common Stock	2025-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLP	Global Partners LP	2018-08-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLPI	Gaming and Leisure Properties, Inc.	2013-10-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLRE	Greenlight Captial RE, LTD. Class A	2007-05-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLSI	Greenwich LifeSciences, Inc.	2020-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLUE	Monte Rosa Therapeutics, Inc. Common Stock	2021-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLXG	Galaxy Payroll Group Limited Class A Ordinary Shares	2024-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GLXY	Galaxy Digital Inc. Class A Common Stock	2025-05-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GMEX	GMEX ROBOTICS CORPORATION Class A Ordinary Shares	2023-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GMHS	Gamehaus Holdings Inc. Class A Ordinary Shares	2025-01-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GMM	Global Mofy AI Limited Class A Ordinary Shares	2023-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNE	GENIE ENERGY LTD	2011-10-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNK	GENCO SHIPPING & TRADING LTD	2015-07-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNL	Global Net Lease, Inc.	2015-05-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNLN	Greenlane Holdings, Inc. Class A Common Stock	2019-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNLX	Genelux Corporation Common Stock	2023-01-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNPX	Genprex, Inc. Common Stock	2017-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GNS	Genius Group Limited	2022-04-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GO	Grocery Outlet Holding Corp. Common Stock	2019-06-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOAI	Eva Live Inc. Common Stock	2026-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOGO	Gogo Inc.	2020-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOOD	Gladstone Commercial Corporation - REIT	2003-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOOG	Alphabet Inc. Class C Capital Stock	2025-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOOS	Canada Goose Holdings Inc.	2017-03-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GORO	Gold Resource Corporation	2010-08-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOSS	Gossamer Bio, Inc. Common Stock	2019-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GOVX	GeoVax Labs, Inc. New	2020-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GP	GreenPower Motor Company Inc. Common Shares	2020-08-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPAC	General Purpose Acquisition Corp. Class A Ordinary Shares	2025-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPAT	GP-Act III Acquisition Corp. Class A Ordinary Share	2024-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPGI	GPGI, Inc.	2020-11-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPMT	Granite Point Mortgage Trust Inc. Common Stock	2017-06-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPOR	Gulfport Energy Corporation	2020-04-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPRK	GEOPARK LIMITED	2014-02-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPRO	GoPro, Inc.	2014-06-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GPUS	Hyperscale Data, Inc.	2022-05-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRAB	Grab Holdings Limited Class A Ordinary Shares	2021-12-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRAF	Graf Global Corp.	2024-06-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRAN	Grande Group Limited Class A Ordinary Shares	2025-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRBK	Green Brick Partners, Inc	2007-06-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRCE	Grace Therapeutics, Inc. Common Stock	2013-01-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRDN	Guardian Pharmacy Services, Inc.	2024-09-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRDX	GridAI Technologies Corp. Common Stock	2016-08-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GREE	Greenidge Generation Holdings Inc. Class A Common	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GREEL	Greenidge Generation Holdings Inc. 8.50% Senior Notes due 2026	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRI	GRI Bio, Inc. Common Stock	2021-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRML	Greenland Mines Ltd. Common Stock	2022-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRNQ	Greenpro Capital Corp. Common Stock	2016-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRNT	Granite Ridge Resources, Inc.	2022-10-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRO	Brazil Potash Corp.	2024-11-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GROV	Grove Collaborative Holdings, Inc.	2021-03-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GROY	Gold Royalty Corp.	2021-02-22	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRPN	Groupon, Inc.Common Stock	2016-10-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRRR	Gorilla Technology Group Inc. Ordinary shares	2022-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GRWG	GROW GENERATION CORP	2019-11-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSAT	Globalstar, Inc. Common Stock	2014-04-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSBD	Goldman Sachs BDC, Inc.	2013-03-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSHR	Gesher Acquisition Corp. II Class A Ordinary Shares	2025-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSIT	GSI Technology	2007-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSIW	Garden Stage Limited Class A Ordinary Shares	2023-11-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSM	Ferroglobe PLC Ordinary Shares	2015-12-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSRF	GSR IV Acquisition Corp. Class A ordinary share	2025-09-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GSUN	Golden Sun Technology Group Limited Class A Ordinary Shares	2022-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTBP	GT Biopharma Inc. Common Stock	2021-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTEC	Greenland Technologies Holding Corporation Class A Ordinary Shares	2018-07-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTEN	Gores Holdings X, Inc. Class A ordinary shares	2025-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTERA	Globa Terra Acquisition Corporation Class A Ordinary Shares	2025-07-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTLB	GitLab Inc. Class A Common Stock	2021-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTLS	Chart Industries, Inc.	2021-01-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTM	ZoomInfo Technologies Inc Common Stock	2022-05-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTX	Garrett Motion Inc. Common Stock	2021-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GTY	Getty Realty Corp.	2017-11-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GURE	Gulf Resources, Inc. (NV) Common Stock	2009-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GUTS	Fractyl Health, Inc. Common Stock	2024-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GV	Visionary Holdings Inc. Common Shares	2022-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GVH	Globavend Holdings Limited Ordinary Shares	2023-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GWAV	Greenwave Technology Solutions, Inc. Common Stock	2015-04-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GWH	ESS Tech, Inc.	2020-09-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GXAI	Gaxos.ai Inc. Common Stock	2023-02-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+GYRO	Gyrodyne, LLC Common Stock	2015-09-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HACQ	HCM IV Acquisition Corp. Class A Ordinary Share	2026-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HAO	Haoxi Health Technology Limited Class A Ordinary Shares	2024-01-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HASI	HA Sustainable Infrastructure Capital, Inc.	2013-04-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HAVA	Harvard Ave Acquisition Corporation Class A Ordinary Share	2025-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HAVAR	Harvard Ave Acquisition Corporation Rights that convert on a 1/10th of 1 basis to Class A ordinary Shares	2025-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HAYW	Hayward Holdings, Inc.	2021-03-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBAN	Huntington Bancshares Inc	2023-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBANL	Huntington Bancshares Incorporated Depositary Shares, Each Representing a 1/40th Interest in a Share of 6.875% Series J Non-Cumulative Perpetual Preferred Stock	2023-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBANM	Huntington Bancshares Incorporated Depositary Shares each representing a 1/1000th interest in a share of Huntington Series I Preferred Stock	2023-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBANZ	Huntington Bancshares Incorporated Depositary Shares, Each Representing a 1/1000th Interest in a Share of 5.50% Series L Non-Cumulative Perpetual Preferred Stock	2023-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBCP	Home Bancorp, Inc.	2008-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBIO	Harvard Bioscience Inc	2008-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBNB	Hotel101 Global Holdings Corp. Class A Ordinary Shares	2025-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBNC	Horizon Bancorp, Inc. Common Stock	2021-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HBT	HBT Financial, Inc. Common Stock	2019-10-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCAC	Hall Chadwick Acquisition Corp Class A Ordinary Shares	2025-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCAI	Huachen AI Parking Management Technology Holding Co., Ltd. Ordinary Shares	2025-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCAT	Health Catalyst, Inc Common Stock	2019-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCHL	Happy City Holdings Limited Class A Ordinary shares	2025-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCI	HCI Group, Inc.	2008-07-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCIC	Hennessy Capital Investment Corp. VIII Class A Ordinary Shares	2026-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCKT	Hackett Group Inc (The).	1998-05-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCMA	HCM III Acquisition Corp. Class A Ordinary Share	2025-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCTI	Healthcare Triangle, Inc. Common Stock	2021-10-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCWB	HCW Biologics Inc. Common Stock	2021-07-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HCWC	Healthy Choice Wellness Corp.	2024-09-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HELP	Cybin Inc. Common Stock	2026-01-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HFBL	Home Federal Bancorp, Inc. of Louisiana	2010-12-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HFFG	HF Foods Group Inc. Common Stock	2017-08-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HG	Hamilton Insurance Group, Ltd. Class B Common Shares	2023-11-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HGBL	HERITAGE GLOBAL INC	2020-08-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HGV	Hilton Grand Vacations Inc. Common Stock	2020-04-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HIHO	Highway Holdings Ltd	2018-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HIND	Vyome Holdings, Inc. Common Stock	2016-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HIPO	Hippo Holdings Inc.	2020-11-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HIT	Health In Tech, Inc. Class A Common Stock	2024-12-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HKIT	Hitek Global Inc. Class A Ordinary Share	2020-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HKPD	Cellyan Biotechnology Co., Ltd Class A Ordinary Shares	2025-01-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLIO	Helios Technologies, Inc.	2021-10-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLLY	Holley Inc.	2020-10-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLMN	Hillman Solutions Corp. Common Stock	2020-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLNE	Hamilton Lane Incorporated Class A Common Stock	2017-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLP	Hongli Group Inc. Ordinary Shares	2023-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HLXC	Helix Acquisition Corp. III Class A Ordinary Shares	2026-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HMH	HMH Holding Inc. Class A Common Stock	2026-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HMR	Heidmar Maritime Holdings Corp. Common Stock	2025-02-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNGE	Hinge Health, Inc.	2025-05-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNNA	Hennessy Advisors, Inc.	2014-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNNAZ	Hennessy Advisors, Inc. 4.875% Notes due 2026	2014-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNRG	Hallador Energy Company	2010-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNST	The Honest Company, Inc. Common Stock	2021-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HNVR	Hanover Bancorp, Inc. Common Stock	2022-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HOLO	MicroCloud Hologram Inc. Ordinary Shares	2021-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HOUR	Hour Loop, Inc. Common Stock	2022-01-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HOVR	New Horizon Aircraft Ltd. Class A Ordinary Share	2023-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HOWL	Werewolf Therapeutics, Inc. Common Stock	2021-04-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HPAI	Helport AI Limited Ordinary Shares	2024-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HPK	HighPeak Energy, Inc. Common Stock	2020-08-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HPP	Hudson Pacific Properties, Inc.	2021-11-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HQ	Horizon Quantum Holdings Ltd. Class A Ordinary Shares	2026-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HQI	HireQuest, Inc. Common Stock (DE)	2008-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HR	Healthcare Realty Trust Incorporated	2012-06-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HRMY	Harmony Biosciences Holdings, Inc. Common Stock	2020-08-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HROW	Harrow, Inc. Common Stock	2007-12-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HRTG	HERITAGE INSURANCE HOLDINGS INC	2014-05-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HRTX	Heron Therapeutics, Inc.	2014-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HRZN	Horizon Technology Finance Corporation	2010-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HSAI	Hesai Group American Depositary Share, each ADS represents one Class B ordinary share	2023-02-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HSCS	HeartSciences Inc. Common Stock	2022-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HSDT	Solana Company Class A Common Stock (DE)	2018-04-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HSHP	Himalaya Shipping Ltd.	2023-03-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTB	HomeTrust Bancshares, Inc.	2012-07-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTCO	High-Trend International Group Class A Ordinary Shares	2022-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTCR	Heartcore Enterprises, Inc. Common Stock	2022-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTFL	Heartflow, Inc. Common Stock	2025-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTGC	Hercules Capital, Inc.	2018-04-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTH	HILLTOP HOLDINGS INC.	2025-08-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTLM	HomesToLife Ltd Ordinary Shares	2024-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTO	H2O America Common Stock	2016-11-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HTOO	Fusion Fuel Green PLC Class A Ordinary Shares	2020-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HUBC	Hub Cyber Security Ltd. Ordinary Shares	2023-02-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HUDI	Huadi International Group Co., Ltd. Ordinary Shares	2021-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HUHU	HUHUTECH International Group Inc. Ordinary Shares	2024-10-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HUMA	Humacyte, Inc. Common Stock	2020-09-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HURA	TuHURA Biosciences, Inc. Common Stock	2012-09-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HUT	Hut 8 Corp. Common Stock	2023-11-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HVII	Hennessy Capital Investment Corp. VII Ordinary Shares	2025-01-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HVMC	Highview Merger Corp. Class A Ordinary Share	2025-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HWBK	Hawthorn Bancshars Inc.	2000-05-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HWC	Hancock Whitney Corporation Common Stock	2020-06-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HWCPZ	Hancock Whitney Corporation 6.25% Subordinated Notes due 2060	2020-06-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HWH	HWH International Inc. Common Stock	2022-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HXHX	Haoxin Holdings Limited Class A Ordinary Shares	2025-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HXL	Hexcel Corporation	2020-04-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYFM	Hydrofarm Holdings Group, Inc. Common Stock	2020-12-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYLN	Hyliion Holdings Corp.	2019-02-27	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYMC	Hycroft Mining Holding Corporation Class A Common Stock	2018-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYNE	Hoyne Bancorp, Inc. Common Stock	2025-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYPD	Hyperion DeFi, Inc. Common Stock	2018-01-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HYPR	Hyperfine, Inc. Class A Common Stock	2021-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+HZO	MarineMax, Inc.	2015-03-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IAC	IAC Inc. Common Stock	2020-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IACO	Idea Acquisition Corp. Class A Ordinary Shares	2026-02-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IAUX	i-80 Gold Corp.	2025-07-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBAC	IB Acquisition Corp. Common Stock	2024-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBEX	IBEX Limited Common Shares	2018-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBG	Innovation Beverage Group Limited Ordinary Shares	2024-09-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBIO	iBio, Inc. Common Stock	2010-12-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBKR	Interactive Brokers Group, Inc. Class A Common Stock	2018-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBO	Impact BioMedical, Inc.	2024-08-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBP	INSTALLED BUILDING PRODUCTS, INC.	2014-02-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IBRX	ImmunityBio, Inc. Common Stock	2015-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICCC	Immucell Corp	1995-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICCM	IceCure Medical Ltd. Ordinary Shares	2021-08-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICHR	Ichor Holdings	2016-12-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICMB	Investcorp Credit Management BDC, Inc. Common Stock	2014-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICON	Icon Energy Corp. Common stock	2024-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICU	SeaStar Medical Holding Corporation Common Stock	2021-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ICUI	ICU Medical Inc	2018-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IDAI	T Stamp Inc. Class A Common Stock	2022-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IDN	Intellicheck, Inc. Common Stock	2020-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IDR	Idaho Strategic Resources, Inc.	2022-03-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IDYA	IDEAYA Biosciences, Inc. Common Stock	2019-05-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IE	Ivanhoe Electric Inc.	2022-06-27	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IEAG	Infinite Eagle Acquisition Corp. Class A Ordinary Shares	2026-01-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IEP	Icahn Enterprises L.P	2011-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IESC	IES Holdings, Inc. Common Stock	2013-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IFBD	Infobird Co., Ltd Ordinary Shares	2021-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IFRX	InflaRx N.V. Common Stock	2017-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IFS	Intercorp Financial Services Inc.	2019-07-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IGAC	Invest Green Acquisition Corporation Class A Ordinary Shares	2025-11-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IGC	IGC Pharma, Inc.	2005-09-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IHRT	iHeartMedia, Inc. Class A Common Stock	2008-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IHS	IHS Holding Limited	2021-10-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IHT	InnSuites Hospitality Trust	1999-04-05	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+III	Information Services Group, Inc.	2007-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IIIN	Insteel Industries, Inc.	2021-03-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IIIV	i3 Verticals, Inc. Class A Common Stock	2018-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IIPR	Innovative Industrial Properties, Inc. Common stock	2016-11-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IKT	Inhibikase Therapeutics, Inc. Common Stock	2020-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ILLR	Triller Group Inc. Common Stock	2019-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ILMN	Illumina Inc	2022-05-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMA	ImageneBio, Inc. Common Stock	2021-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMDX	Insight Molecular Diagnostics Inc. Common Stock	2021-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMMR	Immersion Corp	2017-12-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMMX	Immix Biopharma, Inc. Common Stock	2021-12-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMNM	Immunome, Inc.	2020-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMPP	Imperial Petroleum Inc. Common Shares	2021-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMPPP	Imperial Petroleum Inc. 8.75% Series A Cumulative Redeemable Perpetual Preferred Shares	2021-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMRX	Immuneering Corporation Class A Common Stock	2021-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMSR	Terrestrial Energy Inc. Common Stock	2024-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMTE	Integrated Media Technology Limited Ordinary Shares	2017-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMTX	Immatics N.V. Ordinary Shares	2020-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMUX	Immunic, Inc. Common Stock	2013-11-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMVT	Immunovant, Inc. Common Stock	2019-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IMXI	International Money Express, Inc.	2017-01-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INAB	IN8bio, Inc. Common Stock	2020-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INAC	Indigo Acquisition Corp. Ordinary Shares	2025-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INBK	First Internet Bancorp	2016-10-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INBKZ	First Internet Bancorp 6.0% Fixed-to-Floating Rate Subordinated Notes Due 2029	2016-10-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INBS	Intelligent Bio Solutions Inc. Common Stock	2020-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INDI	indie Semiconductor, Inc. Class A Common Stock	2021-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INDO	Indonesia Energy Corporation Limited	2019-12-18	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INDP	Indaptus Therapeutics, Inc. Common Stock	2021-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INEO	INNEOVA Holdings Limited Class A Ordinary Shares	2024-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INFQ	Infleqtion, Inc.	2025-05-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INFU	InfuSystem Holdings, Inc.	2010-11-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INGN	Inogen Inc	2014-02-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INHD	Inno Holdings Inc. Common Stock	2023-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INKT	MiNK Therapeutics, Inc. Common Stock	2021-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INLF	INLIF LIMITED Class A Ordinary Shares	2024-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INLX	Intellinetics, Inc.	2022-09-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INM	InMed Pharmaceuticals Inc. Common Shares	2020-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INMB	INmune Bio Inc. Common stock	2019-02-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INMD	InMode Ltd. Ordinary Shares	2019-08-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INN	Summit Hotel Properties, Inc.	2011-02-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INNV	InnovAge Holding Corp. Common Stock	2021-03-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INO	Inovio Pharmaceuticals, Inc.	2014-09-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INOD	Innodata Inc.	2004-12-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INR	Infinity Natural Resources, Inc.	2025-01-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INSE	Inspired Entertainment, Inc.	2014-10-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INSG	Inseego Corp. Common Stock	2018-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INSP	Inspire Medical Systems, Inc.	2018-04-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INSW	International Seaways, Inc. Common Stock	2018-05-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTA	Intapp, Inc. Common Stock	2021-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTJ	Intelligent Group Limited Class A Ordinary Shares	2024-02-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTR	Inter & Co. Inc. Class A Common Shares	2022-06-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTS	Intensity Therapeutics, Inc. Common stock	2021-11-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTT	inTEST Corporation	2011-05-04	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INTZ	Intrusion Inc New	2020-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INV	Innventure, Inc. Common Stock	2024-10-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INVH	Invitation Homes Inc. Common Stock	2017-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INVX	Innovex International, Inc.	2018-02-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+INVZ	Innoviz Technologies Ltd. Ordinary shares	2021-04-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IONQ	IonQ, Inc.	2020-11-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IOTR	iOThree Limited Ordinary Shares	2025-04-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IOVA	Iovance Biotherapeutics, Inc. Common Stock	2015-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPCX	Inflection Point Acquisition Corp. III Class A Ordinary Shares	2025-04-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPDN	Professional Diversity Network, Inc.	2013-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPEX	Inflection Point Acquisition Corp. V Class A Ordinary Shares	2025-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPM	Intelligent Protection Management Corp. Common Stock	2006-08-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPSC	Century Therapeutics, Inc. Common Stock	2021-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPST	IP Strategy Holdings, Inc. Common Stock	2024-11-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPW	iPower, Inc. Common Stock	2021-05-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IPWR	Ideal Power Inc.	2013-11-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IQST	IQSTEL INC. Common Stock	2018-09-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRAB	Iris Acquisition Corp II	2026-02-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRD	Opus Genetics, Inc. Common Stock	2008-05-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IREN	IREN Limited Ordinary Shares	2021-11-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRHO	Iron Horse Acquisitions II Corp. Common Stock	2025-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRMD	iRadimed Corporation	2014-07-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRON	Disc Medicine, Inc. Common Stock	2020-08-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRT	Independence Realty Trust Inc.	2013-08-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRTC	iRhythm Holdings, Inc. Common Stock	2016-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IRWD	Ironwood Pharmaceuticals, Inc. - Class A	2019-01-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ISBA	Isabella Bank Corporation Common stock	2025-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ISPC	iSpecimen Inc. Common Stock	2021-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ISPR	Ispire Technology Inc. Common Stock	2023-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ISSC	Innovative Solutions & Support	2000-07-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ISTR	Investar Holding Corporation	2014-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ITHA	ITHAX Acquisition Corp III Class A Ordinary Shares	2025-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ITIC	Investors Title Co	2002-11-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ITOC	iTonic Holdings Ltd Class A Ordinary Shares	2024-08-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ITP	IT Tech Packaging, Inc.	2007-05-10	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ITRN	Ituran Location and Control Ltd.	2005-09-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IVDA	Iveda Solutions, Inc. Common Stock	2008-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IVF	INVO Fertility, Inc. Common Stock	2019-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IVR	Invesco Mortgage Capital Inc.	2009-06-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IVT	InvenTrust Properties Corp.	2021-10-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IVVD	Invivyd, Inc. Common Stock	2021-08-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IZEA	IZEA Worldwide, Inc. Common Stock	2016-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+IZM	ICZOOM Group Inc. Class A Ordinary Shares	2023-03-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JACK	Jack in the Box Inc.	2025-07-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JACS	Jackson Acquisition Company II	2024-12-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JAGU	Jaguar Uranium Corp.	2026-01-30	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JAGX	Jaguar Health, Inc.	2025-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JAKK	Jakks Pacific Inc	2012-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JAN	Janus Living, Inc.	2026-03-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JANX	Janux Therapeutics, Inc. Common Stock	2021-06-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JATT	JATT II Acquisition Corp Ordinary Shares	2026-04-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JAZZ	Jazz Pharmaceuticals, Inc.	2017-04-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JBDI	JBDI Holdings Limited Ordinary Shares	2024-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JBHT	JB Hunt Transport Services Inc	2026-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JBI	Janus International Group, Inc.	2021-06-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JBIO	Jade Biosciences, Inc. Common Stock	2021-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JBS	JBS N.V.	2025-06-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JCAP	Jefferson Capital, Inc. Common Stock	2025-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JCSE	JE Cleantech Holdings Limited Ordinary Shares	2022-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JDZG	JIADE LIMITED Class A Ordinary Shares	2024-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JEM	707 Cayman Holdings Limited Ordinary Shares	2025-06-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JENA	Jena Acquisition Corporation II	2025-05-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JFB	JFB Construction Holdings Class A Common Stock	2025-02-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JILL	J.Jill, Inc. Common Stock	2017-03-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JL	J-Long Group Limited Class A Ordinary Shares	2023-12-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JLHL	Julong Holding Limited Class A Ordinary Shares	2025-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JOB	GEE Group Inc.	2000-02-07	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JRSH	Jerash Holdings (US), Inc. Common Stock	2018-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JRVR	James River Group Holdings, Inc. Common Stock	2014-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JSM	Navient Corporation 6% Senior Notes due December 15, 2043	2016-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JSPR	Jasper Therapeutics, Inc. Common Stock	2019-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JTAI	Jet.AI Inc. Common Stock	2021-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JUNS	Jupiter Neurosciences, Inc. Common Stock	2022-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JVA	Coffee Holding Co., Inc.	2005-05-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JWEL	Jowell Global Ltd. Ordinary Shares	2021-03-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JXG	JX Luxventure Limited Common Stock	2012-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JXN	Jackson Financial Inc.	2023-03-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JYD	Jayud Global Logistics Limited Class A Ordinary Shares	2023-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JYNT	The Joint Corp.	2014-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+JZXN	Jiuzi Holdings, Inc. Ordinary Shares	2021-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KALA	KALA BIO, Inc. Common Stock	2017-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KALU	Kaiser Aluminum Corporation	2016-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KAPA	Kairos Pharma, Ltd.	2024-09-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KARO	Karooooo Ltd. Ordinary Shares	2021-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KBDC	Kayne Anderson BDC, Inc.	2024-05-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KBON	Karbon Capital Partners Corp. Class A Ordinary Shares	2025-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KBSX	FST Corp. Ordinary Shares	2025-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KCHV	Kochav Defense Acquisition Corp. Class A Ordinary Shares	2025-05-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KDK	Kodiak AI, Inc. Common Stock	2023-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KEEL	Keel Infrastructure Corp. Common Stock	2024-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KELYA	Kelly Services Inc	2026-01-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KELYB	Kelly Services Inc	2026-01-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KFFB	Kentucky First Federal Bancorp	2005-02-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KFII	K&F Growth Acquisition Corp. II Class A Ordinary shares	2025-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KFRC	Kforce Inc.	2024-05-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KG	Kestrel Group, Ltd.	2025-05-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KGS	Kodiak Gas Services, Inc.	2023-06-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KHC	The Kraft Heinz Company Common Stock	2015-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KIDS	OrthoPediatrics Corp. Common Stock	2017-10-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KIDZ	Classover Holdings, Inc. Class B Common Stock	2025-04-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KITT	Nauticus Robotics, Inc. Common stock	2021-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KLAR	Klarna Group plc	2025-09-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KLC	KinderCare Learning Companies, Inc.	2024-10-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KLRA	Kailera Therapeutics, Inc. Common Stock	2026-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KLRS	Kalaris Therapeutics, Inc. Common Stock	2020-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KLTR	Kaltura, Inc. Common Stock	2021-07-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KMDA	Kamada Ltd	2013-05-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KMRK	K-Tech Solutions Company Limited Class A Ordinary Shares	2025-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KMTS	Kestra Medical Technologies, Ltd. Common Stock	2025-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KNOP	KNOT OFFSHORE PARTNERS LP	2013-04-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KNRX	KNOREX LTD.	2025-09-24	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KNSA	Kiniksa Pharmaceuticals International, plc Class A Ordinary Shares	2018-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KNSL	Kinsale Capital Group, Inc.	2016-07-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KNTK	Kinetik Holdings Inc.	2017-03-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KOD	Kodiak Sciences Inc Common Stock	2018-10-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KORE	KORE Group Holdings, Inc.	2021-09-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KOYN	CSLM Digital Asset Acquisition Corp III Class A Ordinary Shares	2025-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KPLT	Katapult Holdings, Inc. Common Stock	2019-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KPRX	Kiora Pharmaceuticals, Inc. Common Stock	2014-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRAQ	KRAKacquisition Corp Class A Ordinary Shares	2026-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KREF	KKR Real Estate Finance Trust Inc.	2017-05-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRMD	KORU Medical Systems, Inc. Common Stock (DE)	2019-10-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRMN	Karman Holdings Inc.	2025-02-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRNT	Kornit Digital Ltd.	2015-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRNY	Kearny Financial Corporation	2015-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KROS	Keros Therapeutics, Inc. Common Stock	2020-04-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRP	Kimbell Royalty Partners, LP Common Units representing Limited Partner Interests	2017-02-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRRO	Korro Bio, Inc. Common Stock	2019-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRSP	Rice Acquisition Corporation 3	2025-09-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRT	Karat Packaging Inc. Common Stock	2021-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRUS	Kura Sushi USA, Inc. Class A Common Stock	2019-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KRYS	Krystal Biotech, Inc. Common Stock	2017-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KSCP	Knightscope, Inc. Class A Common Stock	2022-01-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KTTA	Pasithea Therapeutics Corp. Common Stock	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KTWO	K2 Capital Acquisition Corporation Class A Ordinary Share	2026-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KULR	KULR Technology Group, Inc.	2021-06-02	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KURA	Kura Oncology, Inc.	2015-11-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KUST	Kustom Entertainment, Inc. Common Stock	2007-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KVAC	Keen Vision Acquisition Corporation Ordinary Shares	2023-07-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KVHI	KVH Industries Inc	2022-08-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KVUE	Kenvue Inc.	2023-05-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KWM	K Wave Media, Ltd. Ordinary Shares	2025-05-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KXIN	Kaixin Holdings Ordinary Shares	2017-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KYIV	Kyivstar Group Ltd. Common Shares	2025-08-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KYMR	Kymera Therapeutics, Inc. Common Stock	2020-08-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+KYTX	Kyverna Therapeutics, Inc. Common Stock	2024-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAB	Standard BioTools Inc. Common Stock	2016-11-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LADR	LADDER CAPITAL CORP	2014-02-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAES	SEALSQ Corp Ordinary Shares	2023-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAFA	LaFayette Acquisition Corp. Ordinary Share	2025-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAND	Gladstone Land Corporation	2013-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LANDO	Gladstone Land Corporation 6.00% Series B Cumulative Redeemable Preferred Stock	2013-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LANV	Lanvin Group Holdings Limited	2022-12-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LARK	Landmark Bancorp Inc	2001-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LASE	Laser Photonics Corporation Common Stock	2022-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LASR	nLIGHT, Inc. Common Stock	2018-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LATA	Galata Acquisition Corp. II Class A Ordinary Shares	2025-09-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAUR	Laureate Education, Inc. Common Stock	2017-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LAW	CS Disco, Inc.	2021-07-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LBGJ	Li Bang International Corporation Inc. Class A Ordinary Shares	2024-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LBRDA	Liberty Broadband Corporation Class A	2014-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LBRDK	Liberty Broadband Corporation Class C	2014-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LBRT	Liberty Energy Inc.	2017-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LBRX	LB Pharmaceuticals Inc Common Stock	2025-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LCCC	Lakeshore Acquisition III Corp. Ordinary Shares	2025-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LCFY	Locafy Limited Ordinary Share	2022-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LCID	Lucid Group, Inc. Common Stock	2020-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LCNB	LCNB Corporation	1999-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LEDS	SemiLEDS Corporation	2010-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LEGH	Legacy Housing Corporation Common Stock	2018-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LEGO	Legato Merger Corp. IV	2026-01-22	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LENZ	LENZ Therapeutics, Inc. Common Stock	2021-06-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LESL	Leslie's, Inc. Common Stock	2020-10-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LEU	Centrus Energy Corp.	2011-09-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LEXX	Lexaria Bioscience Corp. Common Stock	2021-01-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFAC	Leapfrog Acquisition Corporation Class A Ordinary Shares	2025-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFMD	LifeMD, Inc. Common Stock	2017-10-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFST	LifeStance Health Group, Inc. Common Stock	2021-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFT	Lument Finance Trust, Inc.	2013-03-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFVN	Lifevantage Corporation Common Stock (Delaware)	2012-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LFWD	Lifeward Ltd. Ordinary Shares	2014-09-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGCL	Lucas GC Limited Ordinary Shares	2023-03-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGCY	Legacy Education Inc.	2024-09-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGHL	Lion Group Holding Ltd. American Depositary Share	2020-05-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGIH	LGI Homes, Inc.	2013-10-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGL	The LGL Group, Inc.	2005-11-10	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGN	Legence Corp. Class A Common stock	2025-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGPS	LogProstyle Inc.	2025-01-14	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LGVN	Longeveron Inc. Common Stock	2021-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LHAI	Linkhome Holdings Inc. Common stock	2025-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LHSW	Lianhe Sowell International Group Ltd Class A Ordinary Shares	2025-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LICN	Lichen China Limited Class A Ordinary Shares	2022-09-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIDR	AEye, Inc. Class A Common Stock	2020-11-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIEN	Chicago Atlantic BDC, Inc. Common Stock	2021-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIF	Life360, Inc. Common Stock	2024-06-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIFE	Ethos Technologies Inc. Class A Common Stock	2026-01-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LILA	Liberty Latin America Ltd. Class A Common Stock	2020-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LILAK	Liberty Latin America Ltd. Class C Common Stock	2020-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LINE	Lineage, Inc. Common Stock	2024-07-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LINK	Interlink Electronics, Inc. Common Stock	2000-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LION	Lionsgate Studios Corp.	2025-05-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIQT	LiqTech International, Inc.	2013-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LITS	Lite Strategy, Inc. Common Stock	2023-10-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIVE	Live Ventures Inc	2004-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LIXT	Lixte Biotechnology Holdings, Inc. Common Stock	2020-11-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LKQ	LKQ Corporation	2024-04-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LKSP	Lake Superior Acquisition Corp. Class A Ordinary Shares	2025-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LLYVA	Liberty Live Holdings, Inc. Series A Liberty Live Group Common Stock	2025-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LLYVK	Liberty Live Holdings, Inc. Series C Liberty Live Group Common Stock	2025-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LMB	Limbach Holdings, Inc Common Stock	2014-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LMFA	LM Funding America, Inc. Common Stock	2015-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LMNR	Limoneira Co	2010-05-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LMRI	Lumexa Imaging Holdings, Inc. Common Stock	2025-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LNAI	Lunai Bioworks Inc. Common Stock	2018-12-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LNG	Cheniere Energy Inc	2024-02-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LNKS	Linkers Industries Limited Class A Ordinary Shares	2024-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LNT	Alliant Energy Corporation Common Stock	2018-12-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LNZA	LanzaTech Global, Inc. Common Stock	2021-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOAN	Manhattan Bridge Capital, Inc	1999-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOAR	Loar Holdings Inc.	2024-04-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOB	Live Oak Bancshares, Inc.	2022-12-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOBO	LOBO TECHNOLOGIES LTD. Class A Ordinary Shares	2024-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOCL	Local Bounti Corporation	2021-02-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOCO	El Pollo Loco Holdings, Inc.	2014-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LODE	Comstock Inc.	2011-06-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOKV	Live Oak Acquisition Corp. V Class A Ordinary Shares	2025-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LONA	LeonaBio, Inc. Common Stock	2020-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOOP	Loop Industries, Inc. Common Stock	2012-07-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LOVE	The Lovesac Company Common Stock	2018-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPA	Logistic Properties of the Americas	2024-03-27	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPAA	Launch One Acquisition Corp. Class A Ordinary shares	2024-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPBB	Launch Two Acquisition Corp. Class A Ordinary Shares	2024-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPCN	Lipocine Inc.	2013-10-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPCV	Launchpad Cadenza Acquisition Corp I Class A Ordinary Share	2025-12-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPG	DORIAN LPG LTD	2014-05-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPRO	Open Lending Corporation Common Stock	2020-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPSN	LivePerson Inc	2024-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LPTH	Lightpath Technologies Inc	2008-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LRHC	La Rosa Holding Corp. Common Stock	2023-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LRMR	Larimar Therapeutics, Inc. Common Stock	2014-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LSBK	Lake Shore Bancorp, Inc.	2025-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LSE	Leishen Energy Holding Co., Ltd. Class A Ordinary Shares	2024-12-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LSF	Laird Superfood, Inc.	2020-09-18	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LSH	Lakeside Holding Limited Common Stock	2024-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LSTA	Lisata Therapeutics, Inc. Common Stock	2013-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LTBR	Lightbridge Corp.	2006-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LTH	Life Time Group Holdings, Inc.	2021-10-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LTRN	Lantern Pharma Inc. Common Stock	2020-06-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUCD	Lucid Diagnostics Inc. Common Stock	2021-10-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUCK	Lucky Strike Entertainment Corporation	2021-03-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUCY	Innovative Eyewear, Inc. Common Stock	2022-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUD	Luda Technology Group Limited	2024-09-27	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUNG	Pulmonx Corporation Common Stock	2020-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LUNR	Intuitive Machines, Inc. Class A Common Stock	2021-09-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LVLU	Lulu's Fashion Lounge Holdings, Inc. Common Stock	2021-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LVO	LiveOne, Inc. Common Stock	2017-10-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LVWR	LiveWire Group, Inc.	2022-09-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LWAC	LightWave Acquisition Corp. Class A Ordinary Shares	2025-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LWAY	Lifeway Foods Inc	2024-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LWLG	Lightwave Logic, Inc. Common Stock	2021-08-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LXEO	Lexeo Therapeutics, Inc. Common Stock	2023-11-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LXFR	Luxfer Holdings PLC Ordinary Shares	2011-12-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LXU	LSB INDUSTRIES INC	2015-12-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LYEL	Lyell Immunopharma, Inc. Common Stock	2021-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LYFT	Lyft, Inc. Class A Common Stock	2019-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LZ	LegalZoom.com, Inc. Common Stock	2012-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LZM	Lifezone Metals Limited	2023-07-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+LZMH	LZ Technology Holdings Limited Class B Ordinary Shares	2025-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAAS	Maase Inc. Class A Ordinary Shares	2019-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MACI	Melar Acquisition Corp. I Class A Ordinary Shares	2024-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAGH	Magnitude International Ltd Ordinary Shares	2025-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAIA	MAIA Biotechnology, Inc.	2022-07-27	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAIR	Madison Air Solutions Corporation	2026-04-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAMA	Mama's Creations, Inc. Common Stock	2013-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAMK	MaxsMaking Inc. Class A Ordinary Shares	2025-07-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAMO	Massimo Group Common Stock	2024-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MANE	Veradermics, Incorporated	2026-02-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAPS	WM Technology, Inc. Class A Common Stock	2019-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MARA	MARA Holdings, Inc. Common Stock	2014-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MASK	3 E Network Technology Group Ltd Class A Ordinary Shares	2025-01-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MASS	908 Devices Inc. Common Stock	2020-12-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MATH	Metalpha Technology Holding Limited Ordinary Shares	2017-09-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAX	MediaAlpha, Inc.	2020-10-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MAZE	Maze Therapeutics, Inc. Common Stock	2025-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MB	MasterBeef Group Ordinary Shares	2025-04-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBAI	Check-Cap Ltd.	2015-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBAV	M3-Brigade Acquisition V Corp. Class A Ordinary shares	2024-07-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBBC	Marathon Bancorp, Inc. Common Stock	2021-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBIN	Merchants Bancorp Common Stock	2017-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBINL	Merchants Bancorp Depositary Shares, Each Representing a 1/40thInterest in a Share of 7.25% Fixed Rate Series E Non-CumulativePerpetual Preferred Stock, without par value	2017-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBINM	Merchants Bancorp Depositary Shares, Each Representing a 1/40th Interest in a Share of 8.25% Fixed-Rate Reset Series D Non-Cumulative Perpetual Preferred Stock	2017-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBINN	Merchants Bancorp Depositary Shares Preferred Series C	2017-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBIO	Mustang Bio, Inc.	2017-08-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBRX	Moleculin Biotech, Inc.	2016-04-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBUU	Malibu Boats, Inc. Class A	2014-01-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBVI	M3-Brigade Acquisition VI Corp. Class A Ordinary Shares	2025-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBWM	Mercantile Bank Corp	2005-11-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MBX	MBX Biosciences, Inc. Common Stock	2024-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCB	Metropolitan Bank Holding Corp. Common Stock, $0.01 par value per share	2017-11-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCBS	METROCITY BANKSHARES INC	2019-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCFT	MasterCraft Boat Holdings, Inc. Common Stock	2015-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCGA	Yorkville Acquisition Corp. Class A Ordinary Share	2025-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCHP	Microchip Technology Inc	2025-03-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCHPP	Microchip Technology Incorporated Depositary Shares Each Representing a 1/20th Interest in a Share of 7.50% Series A Mandatory Convertible Preferred Stock	2025-03-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCRB	Seres Therapeutics, Inc.	2015-06-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCRP	Micropolis AI Robotics	2025-03-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MCTA	Charming Medical Limited Class A Ordinary Shares	2025-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDA	MDA Space Ltd.	2026-03-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDAI	Spectral AI, Inc. Class A Common Stock	2021-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDBH	MDB Capital Holdings, LLC Class A common	2023-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDCX	Medicus Pharma Ltd. Common Stock	2024-11-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDLN	Medline Inc. Class A common stock	2025-12-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDLZ	Mondelez International, Inc. Class A	2015-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDRR	Medalist Diversified, Inc. Common Stock	2018-10-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDU	MDU Resources Group, Inc.	2014-08-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDV	Modiv Industrial, Inc.	2021-09-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDWD	MediWound Ltd.	2014-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDXG	MiMedx Group, Inc	2013-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MDXH	MDxHealth SA Ordinary Shares	2021-11-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MEC	Mayville Engineering Company, Inc.	2019-05-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MEDP	Medpace Holdings, Inc. Common Stock	2016-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MEGL	Magic Empire Global Limited Class A Ordinary Shares	2022-08-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MEHA	Functional Brands, Inc. Common Stock	2025-11-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MELI	Mercado Libre, Inc	2007-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MENS	Jyong Biotech Ltd. Ordinary Shares	2025-06-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MESH	Meshflow Acquisition Corp. Class A Ordinary Shares	2025-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+METC	Ramaco Resources, Inc. Class A Common Stock	2017-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+METCB	Ramaco Resources, Inc. Class B Common Stock	2017-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+METCI	Ramaco Resources, Inc. 8.250% Senior Notes due 2030	2017-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+METCZ	Ramaco Resources, Inc. 8.375% Senior Notes due 2029	2017-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MEVO	M Evo Global Acquisition Corp II Class A Ordinary Shares	2026-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MFA	MFA Financial, Inc	2013-04-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MFI	mF International Limited Class A Ordinary Shares	2024-04-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MFIC	MidCap Financial Investment Corporation Common Stock	2004-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MFICL	MidCap Financial Investment Corporation 8.00% Notes due 2028	2004-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MFIN	Medallion Financial Corp	2016-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGIH	Millennium Group International Holdings Limited Ordinary Shares	2023-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGLD	The Marygold Companies, Inc.	2022-03-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGN	Megan Holdings Limited Class A Ordinary Shares	2025-09-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGNI	Magnite, Inc. Common Stock	2020-06-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGNX	MacroGenics, Inc.	2013-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGRT	Mega Fortune Company Limited Ordinary Shares	2025-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGRX	Mangoceuticals, Inc. Common Stock	2023-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGTX	MeiraGTx Holdings plc Ordinary Shares	2018-06-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGX	Metagenomi Therapeutics, Inc. Common Stock	2024-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGY	Magnolia Oil & Gas Corporation Class A Common Stock	2017-05-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MGYR	Magyar Bancorp, Inc.	2006-01-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MH	McGraw Hill, Inc.	2025-07-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIAX	Miami International Holdings, Inc.	2025-08-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIMI	Mint Incorporation Limited Class A Ordinary Shares	2024-12-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIND	MIND Technology, Inc. Common Stock (DE)	2016-06-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIR	Mirion Technologies, Inc.	2020-06-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIRA	MIRA Pharmaceuticals, Inc. Common Stock	2023-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIRM	Mirum Pharmaceuticals, Inc. Common Stock	2019-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MIST	Milestone Pharmaceuticals Inc. Common Shares	2019-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MITK	Mitek Systems, Inc.	2011-07-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MITQ	Moving iMage Technologies, Inc.	2021-06-17	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MITT	TPG Mortgage Investment Trust, Inc.	2011-04-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MKDW	MKDWELL Tech Inc. Ordinary Share	2024-07-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MKLY	McKinley Acquisition Corporation Class A Ordinary Shares	2025-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MKTW	MarketWise, Inc. Class A Common Stock	2020-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MKZR	MacKenzie Realty Capital, Inc. Common Stock	2013-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLAA	Mountain Lake Acquisition Corp. II Class A Ordinary Shares	2026-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLCI	Mount Logan Capital Inc. Common Stock	2025-08-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLCIL	Mount Logan Capital Inc. 8.00% Notes Due 2031	2025-08-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLEC	Moolec Science SA Ordinary Shares	2022-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLGO	MicroAlgo, Inc. Ordinary Shares	2021-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLSS	Milestone Scientific, Inc. Common Stock	1998-04-22	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLTX	MoonLake Immunotherapeutics Class A Ordinary Shares	2020-10-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MLYS	Mineralys Therapeutics, Inc. Common Stock	2023-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MMA	Mixed Martial Arts Group Limited	2024-03-13	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MMED	MiniMed Group, Inc. Common Stock	2026-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MMTX	Miluna Acquisition Corp Class A Ordinary Share	2025-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MMYT	MakeMyTrip Limited	2010-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNDO	Mind CTI Ltd	2000-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNDR	Mobile-health Network Solutions Class A Ordinary Shares	2024-03-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNDY	monday.com Ltd. Ordinary Shares	2021-06-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNOV	Medicinova, Inc.	2005-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNPR	Monopar Therapeutics Inc. Common Stock	2019-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNRO	Monro, Inc. Common Stock	2025-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNSB	MainStreet Bancshares, Inc. Common Stock	2020-09-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNSBP	MainStreet Bancshares, Inc. Depositary Shares	2020-09-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNTK	Montauk Renewables, Inc. Common Stock	2021-01-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNTN	MNTN, Inc.	2025-05-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNTS	Momentus Inc. Class A Common Stock	2019-11-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MNY	MoneyHero Limited Class A Ordinary Shares	2023-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MOBX	Mobix Labs, Inc. Class A Common Stock	2021-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MODD	Modular Medical, Inc. Common Stock	2022-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MOVE	Corvex, Inc. Common Stock	2021-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MP	MP Materials Corp.	2020-04-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MPLT	MapLight Therapeutics, Inc. Common Stock	2025-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MPTI	M-tron Industries, Inc.	2025-04-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MPU	Mega Matrix Inc.	2024-10-10	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MQ	Marqeta, Inc. Class A Common Stock	2021-06-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRAM	Everspin Technologies, Inc	2016-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRCY	Mercury Systems Inc.	2015-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRDN	Meridian Holdings Inc. Common Stock	2012-10-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRKR	Marker Therapeutics, Inc. Common Stock	2016-11-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRLN	Merlin, Inc. Common Stock	2024-10-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRNO	Murano Global Investments PLC Ordinary Shares	2024-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRP	Millrose Properties, Inc.	2025-01-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRSH	Marsh	2019-03-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRT	Marti Technologies, Inc.	2021-07-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MRVI	Maravai LifeSciences Holdings, Inc. Class A Common Stock	2020-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSAI	MultiSensor AI Holdings, Inc. Common Stock	2021-10-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSBI	Midland States Bancorp, Inc. Common Stock	2022-08-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSDL	Morgan Stanley Direct Lending Fund	2024-01-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSGM	Motorsport Games Inc. Class A Common Stock	2021-01-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSGY	Masonglory Limited Ordinary Shares	2025-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSIF	MSC Income Fund, Inc.	2012-05-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSLE	Satellos Bioscience Inc. Common Stock	2026-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSS	Maison Solutions Inc. Class A Common Stock	2023-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSTR	Strategy Inc Common Stock Class A	2025-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MSW	Ming Shing Group Holdings Limited Ordinary Shares	2024-11-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTA	Metalla Royalty & Streaming Ltd.	2019-12-19	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTAL	Metals Acquisition Corp. II	2026-03-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTC	MMTec, Inc. Common Shares	2018-12-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTCH	Match Group, Inc	2020-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTEK	Maris-Tech Ltd. Ordinary Shares	2022-02-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTEN	Mingteng International Corporation Inc. Class A Ordinary Shares	2024-04-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTNB	Matinas BioPharma Holdings, Inc.	2017-03-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MTVA	MetaVia Inc. Common Stock	2016-06-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MU	Micron Technology, Inc.	2019-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MUZE	Muzero Acquisition Corp Class A Ordinary Shares	2026-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MVBF	MVB Financial Corp. Common Stock	2017-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MVO	MV Oil Trust	2006-12-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MVST	Microvast Holdings, Inc. Common Stock	2019-03-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MWG	Multi Ways Holdings Limited	2023-03-28	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MWH	SOLV Energy, Inc. Class A Common Stock	2026-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MWYN	Marwynn Holdings, Inc. Common stock	2025-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MX	Magnachip Semiconductor Corp.	2010-06-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MXC	Mexco Energy Corporation	2003-09-05	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MXCT	MaxCyte, Inc. Common Stock	2021-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MYFW	First Western Financial, Inc.	2018-07-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MYO	Myomo Inc.	2017-06-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MYPS	PLAYSTUDIOS, Inc. Class A Common Stock	2020-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MYSE	Myseum.AI, Inc. Common Stock	2021-08-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MYSZ	My Size, Inc	2015-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+MZTI	The Marzetti Company Common Stock	2000-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NA	Nano Labs Ltd Class A Ordinary Shares	2022-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAGE	Niagen Bioscience, Inc. Common Stock	2008-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAK	Northern Dynasty Minerals, Ltd.	2004-06-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAKA	Nakamoto Inc. Common Stock	2024-05-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAMM	Namib Minerals Ordinary Shares	2025-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAMS	NewAmsterdam Pharma Company N.V. Ordinary Shares	2022-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAT	Nordic American Tanker	2004-11-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NATH	Nathan's Famous Inc	1998-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAUT	Nautilus Biotechnolgy, Inc. Common Stock	2020-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAVI	Navient Corporation	2016-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NAVN	Navan, Inc. Class A Common Stock	2025-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NB	NioCorp Developments Ltd. Common Stock	2016-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NBBK	NB Bancorp, Inc. Common Stock	2023-12-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NBIS	Nebius Group N.V. Class A Ordinary Shares	2011-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NBRG	Newbridge Acquisition Limited Class A Ordinary Share	2025-11-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCDL	Nuveen Churchill Direct Lending Corp	2024-01-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCEL	NewcelX Ltd. Ordinary Shares	2021-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCEW	New Century Logistics (BVI) Limited Ordinary Shares	2024-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCI	Neo-Concept International Group Holdings Limited Class A Ordinary Shares	2024-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCL	Northann Corp.	2023-09-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCPL	Netcapital Inc. Common Stock	2022-07-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCRA	Nocera, Inc. Common Stock	2022-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCSM	NCS Multistage Holdings, Inc.	2017-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NCT	Intercont (Cayman) Limited Class A Ordinary shares	2025-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NDAQ	Nasdaq, Inc. Common Stock	2019-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NDLS	Noodles & Company Class A	2013-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NDRA	ENDRA Life Sciences Inc. Common Stock	2016-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NECB	Northeast Community Bancorp, Inc.	2021-07-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEGG	Newegg Commerce, Inc. Common Shares	2010-03-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEN	New England Realty Associates Limited Partnership	2002-12-13	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEO	NeoGenomics, Inc.	2012-12-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEON	Neonode Inc. Common Stock	2012-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEOV	NeoVolta Inc. Common Stock	2022-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEPH	Nephros Inc.	2019-08-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NERV	Minerva Neurosciences, Inc	2014-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NESR	National Energy Services Reunited Corp. Ordinary Shares	2017-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEWT	NewtekOne, Inc. Common Stock	2015-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEWTG	NewtekOne, Inc. 8.50% Fixed Rate Senior Notes due 2029	2015-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEWTH	NewtekOne, Inc. 8.625% Fixed Rate Senior Notes due 2029	2015-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEWTI	NewtekOne, Inc. 8.00% Fixed Rate Senior Notes due 2028	2015-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEWTO	NewtekOne, Inc. 8.50% Fixed Rate Senior Notes due 2031	2015-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEXA	Nexa Resources S.A. Common Shares	2017-10-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEXM	NexMetals Mining Corp. Common Shares	2025-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEXN	Nexxen International Ltd. Ordinary Shares	2021-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEXR	Nexera Technologies Ltd Ordinary Shares	2022-08-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NEXT	NextDecade Corporation Common Stock	2015-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NFBK	Northfield Bancorp, Inc.	2013-01-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NFE	New Fortress Energy Inc. Class A Common Stock	2019-01-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NGEN	NervGen Pharma Corp. Common stock	2026-01-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NGL	NGL ENERGY PARTNERS LP	2011-05-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NGNE	Neurogene, Inc. Common Stock	2014-03-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NGS	Natural Gas Services Group, Inc.	2008-10-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NHIC	NewHold Investment Corp III Class A Ordinary shares	2025-02-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NHTC	Natural Health Trends Corp.	2015-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NINE	Nine Energy Service, Inc.	2018-01-16	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NIQ	NIQ Global Intelligence plc	2025-07-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NIXX	Nixxy, Inc. Common Stock	2021-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NKLR	Terra Innovatum Global N.V. Ordinary shares	2025-10-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NKSH	National Bankshares Inc/VA	1999-06-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NKTX	Nkarta, Inc. Common Stock	2020-07-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMFC	NEW MOUNTAIN FINANCE CORPORATION	2011-05-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMFCZ	New Mountain Finance Corporation 8.250% Notes due 2028	2011-05-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMIH	NMI Holdings Inc. Common Stock	2013-11-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMM	Navios Maritime Partners L.P.	2007-11-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMP	NMP Acquisition Corp. Class A Ordinary Shares	2025-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMRA	Neumora Therapeutics, Inc. Common Stock	2023-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMRK	Newmark Group, Inc. Class A Common Stock	2017-12-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NMTC	NeuroOne Medical Technologies Corporation Common Stock	2012-05-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NN	NextNav Inc. Common Stock	2021-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NNBR	NN Inc	2020-04-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NNE	Nano Nuclear Energy Inc. Common Stock	2024-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NNNN	Anbio Biotechnology Class A Ordinary Shares	2025-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NNOX	NANO-X IMAGING LTD Ordinary Shares	2020-08-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NNVC	NanoViricides Inc.	2013-09-23	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOA	North American Construction Group Ltd.	2006-11-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NODK	NI Holdings, Inc.	2016-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOEM	CO2 Energy Transition Corp. Common Stock	2024-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOG	Northern Oil and Gas, Inc.	2018-06-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOMA	NOMADAR Corp. Class A Common Stock	2025-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOMD	Nomad Foods Limited	2015-12-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NOVT	Novanta Inc. Common Stock	2011-02-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPAC	New Providence Acquisition Corp. III Class A Ordinary Shares	2025-04-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPB	Northpointe Bancshares, Inc.	2025-02-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPCE	Neuropace, Inc. Common Stock	2021-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPKI	NPK International Inc.	2020-05-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPT	Texxon Holding Limited Ordinary shares	2025-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NPWR	NET Power Inc.	2021-06-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRC	National Research Corporation Common Stock (Delaware)	2013-05-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRDS	NerdWallet, Inc. Class A Common Stock	2021-11-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NREF	NexPoint Real Estate Finance, Inc.	2020-02-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRIX	Nurix Therapeutics, Inc. Common stock	2020-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRSN	NeuroSense Therapeutics Ltd. Ordinary Shares	2021-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRXP	NRX Pharmaceuticals, Inc. Common Stock	2017-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NRXS	Neuraxis, Inc.	2023-08-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NSA	National Storage Affiliates Trust	2015-04-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NSP	Insperity, Inc	2020-05-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NSPR	InspireMD, Inc.	2013-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NSRX	Nasus Pharma Ltd.	2025-08-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NSTS	NSTS Bancorp, Inc. Common Stock	2022-01-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTB	The Bank of N.T. Butterfield & Son Limited	2016-09-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTCL	NETCLASS TECHNOLOGY INC Class A Ordinary Shares	2024-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTHI	NeOnc Technologies Holdings, Inc. Common Stock	2025-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTIC	Northern Technologies International Corp.	2008-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTIP	Network-1 Technologies, Inc.	2014-11-14	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTLA	Intellia Therapeutics, Inc	2016-05-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTNX	Nutanix, Inc. Class A Common Stock	2016-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTRB	Nutriband Inc. Common Stock	2021-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTRP	NextTrip, Inc. Common Stock	2017-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTSK	Netskope, Inc. Class A Common Stock	2025-09-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTST	NetSTREIT Corp.	2020-08-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NTWO	Newbury Street II Acquisition Corp Class A Ordinary Shares	2024-10-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUCL	Eagle Nuclear Energy Corp. Common stock	2026-02-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUTR	Nusatrip Incorporated Common Stock	2025-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUTX	Nutex Health Inc. Common Stock	2022-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUVB	Nuvation Bio Inc.	2020-06-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUVL	Nuvalent, Inc. Class A Common Stock	2021-07-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NUWE	Nuwellis, Inc. Common Stock	2013-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVCT	Nuvectis Pharma, Inc. Common Stock	2022-02-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVGS	NAVIGATOR HOLDINGS LTD.	2013-11-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVNI	Nvni Group Limited Ordinary Shares	2023-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVNO	enVVeno Medical Corporation Common Stock	2017-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVST	Envista Holdings Corporation Common stock, $0.01 par value per share	2019-09-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NVTS	Navitas Semiconductor Corporation Common Stock	2020-12-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NWAX	New America Acquisition I Corp.	2025-12-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NWPX	NWPX Infrastructure, Inc. Common Stock	2009-06-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NWTG	Newton Golf Company, Inc. Common Stock	2023-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXE	NexGen Energy Ltd.	2018-03-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXGL	NexGel, Inc Common Stock	2021-12-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXL	Nexalin Technology, Inc. Common Stock	2022-09-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXPL	NextPlat Corp Common Stock	2021-05-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXRT	NexPoint Residential Trust Inc	2025-08-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXT	Nextpower Inc. Class A Common Stock	2023-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXTC	NextCure, Inc. Common Stock	2019-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXTS	Nexentis Technologies Inc. Common Stock	2021-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXTT	Next Technology Holding Inc. Ordinary Shares	2022-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NXXT	NextNRG, Inc. Common Stock	2021-09-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NYC	American Strategic Investment Co.	2015-03-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+NYXH	Nyxoah SA Ordinary Shares	2021-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OABI	OmniAb, Inc. Common Stock	2021-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OACC	Oaktree Acquisition Corp. III Life Sciences Class A Ordinary Share	2024-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBA	Oxley Bridge Acquisition Limited Class A Ordinary Shares	2025-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBAI	Our Bond, Inc. Common Stock	2026-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBDC	Blue Owl Capital Corporation	2019-07-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBIO	Orchestra BioMed Holdings, Inc. Ordinary Shares	2020-08-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBK	Origin Bancorp, Inc.	2018-05-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBT	Orange County Bancorp, Inc. Common Stock	2021-08-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OBTC	Osprey Bitcoin Trust Common Units of Beneficial Interest	2025-12-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCC	Optical Cable Corp.	2001-11-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCCI	OFS Credit Company, Inc. Common Stock	2018-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCCIN	OFS Credit Company, Inc. 5.25% Series E Term Preferred Stock Due 2026	2018-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCFC	OceanFirst Financial Corp	2020-05-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCG	Oriental Culture Holding LTD Ordinary Shares	2020-11-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCGN	Ocugen, Inc. Common Stock	2014-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCS	Oculis Holding AG Ordinary shares	2023-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCSL	Oaktree Specialty Lending Corporation	2011-11-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OCUL	Ocular Therapeutix, Inc.	2014-07-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ODD	ODDITY Tech Ltd. Class A Ordinary Shares	2023-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ODV	Osisko Development Corp.	2023-06-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ODYS	Odysight.ai Inc. Common Stock	2025-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OEC	Orion S.A.	2014-07-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OESX	Orion Energy Systems, Inc.	2007-12-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OFAL	OFA Group Class A Ordinary Shares	2025-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OFRM	Once Upon a Farm, PBC	2026-02-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OFS	OFS Capital Corporation	2012-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OFSSH	OFS Capital Corporation 4.95% Notes due 2028	2012-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OFSSO	OFS Capital Corporation 7.50% Notes due 2028	2012-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OGEN	Oragenics Inc.	2013-04-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OIM	OneIM Acquisition Corp. Class A Ordinary Shares	2026-01-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OIMAU	OneIM Acquisition Corp. Units	2026-01-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OIS	OIL STATES INTERNATIONAL, INC.	2025-11-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OKLO	Oklo Inc.	2021-07-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OKUR	OnKure Therapeutics, Inc. Class A Common Stock	2021-04-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OKYO	OKYO Pharma Limited Ordinary Shares	2022-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OLB	The OLB Group, Inc. Common Stock	2020-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OLLI	Ollie's Bargain Outlet Holdings, Inc. Common Stock	2015-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OLMA	Olema Pharmaceuticals, Inc. Common Stock	2020-11-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OLOX	Olenox Industries Inc. Common Stock	1997-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OLPX	Olaplex Holdings, Inc. Common Stock	2021-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OM	Outset Medical, Inc. Common Stock	2020-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OMDA	Omada Health, Inc. Common Stock	2025-06-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OMER	Omeros Corporation	2009-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OMEX	Odyssey Marine Exploration, Inc	2007-07-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OMH	Ohmyhome Limited Class A Ordinary Shares	2023-03-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OMSE	OMS Energy Technologies Inc. Ordinary Shares	2025-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ON	ON Semiconductor Corp	2020-06-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONB	Old National Bancorp	2022-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONBPO	Old National Bancorp Depositary Shares, Each Representing a 1/40th Interest in a Share of Series C Preferred Stock	2022-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONCH	1RT Acquisition Corp. Class A Ordinary Share	2025-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONCO	Onconetix, Inc. Common Stock	2022-02-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONCY	Oncolytics Biotech, Inc. Common Shares	2018-05-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONDS	Ondas Inc. Common Stock	2018-11-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONEG	OneConstruction Group Limited Ordinary Shares	2024-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONEW	OneWater Marine Inc. Class A Common Stock	2020-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONFO	Onfolio Holdings Inc. Common Stock	2022-08-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ONMD	OneMedNet Corp Class A Common Stock	2021-05-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPAD	Offerpad Solutions Inc.	2020-10-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPAL	OPAL Fuels Inc. Class A Common Stock	2021-03-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPBK	OP Bancorp Common Stock	2018-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPCH	Option Care Health, Inc. Common Stock	2016-08-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPEN	Opendoor Technologies Inc Common Stock	2020-03-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPHC	OptimumBank Holdings, Inc.	2024-12-19	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPRT	Oportun Financial Corporation Common Stock	2019-09-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPRX	OptimizeRx Corporation Common Stock	2018-06-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPTT	Ocean Power Technologies, Inc.	2021-06-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPTU	Optimum Communications, Inc.	2017-06-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPTX	Syntec Optics Holdings, Inc. Class A Common Stock	2021-11-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OPXS	Optex Systems Holdings, INC	2010-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORBS	Eightco Holdings Inc. Common Stock	2023-01-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORC	Orchid Island Capital, Inc.	2011-07-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORGN	Origin Materials, Inc. Common Stock	2020-07-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORGO	Organogenesis Holdings Inc. Class A Common Stock	2016-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORI	Old Republic International Corporation	2017-08-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORIC	Oric Pharmaceuticals, Inc. Common Stock	2020-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORIQ	Origin Investment Corp I Ordinary Shares	2025-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORKT	Orangekloud Technology Inc. Class A Ordinary Shares	2024-07-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORMP	Oramed Pharmaceuticals Inc.	2003-05-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ORN	Orion Group Holdings, Inc	2007-12-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OSG	Octave Specialty Group, Inc.	2013-05-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OSRH	OSR Holdings, Inc. Common Stock	2022-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OSS	One Stop Systems, Inc. Common Stock	2018-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OST	Ostin Technology Group Co., Ltd. Class A Ordinary Shares	2022-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OSTX	OS Therapies Incorporated	2024-07-30	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OSW	OneSpaWorld Holdings Limited Common Shares	2019-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OTEX	Open Text Corp	2004-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OTF	Blue Owl Technology Finance Corp.	2025-06-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OTGA	OTG Acquisition Corp. I Class A Ordinary Share	2025-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OTLK	Outlook Therapeutics, Inc. Common Stock	2016-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OVID	Ovid Therapeutics Inc. Common Stock	2017-05-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OVLY	Oak Valley Bancorp	2009-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OWL	Blue Owl Capital Inc.	2020-10-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OWLS	OBOOK Holdings Inc. Class A Common Shares	2025-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OWLT	Owlet, Inc.	2020-09-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXBR	Oxbridge Re Holdings Limited	2014-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLC	Oxford Lane Capital Corp.	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLCG	Oxford Lane Capital Corp. 7.95% Notes due 2032	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLCI	Oxford Lane Capital Corp. 8.75% Notes due 2030	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLCL	Oxford Lane Capital Corp. 6.75% Notes due 2031	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLCO	Oxford Lane Capital Corp. Preferred Stock Shares, 6.00% Series 2029	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXLCZ	Oxford Lane Capital Corp. 5.00% Notes due 2027	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXSQ	Oxford Square Capital Corp.	2017-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXSQG	Oxford Square Capital Corp. 5.50% Notes due 2028	2017-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OXSQH	Oxford Square Capital Corp. 7.75% Notes due 2030	2017-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+OYSE	Oyster Enterprises II Acquisition Corp Class A Ordinary Shares	2025-05-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAA	Plains All American Pipeline, L.P. Common Units representing Limited Partner Interests	2016-11-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAAC	Proem Acquisition Corp I Ordinary Shares	2026-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAAS	Pan American Silver Corp.	2019-02-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PACB	Pacific Biosciences of California, Inc.	2010-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PACH	Pioneer Acquisition I Corp Class A Ordinary Shares	2025-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PACK	Ranpak Holdings Corp.	2018-01-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PACS	PACS Group, Inc.	2024-04-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAGP	Plains GP Holdings, L.P. Class A Units representing Limited Partner Interests	2013-10-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAHC	Phibro Animal Health Corporation Class A	2014-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAII	Pyrophyte Acquisition Corp. II	2025-07-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAL	Proficient Auto Logistics, Inc. Common Stock	2024-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PALI	Palisade Bio, Inc. Common Stock	2015-07-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PALO	Paloma Acquisition Corp I Class A Ordinary Shares	2026-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PANL	Pangaea Logistics Solutions Ltd.	2014-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PANW	Palo Alto Networks, Inc. Common Stock	2021-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAPL	Pineapple Financial Inc.	2023-07-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PARK	Park Dental Partners, Inc. Common Stock	2025-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PARR	Par Pacific Holdings, Inc. Common Stock	2018-02-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PASG	Passage Bio, Inc. Common Stock	2020-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PASW	Ping An Biomedical Co., Ltd. Ordinary Shares	2024-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAVM	PAVmed Inc. Common Stock	2016-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAVS	Paranovus Entertainment Technology Ltd. Class A Ordinary Shares	2019-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAX	Patria Investments Limited Class A Common Shares	2021-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAYO	Payoneer Global Inc. Common Stock	2021-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PAYS	Paysign, Inc. Common Stock	2018-08-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PBFS	Pioneer Bancorp, Inc. Common Stock	2019-07-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PBHC	Pathfinder Bancorp Inc	2014-10-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PBM	Psyence Biomedical Ltd. Common Shares	2024-01-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PBYI	PUMA BIOTECHNOLOGY INC	2016-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PC	Premium Catering (Holdings) Limited Ordinary Shares	2024-09-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCAP	ProCap Acquisition Corp Class A Ordinary Shares	2025-05-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCB	PCB Bancorp Common Stock	2018-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCSA	Processa Pharmaceuticals, Inc. Common	2020-09-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCSC	Perceptive Capital Solutions Corp Class A Ordinary Shares	2024-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCT	PureCycle Technologies, Inc. Common stock	2021-03-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PCVX	Vaxcyte, Inc. Common Stock	2020-06-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PDCC	Pearl Diver Credit Company Inc.	2024-07-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PDLB	Ponce Financial Group, Inc. Common Stock	2022-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PDSB	PDS Biotechnology Corporation Common Stock	2015-09-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PDYN	Palladyne AI Corp. Common Stock	2021-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PEB	Pebblebrook Hotel Trust	2013-03-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PECO	Phillips Edison & Company, Inc. Common Stock	2012-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PED	PEDEVCO Corp.	2009-07-14	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PEN	Penumbra, Inc.	2015-09-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PENG	Penguin Solutions, Inc. Ordinary Shares	2017-05-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PEPG	PepGen Inc. Common Stock	2022-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PERI	Perion Network Ltd.	2005-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PESI	Perma-Fix Environmental Services, Inc.	2018-05-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PETS	PetMed Express, Inc.	2024-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PETZ	TDH Holdings, Inc. Common Shares	2017-09-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PEW	GrabAGun Digital Holdings Inc.	2025-07-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFAI	Pinnacle Food Group Limited Class A Common Shares	2025-04-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFIS	Peoples Financial Services Corp.	2014-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFLT	PennantPark Floating Rate Capital Ltd.	2011-04-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFSA	Profusa, Inc. Common Stock	2021-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFX	PhenixFIN Corporation Common Stock	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PFXNZ	PhenixFIN Corporation 5.25% Notes due 2028	2011-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PGAC	Pantages Capital Acquisition Corporation Class A Ordinary Shares	2024-11-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PGEN	Precigen, Inc. Common Stock	2018-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PGNY	Progyny, Inc. Common Stock	2019-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PGY	Pagaya Technologies Ltd. Class A Ordinary Shares	2022-06-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHAR	Pharming Group N.V. ADS, each representing 10 ordinary shares	2020-12-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHAT	Phathom Pharmaceuticals, Inc. Common Stock	2019-10-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHIO	Phio Pharmaceuticals Corp. Common Stock	2013-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHOE	Phoenix Asia Holdings Limited Ordinary Shares	2025-04-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHUN	Phunware, Inc. Common Stock	2016-08-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PHVS	Pharvaris N.V. Ordinary Shares	2021-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PICS	PicS N.V. Class A Common Shares	2026-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PIII	P3 Health Partners Inc. Common Stock	2021-02-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PINE	Alpine Income Property Trust, Inc	2019-11-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLAB	Photronics Inc	2019-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLAG	Planet Green Holdings Corp.	2009-09-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLAY	Dave & Buster's Entertainment, Inc.	2020-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLBL	Polibeli Group Ltd Class A Ordinary Shares	2025-08-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLBY	Playboy, Inc. Common Stock	2020-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLG	Platinum Group Metals LTD.	2007-06-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLMK	Plum Acquisition Corp. IV Class A Ordinary Shares	2025-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLMR	Palomar Holdings, Inc. Common stock	2019-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLOW	DOUGLAS DYNAMICS, INC.	2010-04-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLRX	Pliant Therapeutics, Inc. Common Stock	2020-05-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLRZ	Polyrizon Ltd. Ordinary Shares	2024-10-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLSE	Pulse Biosciences, Inc Common Stock (DE)	2016-04-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLTK	Playtika Holding Corp. Common Stock	2021-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLTS	Platinum Analytics Cayman Limited Class A Ordinary Shares	2025-09-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLUG	Plug Power Inc.	2017-04-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLUR	Pluri Inc. Common Stock	2002-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLUT	Plutus Financial Group Limited Ordinary Shares	2025-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLX	Protalix BioTherapeutics, Inc. Common Stock	2007-03-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLXS	Plexus Corp	2017-12-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PLYX	Polaryx Therapeutics, Inc. Common Stock	2026-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMAX	Powell Max Limited Class A Ordinary Shares	2024-08-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMCB	PharmaCyte Biotech, Inc. Common Stock	2021-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMEC	Primech Holdings Ltd. Ordinary Shares	2023-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMI	Picard Medical, Inc.	2025-08-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMNT	Perfect Moment Ltd.	2024-01-23	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMT	PennyMac Mortgage Investment Trust	2017-03-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMTR	Perimeter Acquisition Corp. I Class A Ordinary Shares	2025-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMTS	CPI Card Group Inc. Common Stock	2015-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PMVP	PMV Pharmaceuticals, Inc	2020-09-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PN	Skycorp Solar Group Limited Ordinary Shares	2025-03-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PNBK	Patriot National Bancorp Inc	2004-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PNFP	Pinnacle Financial Partners, Inc.	2025-12-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PNNT	Pennant Investment Corp	2007-04-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POAS	Phaos Technology Holdings (Cayman) Limited	2025-11-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POCI	Precision Optics Corporation, Inc. Common Stock	2022-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PODC	PodcastOne, Inc. Common Stock	2023-09-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PODD	Insulet Corporation	2018-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POET	POET Technologies Inc. Common Shares	2022-03-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POLA	Polar Power, Inc. Common Stock	2016-12-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POLE	Andretti Acquisition Corp. II Class A Ordinary Shares	2024-09-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+POWW	Outdoor Holding Company Common Stock	1997-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPC	Pilgrims Pride Corporation	2003-11-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPCB	Propanc Biopharma, Inc. Common Stock	2013-01-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPHC	Public Policy Holding Company, Inc. Common Stock	2026-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPIH	Perma-Pipe International Holdings, Inc.	1999-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPSI	Pioneer Power Solutions, Inc.	2011-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PPTA	Perpetua Resources Corp. Common Shares	2021-01-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PR	Permian Resources Corporation	2016-02-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRAX	Praxis Precision Medicines, Inc. Common Stock	2020-10-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRCH	Porch Group, Inc. Common Stock	2019-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRCT	PROCEPT BioRobotics Corporation Common Stock	2021-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRE	Prenetics Global Limited Class A Ordinary Share	2022-05-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRFX	PRF Technologies Ltd. Ordinary Shares	2020-08-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRHI	Presurance Holdings, Inc. Common Stock	2015-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRHIZ	Presurance Holdings, Inc. 9.75% Senior Unsecured Notes due 2028	2015-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRIM	Primoris Services Corporation	2023-03-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRLD	Prelude Therapeutics Incorporated	2020-09-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRM	Perimeter Solutions, Inc.	2021-11-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRMB	Primo Brands Corporation	2024-11-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRME	Prime Medicine, Inc. Common Stock	2022-10-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PROF	Profound Medical Corp. Common Stock	2019-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PROK	ProKidney Corp. Class A Ordinary Shares	2021-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PROP	Prairie Operating Co. Common Stock	2012-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRPL	Purple Innovation, Inc. Common Stock	2015-07-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRPO	Precipio, Inc. Common Stock	2014-05-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRQR	ProQR Therapeutics N.V. Ordinary Shares	2014-09-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRSO	Peraso, Inc. Common Stock	2010-11-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRSU	Pursuit Attractions and Hospitality, Inc.	2012-02-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRTH	Priority Technology Holdings, Inc.	2016-09-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRTS	CarParts.com, Inc. Common Stock	2024-04-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRVA	Privia Health Group, Inc. Common Stock	2021-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PRZO	ParaZero Technologies Ltd. Ordinary Shares	2023-07-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSBD	Palmer Square Capital BDC Inc.	2024-01-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSEC	Prospect Capital Corporation	2021-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSHG	Performance Shipping Inc. Common Shares	2010-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSIG	PS International Group Ltd. Ordinary Shares	2024-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSIX	Power Solutions International, Inc. Common Stock	2013-05-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSNL	Personalis, Inc. Common Stock	2019-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSNY	Polestar Automotive Holding UK PLC Class A ADS	2022-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSQH	PSQ Holdings, Inc.	2021-06-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSTL	Postal Realty Trust, Inc	2019-05-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PSTV	PLUS THERAPEUTICS, Inc. Common Stock	2016-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTEN	Patterson-UTI Energy Inc	2020-04-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTGX	Protagonist Therapeutics, Inc	2016-08-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTHS	Pelthos Therapeutics Inc.	2024-02-15	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTLE	PTL LTD Class A Ordinary Shares	2024-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTLO	Portillo's Inc. Class A Common Stock	2021-10-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTN	Palatin Technologies, Inc.	2026-05-28	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTNM	Pitanium Limited Class A Ordinary shares	2025-05-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTOR	Praetorian Acquisition Corp. Class A Ordinary Shares	2026-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PTRN	Pattern Group Inc. Series A Common Stock	2025-09-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PUBM	PubMatic, Inc. Class A Common Stock	2020-11-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PULM	Pulmatrix, Inc. Common Stock	2013-11-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PUMP	ProPetro Holding Corp.	2017-03-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PURR	Hyperliquid Strategies Inc Common Stock	2025-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PVL	Permianville Royalty Trust	2011-11-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PVLA	Palvella Therapeutics, Inc. Common Stock	2015-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PW	Power REIT	2014-02-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PWP	Perella Weinberg Partners Class A Common Stock	2020-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PXS	Pyxis Tankers Inc. Common Stock	2015-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PYPD	PolyPid Ltd. Ordinary Shares	2018-03-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PYXS	Pyxis Oncology, Inc. Common Stock	2021-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+PZG	Paramount Gold Nevada Corp.	2015-04-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QBTS	D-Wave Quantum Inc.	2022-08-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QCLS	Q/C Technologies, Inc. Common Stock	2014-01-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QCRH	QCR Holdings Inc	2016-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QETA	Quetta Acquisition Corporation Common Stock	2023-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QMCO	Quantum Corporation	2020-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QMMM	QMMM Holdings Limited Class A Ordinary Shares	2024-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QNCX	Quince Therapeutics, Inc. Common Stock	2019-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QRHC	Quest Resource Holding Corporation	2014-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QSEA	Quartzsea Acquisition Corporation Ordinary Shares	2025-03-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QSI	Quantum-Si Incorporated Class A Common Stock	2020-09-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QTI	QT Imaging Holdings, Inc. Common Stock	2021-09-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QTTB	Q32 Bio Inc. Common Stock	2018-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QTWO	Q2 Holdings Inc	2025-08-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QUBT	Quantum Computing Inc. Common	2021-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QUCY	Mainz Biomed N.V. Ordinary Shares	2021-11-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QUMS	Quantumsphere Acquisition Corp. Ordinary Shares	2025-08-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QURE	uniQure N.V.	2014-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+QXO	QXO, Inc.	2004-02-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAAQ	Real Asset Acquisition Corp. Class A Ordinary Share	2025-04-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAC	Rithm Acquisition Corp.	2025-02-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAIL	FreightCar America, Inc.	2025-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAIN	Rain Enhancement Technologies Holdco, Inc. Class A Common Stock	2024-12-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RANG	Range Capital Acquisition Corp. Ordinary Shares	2024-12-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RANI	Rani Therapeutics Holdings, Inc. Class A Common Stock	2021-07-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAPP	Rapport Therapeutics, Inc. Common Stock	2024-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAY	Raytech Holding Limited Ordinary Shares	2024-05-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RAYA	Erayak Power Solution Group Inc. Class A Ordinary Shares	2022-12-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RBB	RBB Bancorp Common Stock	2017-07-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RBC	RBC Bearings Incorporated	2021-09-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RBKB	Rhinebeck Bancorp, Inc. Common Stock	2019-01-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RC	Ready Capital Corporation	2013-02-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RCAT	Red Cat Holdings, Inc. Common Stock	2000-09-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RCKT	Rocket Pharmaceuticals, Inc. Common Stock	2015-02-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RCMT	RCM Technologies Inc	2010-06-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RCON	Recon Technology, Ltd. Class A Ordinary Shares	2009-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RCT	RedCloud Holdings plc Ordinary Shares	2025-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RDAC	Rising Dragon Acquisition Corp. Ordinary Shares	2024-10-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RDAG	Republic Digital Acquisition Company Class A Ordinary Shares	2025-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RDGT	Ridgetech, Inc. Ordinary Shares	2021-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RDNW	RideNow Group, Inc. Class B Common Stock	2014-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RDZN	Roadzen, Inc. Ordinary Shares	2021-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REAL	The RealReal, Inc. Common Stock	2019-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REBN	Reborn Coffee, Inc. Common Stock	2022-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RECT	Rectitude Holdings Ltd Ordinary Shares	2024-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REE	REE Automotive Ltd. Class A Ordinary Shares	2021-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REED	Reed's, Inc.	2005-05-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REFI	Chicago Atlantic Real Estate Finance, Inc. Common Stock	2021-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REFR	Research Frontiers Inc	2003-02-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REI	Ring Energy Inc.	2010-03-31	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REKR	Rekor Systems, Inc. Common Stock	2017-08-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RELY	Remitly Global, Inc. Common Stock	2021-09-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RENT	Rent the Runway, Inc. Class A Common Stock	2021-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REPL	Replimune Group, Inc.	2018-07-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REPX	Riley Exploration Permian, Inc.	2017-03-20	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RETO	ReTo Eco-Solutions, Inc. Class A Shares	2017-11-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REVB	Revelation Biosciences, Inc. Common Stock	2020-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REXR	REXFORD INDUSTRIAL REALTY, INC.	2013-07-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+REYN	Reynolds Consumer Products Inc. Common Stock	2020-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RFAI	RF Acquisition Corp II Ordinary Shares	2024-05-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RFAM	RF Acquisition Corp III Ordinary Shares	2026-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RFL	Rafael Holdings, Inc. Class B Common Stock	2018-03-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RGC	Regencell Bioscience Holdings Limited Ordinary Shares	2021-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RGEN	Repligen Corp	2011-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RGNT	Regentis Biomaterials Ltd.	2025-09-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RGNX	REGENXBIO Inc.	2015-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RGTI	Rigetti Computing, Inc. Common Stock	2021-03-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RHLD	Resolute Holdings Management, Inc.	2025-09-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RIBB	Ribbon Acquisition Corp Class A Ordinary Shares	2025-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILY	BRC Group Holdings, Inc. Common Stock	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILYG	BRC Group Holdings, Inc. 5.00% Senior Notes due 2026	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILYL	BRC Group Holdings, Inc. Depositary Shares each representing 1/1000th in a share of 7.375% Series B Cumulative Perpetual Preferred Stock, par value $0.0001	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILYN	BRC Group Holdings, Inc. 6.50% Senior Notes Due 2026	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILYT	BRC Group Holdings, Inc. 6.00% Senior Notes Due 2028	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RILYZ	BRC Group Holdings, Inc. 5.25% Senior Notes due 2028	2019-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RIME	Algorhythm Holdings, Inc. Common Stock	2001-03-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RITM	Rithm Capital Corp.	2019-07-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RITR	Reitar Logtech Holdings Limited Ordinary shares	2024-08-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RIVN	Rivian Automotive, Inc. Class A Common Stock	2021-11-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RJET	Republic Airways Holdings Inc. Common Stock	2018-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RKDA	Arcadia Biosciences, Inc.	2015-05-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RKLB	Rocket Lab Corporation Common Stock	2020-09-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RKT	Rocket Companies, Inc.	2020-08-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RLAY	Relay Therapeutics, Inc. Common Stock	2020-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RLGT	Radiant Logistics, Inc.	2003-05-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RLJ	RLJ Lodging Trust	2017-08-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RLMD	Relmada Therapeutics, Inc. Common Stock	2015-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RLYB	Rallybio Corporation Common Stock	2021-07-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMAX	RE/MAX HOLDINGS, INC.	2013-09-27	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMBI	Richmond Mutual Bancorporation, Inc. Common Stock	2019-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMCF	Rocky Mountain Chocolate Factory, Inc. Common Stock	2015-03-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMCO	Royalty Management Holding Corporation Class A Common Stock	2021-03-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMIX	Suncrete, Inc. Class A Common Stock	2026-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMR	The RMR Group Inc. Class A Common Stock	2015-11-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMSG	Real Messenger Corporation Ordinary Shares	2024-11-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RMTI	Rockwell Medical, Inc. (DE) Common Stock	2019-08-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNAC	Cartesian Therapeutics, Inc. Common Stock	2016-06-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNAZ	TransCode Therapeutics, Inc. Common Stock	2021-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNGR	Ranger Energy Services, Inc.	2017-08-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNGT	Range Capital Acquisition Corp II Class A Ordinary Shares	2025-10-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNST	Renasant Corporation	2023-09-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNTX	Rein Therapeutics, Inc. Common Stock	2017-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNW	ReNew Energy Global plc Class A Ordinary Shares	2021-08-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RNXT	RenovoRx, Inc. Common Stock	2021-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROAD	Construction Partners, Inc. Class A Common Stock	2018-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROC	Rank One Computing Corporation Common stock	2026-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROIV	Roivant Sciences Ltd. Common Shares	2021-09-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROLR	High Roller Technologies, Inc.	2024-08-01	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROMA	Roma Green Finance Limited Class A Ordinary Shares	2023-12-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ROOT	Root, Inc. Class A Common Stock	2020-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPAY	Repay Holdings Corporation Class A Common Stock	2018-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPC	Ridgepost Capital, Inc.	2021-10-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPD	Rapid7, Inc. Common Stock	2015-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPGL	Republic Power Group Limited Class A Ordinary Shares	2025-10-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPID	Rapid Micro Biosystems, Inc. Class A Common Stock	2021-07-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RPRX	Royalty Pharma plc Class A Ordinary Shares	2020-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RR	Richtech Robotics Inc. Class B Common Stock	2023-11-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RRBI	Red River Bancshares, Inc. Common Stock	2019-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RRGB	Red Robin Gourmet Burgers Inc	2019-06-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RRR	Red Rock Resorts, Inc. Class A Common Stock	2016-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RSI	Rush Street Interactive, Inc.	2020-02-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RSSS	RESEARCH SOLUTIONS INC	2008-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RSVR	Reservoir Media, Inc. Common Stock	2020-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RTAC	Renatus Tactical Acquisition Corp I Class A Ordinary Shares	2025-05-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RUM	Rumble Inc. Class A Common Stock	2021-02-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RUSHA	Rush Enterprises Inc	2026-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RUSHB	Rush Enterprises Inc	2026-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVLV	Revolve Group, Inc.	2019-06-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVMD	Revolution Medicines, Inc. Common Stock	2020-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVPH	Reviva Pharmaceuticals Holdings, Inc. Common Stock	2018-08-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVSB	Riverview Bancorp Inc	1997-08-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVSN	Rail Vision Ltd. Ordinary Share	2022-03-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RVTY	Revvity, Inc.	2016-07-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RWAY	Runway Growth Finance Corp. Common Stock	2021-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RWAYI	Runway Growth Finance Corp. 7.25% Notes due 2031	2021-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RWAYL	Runway Growth Finance Corp. 7.50% Notes due 2027	2021-10-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RWT	Redwood Trust, Inc.	2023-01-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RXRX	Recursion Pharmaceuticals, Inc. Class A Common Stock	2021-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RXST	RxSight, Inc. Common Stock	2021-07-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYAN	Ryan Specialty Holdings, Inc.	2021-07-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYDE	Ryde Group Ltd.	2024-02-06	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYET	Ruanyun Edai Technology Inc. Ordinary shares	2025-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYM	RYTHM, Inc. Common Stock	2021-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYOJ	rYojbaba Co., Ltd. Common Shares	2025-08-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYTM	Rhythm Pharmaceuticals, Inc. Common Stock	2017-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RYZ	Ryerson Holding Corporation	2010-05-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RZLT	Rezolute, Inc. Common Stock (NV)	2011-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+RZLV	Rezolve AI PLC Ordinary Shares	2024-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SA	Seabridge Gold, Inc.	2004-03-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAAQ	Space Asset Acquisition Corp. Class A Ordinary Shares	2026-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SABR	Sabre Corporation	2020-09-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SABS	SAB Biotherapeutics, Inc. Common Stock	2021-01-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAC	Safeguard Acquisition Corp.	2025-12-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SACH	Sachem Capital Corp. Common Shares	2017-01-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAFX	XCF Global, Inc. Class A Common Stock	2025-06-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAGT	SAGTEC GLOBAL LIMITED Class A Ordinary shares	2025-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAIH	SAIHEAT Limited Class A Ordinary Shares	2021-04-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAIL	SailPoint, Inc. Common Stock	2025-02-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAMG	Silvercrest Asset Management Group Inc.	2012-11-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SANA	Sana Biotechnology, Inc. Common Stock	2021-01-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SANG	Sangoma Technologies Corporation Common Shares	2021-12-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SAR	SARATOGA INVESTMENT CORP. NEW	2007-03-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SARO	StandardAero, Inc.	2024-10-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SATL	Satellogic Inc. Class A Ordinary Shares	2022-01-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SB	Safe Bulkers, Inc.	2008-05-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBC	SBC Medical Group Holdings Incorporated Common Stock	2022-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBEV	Splash Beverage Group, Inc.	2013-12-13	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBFG	SB Financial Group, Inc.	2014-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBFM	Sunshine Biopharma Inc.	2007-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBLK	Star Bulk Carriers Corp.	2007-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBXD	SilverBox Corp IV	2024-08-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SBXE	SilverBox Corp V	2025-11-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCII	SC II Acquisition Corp. Class A ordinary share	2025-11-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCKT	Socket Mobile, Inc. New	2016-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCLX	Scilex Holding Company Common Stock	2021-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCM	STELLUS CAPITAL INVESTMENT CORPORATION	2012-11-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCNX	Scienture Holdings, Inc. Common Stock	2020-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCOR	comScore, Inc. Common Stock	2017-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCPQ	Social Commerce Partners Corporation Class A Ordinary Shares	2025-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCWO	374Water Inc. Common Stock	2022-06-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SCYX	SCYNEXIS, Inc.	2014-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDA	SunCar Technology Group Inc. Class A Ordinary Shares	2023-05-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDGR	Schrodinger, Inc. Common Stock	2020-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDHC	Smith Douglas Homes Corp.	2024-01-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDHI	Siddhi Acquisition Corp Class A Common stock	2025-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDHY	PGIM Short Duration High Yield Opportunities Fund	2020-11-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDM	Smart Digital Group Limited Ordinary Shares	2025-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDOT	Sadot Group Inc. Common Stock	2018-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SDST	Stardust Power Inc. Common Stock	2021-01-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEAT	Vivid Seats Inc. Class A Common Stock	2021-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEDG	SolarEdge Technologies, Inc.	2015-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEED	Origin Agritech Limited	2005-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEER	Seer, Inc. Class A Common Stock	2020-11-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEG	Seaport Entertainment Group Inc.	2024-09-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEGG	Sports Entertainment Gaming Global Corporation Common Stock	2018-05-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEI	Solaris Energy Infrastructure, Inc.	2017-05-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SELF	Global Self Storage, Inc. Common Stock	2016-01-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SENEA	Seneca Foods Corp	1995-08-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SENEB	Seneca Foods Corp	1995-08-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SENS	Senseonics Holdings, Inc. Common Stock	2016-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEPN	Septerna, Inc. Common Stock	2024-10-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SERA	Sera Prognostics, Inc. Class A Common Stock	2021-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SERV	Serve Robotics Inc. Common Stock	2024-04-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SES	SES AI Corporation	2021-01-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEV	Aptera Motors Corp. Class B Common Stock	2025-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEVN	Seven Hills Realty Trust Common Stock	2009-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SEZL	Sezzle Inc. Common Stock	2023-08-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFBC	Sound Financial Bancorp, Inc.	2012-08-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFBS	ServisFirst Bancshares Inc.	2014-05-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFD	Smithfield Foods, Inc. Common Stock	2025-01-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFHG	Samfine Creation Holdings Group Limited Class A Ordinary Share	2024-10-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFIX	Stitch Fix, Inc. Class A Common Stock	2017-11-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFL	SFL Corporation Ltd.	2004-05-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SFWL	Shengfeng Development Limited Class A Ordinary Shares	2023-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGA	Saga Communications, Inc. Class A Common Stock (FL)	2018-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGC	Superior Group of Companies, Inc. Common Stock	2008-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGHC	Super Group (SGHC) Limited	2022-01-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGHT	Sight Sciences, Inc. Common Stock	2021-07-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGI	Somnigroup International Inc.	2017-02-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGLY	Singularity Future Technology Ltd. Common Stock	2008-04-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGMT	Sagimet Biosciences Inc. Series A Common Stock	2023-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGP	SpyGlass Pharma, Inc. Common Stock	2026-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGRY	Surgery Partners, Inc. Common Stock	2015-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SGU	Star Group, L.P. Common Units Representing Limited Partner Interest	1998-05-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHAZ	SharonAI Holdings, Inc. Class A Common Stock	2026-02-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHC	Sotera Health Company Common Stock	2020-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHFS	SHF Holdings, Inc. Class A Common Stock	2021-06-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHIM	Shimmick Corporation Common Stock	2023-11-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHIP	Seanergy Maritime Holdings Corp.	2016-12-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHLS	Shoals Technologies Group, Inc. Class A Common Stock	2021-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHMD	SCHMID Group N.V. Class A Ordinary Shares	2024-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHO	Sunstone Hotel Investors, Inc.	2011-04-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SHPH	Shuttle Pharmaceuticals Holdings, Inc. Common Stock	2022-08-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIBN	SI-BONE, Inc. Common Stock	2018-10-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIDU	Sidus Space, Inc. Class A Common Stock	2021-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIEB	Siebert Financial Corp	1998-07-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIGA	SIGA Technologies Inc.	2018-03-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIGI	Selective Insurance Group	2013-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SILA	Sila Realty Trust, Inc.	2015-04-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SILO	Silo Pharma, Inc. Common Stock	2012-12-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SIMA	SIM Acquisition Corp. I Class A Ordinary Shares	2024-07-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SINT	SiNtx Technologies, Inc. Common Stock	2007-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SION	Sionna Therapeutics, Inc. Common Stock	2025-02-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SITC	SITE Centers Corp. Common Shares	2017-06-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SITE	SiteOne Landscape Supply, Inc.	2016-05-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SITM	SiTime Corporation Common Stock	2019-11-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SJ	Scienjoy Holding Corporation Class A Ordinary Shares	2019-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKE	Skeena Resources Limited	2023-11-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKIL	Skillsoft Corp.	2019-06-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKIN	The Beauty Health Company Class A Common Stock	2020-09-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKK	SKK Holdings Limited Class A Ordinary Shares	2024-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKWD	Skyward Specialty Insurance Group, Inc. Common Stock	2023-01-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKY	Champion Homes, Inc.	2013-08-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKYE	Skye Bioscience, Inc. Common Stock	2014-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKYH	Sky Harbour Group Corporation	2020-10-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKYQ	Sky Quarry Inc. Common Stock	2024-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKYT	SkyWater Technology, Inc. Common Stock	2021-04-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SKYX	SKYX Platforms Corp. Common Stock	2015-04-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLDB	Solid Biosciences Inc. Common Stock	2018-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLDE	Slide Insurance Holdings, Inc. Common Stock	2025-06-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLDP	Solid Power, Inc. Class A Common Stock	2021-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLE	Super League Enterprise, Inc. Common Stock	2019-02-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLGB	Smart Logistics Global Limited Ordinary Shares	2024-12-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLGL	Sol-Gel Technologies Ltd. Ordinary Shares	2018-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLGN	Silgan Holdings Inc	2022-07-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLMT	Brera Holdings PLC Class B Ordinary Shares	2023-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLND	Southland Holdings, Inc.	2021-11-19	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLNG	Stabilis Solutions, Inc. Common Stock	1998-07-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLNH	Soluna Holdings, Inc. Common Stock	2016-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLP	Simulations Plus, Inc.	2007-12-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLQT	SelectQuote, Inc.	2020-05-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLRC	SLR Investment Corp. Common Stock	2010-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLSN	Solesence, Inc. Common Stock	2025-04-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLVM	Sylvamo Corporation	2022-04-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SLXN	Silexion Therapeutics Corp Ordinary Shares	2024-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMA	SmartStop Self Storage REIT, Inc.	2016-04-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMBK	SmartFinancial, Inc.	2011-01-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMCI	Super Micro Computer, Inc. Common Stock	2020-01-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMID	Smith-Midland Corporation Common Stock	2003-01-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMJF	SMJ International Holdings Inc.	2025-12-03	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMMT	Summit Therapeutics Inc. Common Stock	2015-03-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMPL	The Simply Good Foods Company Common Stock	2017-06-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMRT	SmartRent, Inc.	2021-02-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMSI	Smith Micro Software Inc	2012-04-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMTI	Sanara MedTech Inc. Common Stock	2020-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMTK	SmartKem, Inc. Common Stock	2024-05-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMX	SMX (Security Matters) Public Limited Company Ordinary Shares	2023-03-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SMXT	Solarmax Technology Inc. Common Stock	2024-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SN	SharkNinja, Inc.	2023-07-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNAL	Snail, Inc. Class A Common Stock	2022-11-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SND	Smart Sand, Inc. Common Stock	2016-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNDL	Sundial Growers Inc. Common Shares	2019-07-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNDX	Syndax Pharmaceuticals, Inc.	2016-03-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNES	SenesTech, Inc. Common Stock	2016-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNGX	Soligenix, Inc. Common Stock	2016-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNOA	Sonoma Pharmaceuticals, Inc. Common Stock	2006-12-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNTG	Sentage Holdings Inc. Class A Ordinary Shares	2021-07-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNTI	Senti Biosciences, Inc. Common Stock	2021-05-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNWV	SANUWAVE Health, Inc. Common Stock	2025-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SNYR	Synergy CHC Corp. Common Stock	2013-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOAR	Volato Group, Inc.	2021-11-29	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOBR	SOBR Safe, Inc. Common Stock	2008-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOC	Sable Offshore Corp.	2021-02-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOCA	Solarius Capital Acquisition Corp. Class A Ordinary Share	2025-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOHU	Sohu.com Limited American Depositary Shares	2019-01-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SONM	DNA X, Inc. Common Stock	2019-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SONO	Sonos, Inc. Common Stock	2018-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOPH	SOPHiA GENETICS SA Ordinary Shares	2021-07-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SORA	AsiaStrategy Ordinary Shares	2025-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SORN	Soren Acquisition Corp. Class A Ordinary Shares	2026-01-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOS	SOS Limited	2017-04-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOTK	Sono-Tek Corporation Common Stock	1998-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOUL	Soulpower Acquisition Corporation	2025-04-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOUN	SoundHound AI, Inc. Class A Common Stock	2021-03-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SOWG	Sow Good Inc. Common Stock	2024-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPAI	Safe Pro Group Inc. Common Stock	2024-08-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPCB	SuperCom, Ltd	2007-08-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPEG	Silver Pegasus Acquisition Corp Class A Ordinary Shares	2025-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPFI	South Plains Financial, Inc. Common Stock	2019-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPHL	Springview Holdings Ltd Class A Ordinary Shares	2024-10-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPIR	Spire Global, Inc.	2020-09-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPKL	Spark I Acquisition Corp. Class A Ordinary Share	2023-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPMC	Sound Point Meridian Capital, Inc.	2024-06-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPNT	SiriusPoint Ltd.	2013-08-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPOK	Spok Holdings, Inc	2021-09-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPPL	SIMPPLE LTD. Ordinary Shares	2023-09-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPRB	Spruce Biosciences, Inc. Common Stock	2020-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPRC	SciSparc Ltd. Ordinary Shares	2017-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPRO	Spero Therapeutics, Inc. Common Stock	2017-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPRU	Spruce Power Holding Corporation	2019-07-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPRY	ARS Pharmaceuticals, Inc. Common Stock	2020-12-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPSC	SPS Commerce, Inc.	2010-04-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPT	Sprout Social, Inc Class A Common Stock	2019-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPWH	Sportsman's Warehouse Holdings, Inc.	2014-04-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SPWR	SunPower Inc. Common Stock	2021-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SQFT	Presidio Property Trust, Inc. Class A Common Stock	2020-08-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRAD	Sportradar Group AG Class A Ordinary Shares	2021-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRBK	SR Bancorp, Inc. Common stock	2023-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRFM	Surf Air Mobility Inc.	2023-07-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRG	Seritage Growth Properties Class A common shares of beneficial interest, par value $0.01	2015-06-09	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRL	Scully Royalty Ltd. Common Shares	2003-05-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRRK	Scholar Rock Holding Corporation Common Stock	2018-05-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRTA	Strata Critical Medical, Inc. Class A Common Stock	2019-09-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRTS	Sensus Healthcare, Inc	2016-03-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRXH	SRX Health Solutions, Inc.	2021-06-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SRZN	Surrozen, Inc. Common	2020-10-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSAC	SPACSphere Acquisition Corp. Class A Ordinary Shares	2026-01-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSB	SouthState Bank Corporation	2023-12-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSEA	Starry Sea Acquisition Corp Ordinary Shares	2025-07-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSII	SS Innovations International Inc. Common Stock	2023-11-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSM	Sono Group N.V. Ordinary Shares	2021-11-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSNC	SS&C Technologies Inc	2010-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSRM	SSR Mining Inc.	2012-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSSS	SuRo Capital Corp. Common Stock	2011-04-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSSSL	SuRo Capital Corp. 6.00% Notes due 2026	2011-04-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SST	System1, Inc.	2020-06-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSTI	SoundThinking, Inc. Common Stock	2017-06-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SSYS	Stratasys Inc (ISRAEL)	2012-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STAG	STAG INDUSTRIAL, INC.	2016-03-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STAK	STAK Inc. Class A Ordinary Shares	2025-02-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STEL	Stellar Bancorp, Inc.	2017-11-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STEM	Stem, Inc.	2020-08-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STEP	StepStone Group Inc. Class A Common Stock	2020-09-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STEX	Streamex Corp. Common Stock	2015-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STFS	Star Fashion Culture Holdings Limited Class A Ordinary Shares	2024-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STIM	Neuronetics, Inc. Common Stock	2018-06-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STKS	The ONE Group Hospitality, Inc. Common Stock	2011-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STNE	StoneCo Ltd. Class A Common Shares	2018-10-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STNG	Scorpio Tankers Inc.	2010-03-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STOK	Stoke Therapeutics, Inc. Common Stock	2019-06-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRL	Sterling Infrastructure, Inc. Common Stock	2023-05-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRO	Sutro Biopharma, Inc.	2018-09-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRR	Star Equity Holdings, Inc. Common Stock	2015-01-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRS	Stratus Properties Inc	2010-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRW	Strawberry Fields REIT, Inc.	2023-02-16	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STRZ	Starz Entertainment Corp. Common Shares	2025-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STTK	Shattuck Labs, Inc. Common Stock	2020-10-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STUB	StubHub Holdings, Inc.	2025-09-12	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STVN	Stevanato Group S.p.A.	2021-07-15	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STWD	STARWOOD PROPERTY TRUST, INC.	2009-08-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+STXS	Stereotaxis, Inc. Common Stock	2013-10-29	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SUGP	SU Group Holdings Limited Class A Ordinary Shares	2024-01-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SUIG	Sui Group Holdings Limited Common Stock	2022-08-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SUNC	SunocoCorp LLC	2025-10-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SUPV	Grupo Supervielle S.A.	2016-05-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SUPX	SuperX AI Technology Limited Ordinary Shares	2024-04-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SURG	SurgePays, Inc. Common Stock	2007-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVA	Sinovac Biotech, Ltd	2004-12-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVAC	Spring Valley Acquisition Corp. III Class A Ordinary Shares	2025-09-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVAQ	Silicon Valley Acquisition Corp. Class A Ordinary Shares	2025-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVC	Service Properties Trust Common Stock	2007-05-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVCC	Stellar V Capital Corp. Class A Ordinary Shares	2025-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVCO	Silvaco Group, Inc. Common Stock	2024-05-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVIV	Spring Valley Acquisition Corp. IV Class A Ordinary Shares	2026-02-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVRA	Savara Inc.	2017-04-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SVV	Savers Value Village, Inc.	2023-06-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWAG	Stran & Company, Inc. Common Stock	2021-11-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWBI	Smith & Wesson Brands, Inc. Common Stock	2013-10-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWIM	Latham Group, Inc. Common Stock	2021-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWKHL	SWK Holdings Corporation 9.00% Senior Notes due 2027	2006-01-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWMR	Swarmer, Inc Common Stock	2026-03-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SWVL	Swvl Holdings Corp Class A Common Shares	2022-03-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SXTC	China SXT Pharmaceuticals, Inc. Class A Ordinary Shares	2018-12-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SXTP	60 Degrees Pharmaceuticals, Inc. Common Stock	2023-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SYM	Symbotic Inc. Class A Common Stock	2021-03-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SYNX	Silynxcom Ltd.	2024-01-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SYRE	Spyre Therapeutics, Inc. Common Stock	2016-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+SZZL	Sizzle Acquisition Corp. II Class A ordinary shares	2025-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TACH	Titan Acquisition Corp. Class A Ordinary Shares	2025-04-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TACO	Berto Acquisition Corp. Ordinary Shares	2025-04-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TALK	Talkspace, Inc. Common Stock	2020-06-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TANH	Tantech Holdings Ltd. Class A Common Shares	2015-03-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TAOX	Tao Synergies Inc. Common Stock	2021-06-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TARA	Protara Therapeutics, Inc. Common Stock	2014-10-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TARS	Tarsus Pharmaceuticals, Inc. Common Stock	2020-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TASK	TaskUs, Inc. Class A Common Stock	2021-06-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TAVI	Tavia Acquisition Corp. Ordinary Shares	2024-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TAYD	Taylor Devices Inc	1998-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBCH	Turtle Beach Corporation Common Stock	2012-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBH	Brag House Holdings, Inc. Common Stock	2025-02-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBI	Trueblue, Inc.	2025-05-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBLA	Taboola.com Ltd. Ordinary Shares	2021-06-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBLD	Thornburg Income Builder Opportunities Trust Common Stock	2021-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBN	Tamboran Resources Corporation	2024-06-26	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBPH	Theravance Biopharma, Inc.	2015-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TBRG	TruBridge, Inc. Common Stock	2024-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCBI	Texas Capital Bancshares, Inc.	2012-09-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCBS	Texas Community Bancshares, Inc. Common Stock	2021-07-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCBX	Third Coast Bancshares, Inc. Common Stock	2021-11-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCGL	TechCreate Group Ltd.	2025-09-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCMD	Tactile Systems Technology, Inc.	2016-06-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCPC	BlackRock TCP Capital Corp. Common Stock	2012-04-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCRX	TScan Therapeutics, Inc. Common Stock	2021-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TCX	Tucows, Inc	2013-12-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TDAC	Translational Development Acquisition Corp. Ordinary Shares	2024-12-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TDAY	USA TODAY Co., Inc.	2014-01-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TDIC	Dreamland Limited Class A Ordinary Shares	2025-07-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TDUP	ThredUp Inc. Class A Common Stock	2021-03-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TDWD	Tailwind 2.0 Acquisition Corp. Class A Ordinary Shares	2025-11-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TEAD	Teads Holding Co. Common Stock	2021-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TECX	Tectonic Therapeutic, Inc. Common Stock	2018-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TELA	TELA Bio, Inc. Common Stock	2019-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TELO	Telomir Pharmaceuticals, Inc. Common Stock	2024-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TEM	Tempus AI, Inc. Class A Common Stock	2024-06-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TENB	Tenable Holdings, Inc.	2018-07-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TENX	Tenax Therapeutics, Inc.	2010-01-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TFIN	Triumph Financial, Inc.	2014-11-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TFPM	Triple Flag Precious Metals Corp.	2022-08-25	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TG	Tredegar Corporation	2013-11-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGB	Taseko Mines Limited	2004-01-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGE	The Generation Essentials Group	2025-06-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGEN	Tecogen Inc.	2013-09-30	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGHL	The GrowHub Limited Class A Ordinary Shares	2025-08-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGL	Treasure Global Inc. Common Stock	2022-08-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGLS	Tecnoglass Inc.	2012-02-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TGTX	TG Therapeutics, Inc.	2005-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TH	Target Hospitality Corp. Common Stock	2018-01-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THCH	TH International Limited Ordinary shares	2022-09-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THFF	First Financial Corporation Common Stock	1997-01-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THH	TryHard Holdings Limited Ordinary Shares	2025-08-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THM	International Tower Hill Mines, Ltd.	2007-08-02	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THRM	Gentherm Inc	2018-03-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+THRY	Thryv Holdings, Inc. Common Stock	2013-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TIC	TIC Solutions, Inc	2025-02-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TIGO	Millicom International Cellular S.A. Common Stock	2022-05-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TIGR	UP Fintech Holding Ltd American Depositary Share representing fifteen Class A Ordinary Shares	2019-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TIL	Instil Bio, Inc. Common Stock	2021-03-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TIPT	Tiptree Inc. Common Stock	2018-06-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TISI	Team, Inc.	2011-12-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TITN	Titan Machinery Inc.	2007-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TJGC	TJGC Group Limited Ordinary Shares	2025-01-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TK	Teekay Corporation Ltd.	2000-09-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TKNO	Alpha Teknova, Inc. Common Stock	2021-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLF	Tandy Leather Factory, Inc. Common Stock	2010-06-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLIH	Ten-League International Holdings Limited Ordinary Shares	2025-07-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLNC	Talon Capital Corp. Class A Ordinary Shares	2025-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLPH	Talphera, Inc. Common Stock	2011-02-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLRY	Tilray Brands, Inc. Common Stock	2018-07-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLS	Telos Corporation Common Stock	2020-11-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLSA	Tiziana Life Sciences Ltd. Common Shares	2018-10-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TLSI	TriSalus Life Sciences, Inc. Common Stock	2020-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMC	TMC the metals company Inc. Common Stock	2020-05-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMCI	Treace Medical Concepts, Inc. Common Stock	2021-04-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMCR	The Metals Royalty Company Inc. Common Stock	2026-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMDE	TMD Energy Limited	2025-04-17	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMDX	TransMedics Group, Inc. Common Stock	2019-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMTS	Spartacus Acquisition Corp. II Class A Ordinary Shares	2026-02-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMUS	T-Mobile US, Inc.	2020-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMUSI	T-Mobile US, Inc. 5.500% Senior Notes due June 2070	2020-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMUSL	T-Mobile US, Inc. 6.250% Senior Notes due 2069	2020-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TMUSZ	T-Mobile US, Inc. 5.500% Senior Notes due March 2070	2020-06-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TNGX	Tango Therapeutics, Inc.	2020-09-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TNK	Teekay Tankers Ltd.	2007-12-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TNMG	TNL Mediagene Ordinary Shares	2024-11-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TNON	Tenon Medical, Inc. Common Stock	2022-04-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TNYA	Tenaya Therapeutics, Inc. Common Stock	2021-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOI	The Oncology Institute, Inc. Common Stock	2020-03-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOMZ	TOMI Environmental Solutions, Inc.	2020-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TONX	TON Strategy Company Common Stock	2014-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOON	Kartoon Studios, Inc.	2016-11-18	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOP	TOP Financial Group Limited Class A Ordinary Shares	2022-05-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOPP	Toppoint Holdings Inc.	2025-01-13	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOPS	TOP Ships Inc.	2004-07-21	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOVX	Theriva Biologics, Inc.	2007-06-20	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TOYO	TOYO Co., Ltd Ordinary Shares	2024-06-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPB	Turning Point Brands, Inc.	2016-05-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPCS	Techprecision Corporation	2023-05-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPET	Trio Petroleum Corp.	2023-03-14	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPG	TPG Inc. Class A Common Stock	2022-01-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPGXL	TPG Operating Group II, L.P. 6.950% Fixed-Rate Junior Subordinated Notes due 2064	2022-01-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPL	Texas Pacific Land Corporation	2025-08-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPST	Tempest Therapeutics, Inc. Common Stock	2013-04-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TPVG	TRIPLEPOINT VENTURE GROWTH BDC CORP.	2014-03-03	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRAK	ReposiTrak, Inc.	2010-10-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRAW	Traws Pharma, Inc. Common Stock	2013-07-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRC	Tejon Ranch Co.	2013-08-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRDA	Entrada Therapeutics, Inc. Common Stock	2021-10-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRIN	Trinity Capital Inc. Common Stock	2021-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRINI	Trinity Capital Inc. 7.875% Notes Due 2029	2021-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRINZ	Trinity Capital Inc. 7.875% Notes due 2029	2021-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRNO	Terreno Realty Corporation	2010-01-14	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRNR	Interactive Strength Inc. Common Stock	2023-02-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRON	Tron Inc. Common Stock	2023-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TROO	TROOPS, Inc. Ordinary Shares	2008-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRSG	Tungray Technologies Inc Class A Ordinary Shares	2024-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRT	Trio-Tech International	1998-09-28	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRTX	TPG RE Finance Trust, Inc. Common Stock	2017-07-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRUG	TruGolf Holdings, Inc. Class A Common Stock	2021-10-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRVI	Trevi Therapeutics, Inc. Common Stock	2019-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TRX	TRX Gold Corporation	2005-05-10	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSAT	Telesat Corporation Class A Common Shares and Class B Variable Voting Shares	2021-11-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSBK	Timberland Bancorp Inc	1997-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSEM	Tower Semiconductor Ltd	2008-10-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSHA	Taysha Gene Therapies, Inc. Common Stock	2020-09-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSLX	Sixth Street Specialty Lending, Inc.	2014-03-19	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TSSI	TSS, Inc. Common Stock	2005-07-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TTAM	Titan America SA	2025-02-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TTAN	ServiceTitan, Inc. Class A Common Stock	2024-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TTGT	TechTarget, Inc. Common Stock	2024-12-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TTI	TETRA Technologies, Inc.	2023-03-01	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TTRX	Turn Therapeutics Inc. Common Stock	2025-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TUSK	Mammoth Energy Services, Inc. Common Stock	2016-10-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TVA	Texas Ventures Acquisition III Corp Class A Ordinary Share	2025-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TVAI	Thayer Ventures Acquisition Corporation II Class A Ordinary Shares	2025-05-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TVGN	Tevogen Bio Holdings Inc. Common Stock	2021-11-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TVRD	Tvardi Therapeutics, Inc. Common Stock	2014-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWAV	TaoWeave, Inc. Common Stock	2011-12-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWFG	TWFG, Inc. Common Stock	2024-07-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWG	Top Wealth Group Holding Limited Class A Ordinary Shares	2024-04-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWIN	Twin Disc, Incorporated	2007-12-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWLV	Twelve Seas Investment Company III Class A Ordinary Shares	2025-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TWO	Two Harbors Investment Corp.	2017-03-13	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TXG	10x Genomics, Inc. Class A Common Stock	2019-09-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TXMD	TherapeuticsMD, Inc.	2013-04-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TYGO	Tigo Energy, Inc. Common Stock	2021-08-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+TYRA	Tyra Biosciences, Inc. Common Stock	2021-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UAC	United Acquisition Corp. I	2026-01-28	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UAMY	United States Antimony Corporation	2012-05-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UAN	CVR Partners, LP	2011-04-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UAVS	AgEagle Aerial Systems, Inc.	2014-06-12	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UBXG	U-BX Technology Ltd. Class A Ordinary Shares	2024-03-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UCAR	U Power Limited Class A Ordinary Shares	2023-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UCB	United Community Banks, Inc.	2020-06-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UCFI	CN Healthy Food Tech Group Corp. Common Stock	2023-12-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UFG	Uni-Fuels Holdings Limited Class A Ordinary Shares	2025-01-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UG	United-Guardian, Inc.	2009-03-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UHAL	U-Haul Holding Company	1995-12-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UK	Ucommune International Ltd Ordinary Shares	2021-01-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ULCC	Frontier Group Holdings, Inc. Common Stock	2021-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ULH	Universal Logistics Holdings, Inc. Common Stock	2005-02-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ULS	UL Solutions Inc.	2024-04-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UMAC	Unusual Machines, Inc.	2024-02-13	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UMBF	UMB Financial Corp	2025-01-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UNB	Union Bankshares, Inc	2000-07-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UNCY	Unicycive Therapeutics, Inc. Common Stock	2021-07-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPB	Upstream Bio, Inc. Common Stock	2024-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPBD	Upbound Group, Inc. Common Stock	2017-03-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPC	Universe Pharmaceuticals Inc. Class A Ordinary Shares	2021-03-17	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPLD	Upland Software, Inc.	2014-11-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPST	Upstart Holdings, Inc. Common stock	2020-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPWK	Upwork Inc. Common Stock	2018-09-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UPXI	Upexi, Inc. Common Stock	2021-06-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+URGN	UroGen Pharma Ltd. Ordinary Shares	2017-05-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USAC	USA COMPRESSION PARTNERS LP	2013-01-10	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USAR	USA Rare Earth, Inc. Class A Common Stock	2023-05-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USBC	USBC, Inc.	2015-06-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USGO	U.S. GoldMining Inc. Common stock	2023-04-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USIO	Usio, Inc. Common Stock	2015-08-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+USPH	US Physical Therapy Inc	2025-05-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UTMD	Utah Medical Products Inc	1996-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UTSI	UTStarcom Holdings Corp Ordinary Shares (Cayman Islands)	2000-02-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UUU	Universal Safety Products, Inc.	2003-07-24	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UUUU	Energy Fuels Inc.	2016-12-20	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UVE	UNIVERSAL INSURANCE HLDG, INC.	2013-11-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UVSP	Univest Financial Corporation Common Stock	2017-01-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+UYSC	UY Scuti Acquisition Corp. Ordinary Shares	2025-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VABK	Virginia National Bankshares Corporation Common Stock	2021-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VACI	Viking Acquisition Corp. I	2025-10-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VANI	Vivani Medical, Inc. Common Stock (DE)	2014-11-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VATE	INNOVATE Corp.	2014-12-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VBNK	VersaBank Common Shares	2021-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VC	VISTEON CORPORATION	2017-12-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VCEL	Vericel Corporation	2021-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VCIG	VCI Global Limited Ordinary Share	2023-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VCTR	Victory Capital Holdings, Inc. Class A Common Stock	2018-02-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VCX	Fundrise Innovation Fund, LLC	2026-03-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VEEA	Veea Inc. Common Stock	2021-03-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VEEE	Twin Vee PowerCats Co. Common Stock	2021-07-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VEL	Velocity Financial, Inc.	2020-01-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VELO	Velo3D, Inc. Common stock	2020-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VENU	Venu Holding Corporation	2024-11-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VERA	Vera Therapeutics, Inc. Class A Common Stock	2021-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VERI	Veritone, Inc. Common Stock	2017-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VERU	Veru Inc.	2007-07-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VERX	Vertex, Inc. Class A Common Stock	2020-07-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VFS	VinFast Auto Ltd. Ordinary Shares	2023-08-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VG	Venture Global, Inc.	2025-01-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VGAS	Verde Clean Fuels, Inc. Class A Common Stock	2021-08-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VHCP	Vine Hill Capital Investment Corp. II Class A Ordinary Shares	2025-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VHUB	VenHub Global, Inc. Common Stock	2026-01-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIK	Viking Holdings Ltd	2024-04-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VINP	Vinci Compass Investments Ltd. Class A Common Shares	2021-01-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIR	Vir Biotechnology, Inc. Common Stock	2019-10-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIRC	Virco Mfg. Corporation	1996-10-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIRT	Virtu Financial, Inc. Class A	2015-04-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VITL	Vital Farms, Inc. Common Stock	2020-07-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIVO	VivoPower PLC Ordinary Shares	2016-12-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VIVS	VivoSim Labs, Inc. Common Stock	2012-03-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VKTX	Viking Therapeutics, Inc	2015-04-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VLY	Valley National Bancorp	2015-06-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VMAR	Vision Marine Technologies Inc. Common Shares	2020-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VNCE	Vince Holding Corp. Common Stock	2013-11-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VNDA	Vanda Pharmaceuticals Inc.	2009-12-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VNME	Vendome Acquisition Corporation I Class A Ordinary Shares	2025-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VNRX	VolitionRX Limited Common Stock	2015-02-03	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VNTG	Vantage Corp	2025-06-11	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VOC	VOC ENERGY TRUST	2011-05-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VOR	Vor Biopharma Inc. Common Stock	2021-02-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VOYG	Voyager Technologies, Inc.	2025-06-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRA	Vera Bradley, Inc.	2024-10-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRAX	Virax Biolabs Group Limited Ordinary Shares	2022-06-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRCA	Verrica Pharmaceuticals Inc. Common Stock	2018-06-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRDN	Viridian Therapeutics, Inc. Common Stock	2014-06-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRM	Vroom, Inc. Common Stock	2020-06-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRME	VerifyMe, Inc. Common Stock	2020-06-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRNS	Varonis Systems, Inc.	2014-02-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRRM	Verra Mobility Corporation Class A Common Stock	2017-01-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VRTS	Virtus Investment Partners, Inc.	1998-03-31	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VS	Versus Systems Inc. Common Stock	2021-01-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VSEC	VSE Corp	2026-02-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VSEE	VSee Health, Inc. Common Stock	2021-11-03	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VSME	VS Media Holdings Limited Class A Ordinary Shares	2023-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VSTD	Vestand Inc. Class A Common Stock	2022-09-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTAK	Catheter Precision, Inc.	2018-09-26	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTEX	VTEX	2021-07-16	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTGN	Vistagen Therapeutics, Inc. Common Stock	2010-06-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTIX	Virtuix Holdings Inc. Class A Common Stock	2026-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTRS	Viatris Inc. Common Stock	2020-11-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTSI	VirTra, Inc. Common Stock	2018-03-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VTVT	vTv Therapeutics Inc. Class A Common Stock	2015-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VUZI	Vuzix Corporation	2009-12-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VVOS	Vivos Therapeutics, Inc. Common Stock	2020-12-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VWAV	VisionWave Holdings, Inc. Common Stock	2025-07-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VYGR	Voyager Therapeutics, Inc. Common Stock	2015-11-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+VYNE	VYNE Therapeutics Inc. Common Stock	2018-01-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAFD	WaFd, Inc. Common Stock	2010-03-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAFDP	WaFd, Inc. Depositary Shares	2010-03-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAFU	Wah Fu Education Group Limited Ordinary Shares	2018-08-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAI	Top KingWin Ltd Class A Ordinary Shares	2023-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAL	Western Alliance Bancorporation	2021-09-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WALD	Waldencast plc Class A Ordinary Share	2021-03-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WASH	Washington Trust Bancorp Inc	2016-09-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WATT	Energous Corporation	2014-03-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WAY	Waystar Holding Corp. Common Stock	2024-06-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WBD	Warner Bros. Discovery, Inc. Series A Common Stock	2022-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WBI	WaterBridge Infrastructure LLC	2025-09-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WBTN	WEBTOON Entertainment Inc. Common Stock	2024-06-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WBUY	WEBUY GLOBAL LTD. Class A Ordinary Shares	2023-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WCN	Waste Connections, Inc.	2025-06-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WCT	Wellchange Holdings Company Limited Class A Ordinary shares	2024-09-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WEAV	Weave Communications, Inc.	2021-11-02	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WENN	Wen Acquisition Corp Class A Ordinary Shares	2025-05-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WES	Western Midstream Partners, LP	2012-12-05	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WEST	Westrock Coffee Company Common Stock	2022-08-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WETH	Wetouch Technology Inc. Common Stock	2024-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WETO	Wetour Robotics Limited Ordinary Shares	2025-02-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WFCF	Where Food Comes From, Inc. Common Stock	2021-04-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WFF	WF Holding Limited Ordinary Shares	2025-03-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WGRX	Wellgistics Health, Inc. Common Stock	2025-02-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WGS	GeneDx Holdings Corp. Class A Common Stock	2020-08-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHD	Cactus, Inc.	2018-02-06	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHF	WhiteHorse Finance, Inc.	2012-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHFCL	WhiteHorse Finance, Inc. 7.875% Notes due 2028	2012-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHLR	Wheeler Real Estate Investment Trust, Inc	2021-08-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHLRL	Wheeler Real Estate Investment Trust, Inc. 7.00% Senior Subordinated Convertible Notes Due 2031	2021-08-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WHWK	Whitehawk Therapeutics, Inc. Common Stock	2018-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WIMI	WiMi Hologram Cloud Inc. Class B Ordinary Shares	2020-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WING	Wingstop Inc	2015-06-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WIX	WIX.com Ltd.	2013-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WKHS	Workhorse Group, Inc	2016-01-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WKSP	Worksport, Ltd. Common Stock	2021-07-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WLDS	Wearable Devices Ltd. Ordinary Share	2022-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WLII	Willow Lane Acquisition Corp. II Class A Ordinary Shares	2026-02-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WLKP	WESTLAKE CHEMICAL PARTNERS LP	2014-07-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WLTH	Wealthfront Corporation Common Stock	2025-12-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WMG	Warner Music Group Corp. Class A Common Stock	2005-05-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WMS	ADVANCED DRAINAGE SYSTEMS, INC.	2014-07-22	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WMT	Walmart Inc. Common Stock	2023-09-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WNW	Meiwu Technology Company Limited Ordinary Shares	2020-12-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WOK	WORK Medical Technology Group LTD Class A Ordinary Shares	2024-08-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WOOF	Petco Health and Wellness Company, Inc. Class A Common Stock	2021-01-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WPAC	White Pearl Acquisition Corp.	2026-01-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WPC	W.P. Carey Inc. (REIT)	2015-01-21	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WPM	Wheaton Precious Metals Corp. Common Stock	2005-06-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WPRT	Westport Fuel Systems Inc Common Shares	2008-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WRAP	Wrap Technologies, Inc. Common Stock	2017-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WRN	Western Copper and Gold Corporation	2011-02-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSBC	WesBanco Inc	2020-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSBCO	WesBanco, Inc. Depositary Shares each representing 1/40th interest in a share of 7.375% Fixed-Rate Reset Non-Cumulative Perpetual Preferred Stock, Series B	2020-08-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSBF	Waterstone Financial, Inc.	2014-01-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSBK	Winchester Bancorp, Inc. Common Stock	2025-04-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSC	WillScot Holdings Corporation Class A Common Stock	2015-09-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSHP	WeShop Holdings Limited Class A Ordinary Shares	2025-11-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSO	Watsco, Inc.	2013-01-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSR	Whitestone REIT	2010-08-24	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WSTN	Westin Acquisition Corp Class A Ordinary Share	2025-10-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WTF	Waton Financial Limited Ordinary Shares	2025-03-27	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WTFC	Wintrust Financial Corp	2020-05-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WTG	Wintergreen Acquisition Corp. Ordinary Shares	2025-05-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WTO	UTime Limited Class A Ordinary Shares	2021-04-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WTTR	Select Water Solutions, Inc.	2017-04-18	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WVE	Wave Life Sciences Ltd. Ordinary Shares	2015-11-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WVVI	Willamette Valley Vineyards	2015-10-28	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WW	WW International, Inc. Common Stock	2018-10-12	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WWD	Woodward, Inc.	2020-04-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WWR	Westwater Resources, Inc.	2021-03-08	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WXM	WF International Limited Ordinary Shares	2024-12-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WYFI	WhiteFiber, Inc. Ordinary Shares	2025-08-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+WYY	WidePoint Corporation	1997-08-21	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XAIR	Beyond Air, Inc. Common Stock	2017-03-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XBIO	Xenetic Biosciences, Inc.	2016-11-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XBIT	XBiotech Inc	2015-04-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XBP	XBP Global Holdings, Inc. Common Stock	2021-03-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XCBE	X3 Acquisition Corp. Ltd. Class A Ordinary Shares	2026-01-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XCUR	Exicure, Inc. Common Stock	2019-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XELB	XCEL BRANDS INC.	2015-07-30	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XELLL	Xcel Energy Inc. 6.25% Junior Subordinated Notes, Series due 2085	2025-10-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XENE	Xenon Pharmaceuticals Inc	2014-10-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XFLH	XFLH Capital Corporation	2026-02-11	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XFOR	X4 Pharmaceuticals, Inc. Common Stock	2017-11-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XGN	Exagen Inc. Common Stock	2019-09-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XHLD	TEN Holdings, Inc. Common Stock	2025-02-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XIFR	XPLR Infrastructure, LP	2014-06-23	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XLO	Xilio Therapeutics, Inc. Common Stock	2021-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XMTR	Xometry, Inc. Class A Common Stock	2021-06-25	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XNCR	Xencor, Inc.	2013-11-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XNDU	Xanadu Quantum Technologies Limited Class B Subordinate Voting Shares	2026-03-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XOMA	XOMA Royalty Corporation Common Stock	2020-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XOMAO	XOMA Royalty Corporation Depositary Shares Rep Series B 8.375% Cumulative Preferred Stock	2020-12-11	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XOS	Xos, Inc. Common Stock	2020-10-06	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XP	XP Inc. Class A Common Stock	2019-12-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XPL	Solitario Resources Corp.	2006-08-09	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XPOF	Xponential Fitness, Inc.	2021-07-20	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XPON	Expion360 Inc. Common Stock	2022-03-31	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XRN	Chiron Real Estate Inc.	2016-06-28	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XRPN	Armada Acquisition Corp. II Class A Ordinary Shares	2025-05-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XRTX	XORTX Therapeutics Inc. Common Stock	2021-09-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XSLL	Xsolla SPAC 1 Class A Ordinary Shares	2026-01-22	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XTIA	XTI Aerospace, Inc. Common Stock	2014-04-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XTNT	Xtant Medical Holdings, Inc.	2015-10-15	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XWEL	XWELL, Inc. Common Stock	2013-04-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XXI	Twenty One Capital, Inc.	2025-12-08	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XXII	22nd Century Group Inc.	2010-09-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+XZO	Exzeo Group, Inc.	2025-11-04	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YAAS	Youxin Technology Ltd Class A Ordinary shares	2024-12-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YCBD	cbdMD, Inc. Common Stock	2017-11-15	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YCY	AA Mission Acquisition Corp. II	2025-09-30	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YDDL	One and One Green Technologies. Inc Class A Ordinary Shares	2025-10-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YDES	YD Bio Limited Ordinary Shares	2025-08-20	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YDKG	Yueda Digital Holding Class A Ordinary Share	2007-10-24	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YHC	LQR House Inc. Common Stock	2023-08-09	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YHGJ	Yunhong Green CTI Ltd. Common Stock	1997-09-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YHNA	YHN Acquisition I Limited Ordinary Shares	2024-08-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YIBO	Planet Image International Limited Class A Ordinary Shares	2024-01-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YMAT	J-Star Holding Co., Ltd. Class A Ordinary Shares	2025-07-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YOOV	Concorde International Group Ltd Class A Ordinary Shares	2025-04-21	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YSS	York Space Systems Inc.	2026-01-29	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YSXT	YSX Tech. Co., Ltd Class A Ordinary Shares	2024-12-16	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YTRA	Yatra Online, Inc. Ordinary Shares	2016-12-15	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YYAI	AiRWA Inc. Common Stock	2022-06-14	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+YYGH	YY Group Holding Limited Class A Ordinary Shares	2024-04-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZBAO	Zhibao Technology Inc. Class A Ordinary Shares	2024-03-29	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZBIO	Zenas BioPharma, Inc. Common Stock	2024-09-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZCMD	Zhongchao Inc. Class A Ordinary Shares	2020-02-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZDAI	DirectBooking Technology Co., Ltd. Class A Ordinary Shares	2024-07-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZDGE	Zedge, Inc.	2016-05-20	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZENA	ZenaTech, Inc. Common Stock	2024-09-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZEO	Zeo Energy Corporation Class A Common Stock	2021-10-18	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZGN	Ermenegildo Zegna N.V.	2021-12-17	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZJK	ZJK Industrial Co., Ltd. Class A Ordinary Shares	2024-09-26	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZJYL	JIN MEDICAL INTERNATIONAL LTD. Class A Ordinary Shares	2023-03-23	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZKIN	ZK International Group Co., Ltd Ordinary Share	2017-07-07	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZKP	Lafayette Digital Acquisition Corp. I Class A Ordinary Shares	2026-01-08	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZNTL	Zentalis Pharmaceuticals, Inc. Common Stock	2020-04-02	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZONE	CleanCore Solutions Inc.	2024-04-25	09:30:00	NYSE American	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZOOZ	ZOOZ Strategy Ltd. Ordinary Shares	2024-04-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZS	Zscaler, Inc. Common Stock	2018-03-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZSPC	zSpace, Inc. Common stock	2024-12-04	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZSTK	ZeroStack Corp. Common Stock	2021-05-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZTG	Zenta Group Company Limited Class A Ordinary Shares	2025-09-05	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZURA	Zura Bio Limited Class A Ordinary Shares	2021-07-13	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZVRA	Zevra Therapeutics, Inc. Common Stock	2015-04-10	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZWS	Zurn Elkay Water Solutions Corporation	2016-12-07	09:30:00	NYSE	America/New_York	40.7069	-74.0089	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
+ZYBT	Zhengye Biotechnology Holding Limited Class A Ordinary Shares	2024-12-19	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851	\N	sec-8a	Listing date from SEC Form 8-A (exchange registration)
 \.
 
 
@@ -5305,5 +5305,5 @@ ZYME	Zymeworks Inc.	2003-01-01	09:30:00	NASDAQ	America/New_York	40.7589	-73.9851
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xJJerdLIfcHqggtu7OImMYAji3fq07KfbwUrD1idNA4JIG2D2SwYhvcgjauuOZM
+\unrestrict QgovadXBMexdbdRG0y9nW4IVPdhszflBRQmh1CB0m1dLvzvJg4x2JHQgAwI4YL1
 
