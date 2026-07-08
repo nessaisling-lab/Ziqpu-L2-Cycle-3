@@ -13,8 +13,6 @@ anything with a **date of origin** (a founding, a launch, a policy's effective d
 symbolic — not statements of fact, not predictions, not guarantees. Nothing here is financial,
 medical, legal, or psychological advice.
 
-> 📄 Product spec: **[docs/PRD.md](docs/PRD.md)** (v2.0). Build plan is phase-gated (see below).
-
 ## Status
 
 | Layer | State |
