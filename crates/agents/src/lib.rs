@@ -14,6 +14,7 @@
 
 pub mod grounded;
 pub mod interpret;
+pub mod interpret_llm;
 pub mod measure;
 pub mod orchestrator;
 pub mod score;
@@ -21,6 +22,7 @@ pub mod types;
 
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
 pub use interpret::{Interpreter, TemplateInterpreter};
+pub use interpret_llm::AnthropicInterpreter;
 pub use measure::{ChartSource, EngineChartSource, SYNASTRY_ORB};
 pub use orchestrator::{is_advice_seeking, Answer, ApprovalRequest, ApprovalToken, Session};
 pub use score::synastry_score;

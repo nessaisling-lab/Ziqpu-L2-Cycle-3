@@ -7,25 +7,43 @@
 //! from SEC EDGAR (requires `curl` and network).
 
 use agents::{
-    Answer, BirthMoment, Choice, EdgarSource, EngineChartSource, GroundedSource,
-    MockGroundedSource, Session, TemplateInterpreter,
+    Answer, AnthropicInterpreter, BirthMoment, Choice, EdgarSource, EngineChartSource,
+    GroundedSource, Interpreter, MockGroundedSource, Session, TemplateInterpreter,
 };
 
 fn main() {
     let seeker = agents::demo_seeker();
     let choices = agents::demo_choices();
 
-    if std::env::var("ZIQPU_LIVE").is_ok() {
-        println!("[grounded source: SEC EDGAR — live]\n");
-        run(&seeker, &choices, EdgarSource::default());
+    let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_LIVE").is_ok() {
+        println!("[grounded source: SEC EDGAR — live]");
+        Box::new(EdgarSource::default())
     } else {
-        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real SEC EDGAR]\n");
-        run(&seeker, &choices, MockGroundedSource);
-    }
+        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real SEC EDGAR]");
+        Box::new(MockGroundedSource)
+    };
+
+    let interp: Box<dyn Interpreter> = match AnthropicInterpreter::from_env() {
+        Some(a) => {
+            println!("[interpreter: Ungasaga = Claude — live]\n");
+            Box::new(a)
+        }
+        None => {
+            println!("[interpreter: deterministic template — set ANTHROPIC_API_KEY for Claude]\n");
+            Box::new(TemplateInterpreter)
+        }
+    };
+
+    run(&seeker, &choices, grounded, interp);
 }
 
-fn run<G: GroundedSource>(seeker: &BirthMoment, choices: &[Choice], grounded: G) {
-    let mut s = Session::new(EngineChartSource::default(), grounded, TemplateInterpreter);
+fn run(
+    seeker: &BirthMoment,
+    choices: &[Choice],
+    grounded: Box<dyn GroundedSource>,
+    interp: Box<dyn Interpreter>,
+) {
+    let mut s = Session::new(EngineChartSource::default(), grounded, interp);
 
     println!("OBSERVE  — seeker + {} choices\n", choices.len());
 

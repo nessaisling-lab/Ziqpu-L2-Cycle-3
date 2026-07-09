@@ -20,6 +20,22 @@ pub trait Interpreter {
     ) -> String;
 }
 
+/// Lets a boxed interpreter be used wherever an `Interpreter` is expected (runtime selection).
+impl Interpreter for Box<dyn Interpreter> {
+    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+        (**self).fit_read(measures, fit, name)
+    }
+    fn grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> String {
+        (**self).grounded_brief(measures, fit, name, grounded)
+    }
+}
+
 /// Deterministic templated interpreter — the default.
 #[derive(Default)]
 pub struct TemplateInterpreter;
