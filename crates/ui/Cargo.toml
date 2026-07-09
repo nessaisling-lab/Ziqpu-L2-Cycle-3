@@ -1,0 +1,21 @@
+[package]
+name = "ui"
+version = "0.0.0"
+description = "Ziqpu desktop UI: a Dioxus front-end that drives the two-vizier loop in-process."
+publish = false
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+# NOTE: rust-version is intentionally omitted here. The workspace pins 1.80, but Dioxus 0.6's
+# MSRV is higher; gating this crate to 1.80 would falsely fail `cargo` version checks.
+
+[[bin]]
+name = "ziqpu-ui"
+path = "src/main.rs"
+
+[dependencies]
+dioxus = { version = "0.6.3", features = ["desktop"] }
+agents = { path = "../agents" }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10"
