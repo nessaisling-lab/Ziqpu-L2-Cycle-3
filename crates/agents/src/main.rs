@@ -44,6 +44,10 @@ fn run(
     interp: Box<dyn Interpreter>,
 ) {
     let mut s = Session::new(EngineChartSource::default(), grounded, interp);
+    if let Some(qwen) = agents::OllamaMeasurer::from_env() {
+        s = s.with_measurer(Box::new(qwen));
+        println!("[measurer: Hamun-ana = Qwen via Ollama — set ZIQPU_QWEN]");
+    }
 
     println!("OBSERVE  — seeker + {} choices\n", choices.len());
 

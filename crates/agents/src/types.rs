@@ -43,6 +43,8 @@ pub struct Choice {
     pub birth: BirthMoment,
     /// SEC CIK, for the live grounded pull (EDGAR). `None` → no filings can be fetched.
     pub cik: Option<u32>,
+    /// Wikipedia page title, for the keyless "what this is" grounded signal. `None` → skip.
+    pub wiki: Option<String>,
 }
 
 /// One cross-aspect between the seeker's chart and a choice's chart.

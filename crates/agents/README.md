@@ -52,8 +52,17 @@ not the model, not the seeker — owns the output; the guardrail and the checkpo
 
 ## Status
 
-Phase 1a. The measurer is a deterministic sequencer and the interpreter is a deterministic template
-— the [`Interpreter`](src/interpret.rs) and [`ChartSource`](src/measure.rs) traits are the seams a
-real local Qwen (Hamun-ana) and Claude (Ungasaga) drop into for the demo, unchanged above them.
+Phase 1a + 1b polish. Both agents default to deterministic (CI-safe) with real models drop-in via
+traits, opt-in by env:
+
+- **Hamun-ana** — [`Measurer`](src/measure.rs) seam: `DeterministicMeasurer` (default) or
+  [`OllamaMeasurer`](src/measure_llm.rs) = local **Qwen** (`ZIQPU_QWEN=1`). Qwen only *sequences*
+  the tools; the chart math stays exact, so it can never corrupt a number.
+- **Ungasaga** — [`Interpreter`](src/interpret.rs) seam: `TemplateInterpreter` (default) or
+  [`AnthropicInterpreter`](src/interpret_llm.rs) = **Claude** (`ANTHROPIC_API_KEY`).
+- **Grounded tool** — `MockGroundedSource` (CI) or `EdgarSource` (`ZIQPU_LIVE=1`): real SEC EDGAR
+  filings + industry **and** a keyless Wikipedia blurb, degrading cleanly if a source is blocked.
+- **Portable profile** ([`profile`](src/profile.rs)) — export/import birth data so the agent travels.
+
 Synastry scoring is a thin v1 scorer ([`score`](src/score.rs)); Phase 3 reuses the engine's
 dignity/weight helpers (PRD §7.2).

@@ -16,6 +16,7 @@ pub mod grounded;
 pub mod interpret;
 pub mod interpret_llm;
 pub mod measure;
+pub mod measure_llm;
 pub mod orchestrator;
 pub mod profile;
 pub mod score;
@@ -24,7 +25,11 @@ pub mod types;
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::AnthropicInterpreter;
-pub use measure::{ChartSource, EngineChartSource, SYNASTRY_ORB};
+pub use measure::{
+    expected_sequence, ChartSource, DeterministicMeasurer, EngineChartSource, Measurer,
+    SYNASTRY_ORB,
+};
+pub use measure_llm::OllamaMeasurer;
 pub use orchestrator::{is_advice_seeking, Answer, ApprovalRequest, ApprovalToken, Session};
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::synastry_score;
@@ -81,30 +86,35 @@ pub fn demo_choices() -> Vec<Choice> {
             name: "Apple".into(),
             birth: ny(1980, 12, 12, 9, 30),
             cik: Some(320193),
+            wiki: Some("Apple_Inc.".into()),
         },
         Choice {
             ticker: "MSFT".into(),
             name: "Microsoft".into(),
             birth: ny(1986, 3, 13, 9, 30),
             cik: Some(789019),
+            wiki: Some("Microsoft".into()),
         },
         Choice {
             ticker: "TSLA".into(),
             name: "Tesla".into(),
             birth: ny(2010, 6, 29, 9, 30),
             cik: Some(1318605),
+            wiki: Some("Tesla,_Inc.".into()),
         },
         Choice {
             ticker: "KO".into(),
             name: "Coca-Cola".into(),
             birth: ny_dateonly(1919, 9, 5),
             cik: Some(21344),
+            wiki: Some("The_Coca-Cola_Company".into()),
         },
         Choice {
             ticker: "JNJ".into(),
             name: "Johnson & Johnson".into(),
             birth: ny_dateonly(1944, 9, 24),
             cik: Some(200406),
+            wiki: Some("Johnson_&_Johnson".into()),
         },
     ]
 }
