@@ -56,6 +56,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Function smoke tests
         run: cargo test -p engine --test smoke --all-features --locked
+      - name: Agent-loop evals (tool order · checkpoint · guardrail)
+        run: cargo test -p agents --test loop --locked
 
   # ---- security gate: advisories + license/ban policy + secret scan ----
   security:
