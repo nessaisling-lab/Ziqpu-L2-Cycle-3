@@ -1,0 +1,22 @@
+[package]
+name = "mcp"
+version = "0.0.0"
+description = "Ziqpu MCP server: drives the two-vizier loop over the Model Context Protocol so any host can run it."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ziqpu-mcp"
+path = "src/main.rs"
+
+[dependencies]
+agents = { path = "../agents" }
+serde_json = "1"

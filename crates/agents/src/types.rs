@@ -6,7 +6,7 @@ use ephemeris::julian_day;
 
 /// A birth moment — a local date/time at a place. The time is optional: an unknown birth
 /// time is honestly flagged (never invented), mirroring the sidecar and the PRD's honesty rule.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BirthMoment {
     pub date: NaiveDate,
     pub time: Option<NaiveTime>,

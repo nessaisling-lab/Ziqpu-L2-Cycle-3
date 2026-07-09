@@ -17,6 +17,7 @@ pub mod interpret;
 pub mod interpret_llm;
 pub mod measure;
 pub mod orchestrator;
+pub mod profile;
 pub mod score;
 pub mod types;
 
@@ -25,6 +26,7 @@ pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::AnthropicInterpreter;
 pub use measure::{ChartSource, EngineChartSource, SYNASTRY_ORB};
 pub use orchestrator::{is_advice_seeking, Answer, ApprovalRequest, ApprovalToken, Session};
+pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::synastry_score;
 pub use types::{
     AspectHit, BirthMoment, Briefing, Choice, Fit, GateError, GroundedSignals, Measures,
@@ -32,6 +34,18 @@ pub use types::{
 };
 
 use chrono::NaiveDate;
+
+/// A human-readable natal-chart summary (one line per body) — for surfaces that don't depend on
+/// the engine directly (e.g. the MCP server).
+pub fn chart_summary(birth: &BirthMoment) -> Vec<String> {
+    use crate::measure::{ChartSource, EngineChartSource};
+    EngineChartSource::default()
+        .chart(birth)
+        .bodies
+        .iter()
+        .map(|b| format!("{:<9} {:>5.1}° {}", b.body.name(), b.degree, b.sign))
+        .collect()
+}
 
 fn ny(year: i32, month: u32, day: u32, hour: u32, min: u32) -> BirthMoment {
     BirthMoment {

@@ -5,6 +5,7 @@ members = [
     "crates/engine",
     "crates/sidecar",
     "crates/agents",
+    "crates/mcp",
 ]
 
 [workspace.package]

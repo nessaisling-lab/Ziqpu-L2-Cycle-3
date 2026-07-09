@@ -21,7 +21,8 @@ medical, legal, or psychological advice.
 | **Ephemeris** — pluggable trait, 13 bodies | ✅ built · analytic + ANISE backends, Chiron table, all JPL-validated |
 | **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
 | **Sidecar** — read-only API | ✅ built · `/chart` `/synastry` `/transits` over real data |
-| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | 🔄 Phase 1a · observe→decide→act, approval gate, grounded tool, evals |
+| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ Phase 1a · observe→decide→act, approval gate, grounded tool, evals; Ungasaga = Claude (opt-in) |
+| **MCP + profile** — run the loop from any MCP host | 🔄 Phase 1b · `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
 | **UI** — Dioxus + Tauri | ⏳ Phase 4 |
 
 ## The two-agent design (the graded artifact — Phase 1–2)
@@ -58,7 +59,8 @@ Analytic and ANISE agree to **<1°** (a CI cross-check enforces it).
 | `crates/ephemeris` | `Ephemeris` trait, analytic + ANISE backends, Chiron table, Asc/MC | ✅ |
 | `crates/engine` | chart assembly (`compute_chart`) + `find_aspect` keystone | ✅ |
 | `crates/sidecar` | axum read-only API (`/chart/:t`, `/synastry/:a/:b`, `/transits/:date`) | ✅ |
-| `crates/agents` | two-vizier observe→decide→act loop + checkpoint + grounded tool | 🔄 Phase 1a |
+| `crates/agents` | two-vizier observe→decide→act loop + checkpoint + grounded tool + Claude interpreter + portable profile | ✅ Phase 1a |
+| `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | 🔄 Phase 1b |
 | `crates/ui` | Dioxus 0.6 + Tauri 2 | ⏳ Phase 4 |
 
 ## Quickstart
