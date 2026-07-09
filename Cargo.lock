@@ -1315,6 +1315,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mcp"
+version = "0.0.0"
+dependencies = [
+ "agents",
+ "serde_json",
+]
+
+[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
