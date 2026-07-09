@@ -32,6 +32,16 @@ cargo run -p agents                  # the demo, mock grounded source
 ZIQPU_LIVE=1 cargo run -p agents     # the demo, live SEC EDGAR pull (needs curl + network)
 ```
 
+**Local model hub.** Hamun-ana can run on a real local model behind one shared hub URL:
+
+```bash
+scripts/run-agent.sh          # Hamun-ana -> LM Studio (http://localhost:1234/v1), model gemma-4-e4b-it
+LOCAL_LLM_BASE_URL=http://localhost:11434/v1 LOCAL_LLM_MODEL=qwen2.5:3b scripts/run-agent.sh   # -> Ollama
+```
+
+LM Studio and Ollama both expose the same OpenAI-compatible `/v1` API, so switching the whole stack's
+hub is only the URL + model name — no code change. (`scripts/run-agent.ps1` is the Windows equivalent.)
+
 ## Responsibility (blast radius · prompt injection · output accountability)
 
 **Blast radius.** The loop has exactly one action that touches the outside world:
@@ -56,8 +66,12 @@ Phase 1a + 1b polish. Both agents default to deterministic (CI-safe) with real m
 traits, opt-in by env:
 
 - **Hamun-ana** — [`Measurer`](src/measure.rs) seam: `DeterministicMeasurer` (default) or
-  [`OllamaMeasurer`](src/measure_llm.rs) = local **Qwen** (`ZIQPU_QWEN=1`). Qwen only *sequences*
-  the tools; the chart math stays exact, so it can never corrupt a number.
+  [`LocalMeasurer`](src/measure_llm.rs) = a local model (`ZIQPU_LOCAL_LLM=1`). Speaks both
+  **OpenAI-compatible** (LM Studio / Jan / llama.cpp — default, `gemma-4-e4b-it`) and **Ollama**
+  (`ZIQPU_LLM_PROVIDER=ollama`, `qwen2.5:3b-instruct`); override with `ZIQPU_LLM_MODEL` /
+  `ZIQPU_LLM_URL`. The model only *sequences* the tools — accepted only if it names the exact order
+  `get_chart → get_chart → get_synastry`, else deterministic fallback — so it can never corrupt a
+  number. Verified live end-to-end against LM Studio (`gemma-4-e4b-it`).
 - **Ungasaga** — [`Interpreter`](src/interpret.rs) seam: `TemplateInterpreter` (default) or
   [`AnthropicInterpreter`](src/interpret_llm.rs) = **Claude** (`ANTHROPIC_API_KEY`).
 - **Grounded tool** — `MockGroundedSource` (CI) or `EdgarSource` (`ZIQPU_LIVE=1`): real SEC EDGAR
