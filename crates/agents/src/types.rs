@@ -4,6 +4,10 @@ use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, 
 use chrono_tz::Tz;
 use ephemeris::julian_day;
 
+// The chart-tagged aspect pattern type lives in the engine (the author's IP); the agents layer
+// carries it through `Measures`/`SynastryReport` and re-exports it for surfaces above.
+pub use engine::Pattern;
+
 /// A birth moment — a local date/time at a place. The time is optional: an unknown birth
 /// time is honestly flagged (never invented), mirroring the sidecar and the PRD's honesty rule.
 #[derive(Debug, Clone, PartialEq)]
@@ -55,6 +59,65 @@ pub struct AspectHit {
     pub aspect: String,
     pub orb: f64,
     pub harmonious: bool,
+    /// The cached signed contribution to the score (from `engine::score_synastry_aspect`). A
+    /// custom [`crate::ChartSource`] that leaves this at `0.0` degrades gracefully to a neutral 50.
+    pub weight: f64,
+}
+
+/// Whether a set of contacts reads as net-flowing, net-friction, or balanced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    Flowing,
+    Friction,
+    Balanced,
+}
+
+impl Tone {
+    pub fn label(self) -> &'static str {
+        match self {
+            Tone::Flowing => "flowing",
+            Tone::Friction => "friction",
+            Tone::Balanced => "balanced",
+        }
+    }
+}
+
+/// The single dominant contact of a read — the heaviest axis, its aspect, and the overall tone.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Theme {
+    /// The two bodies of the heaviest contact (seeker body, choice body).
+    pub axis: (String, String),
+    pub aspect: String,
+    pub tone: Tone,
+    /// The heaviest contact's share of the total absolute weight, in `0.0..=1.0`.
+    pub share: f64,
+}
+
+/// How much to trust a read, from the number of tight contacts and whether birth times are known.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Confidence {
+    High,
+    Moderate,
+    Low,
+}
+
+impl Confidence {
+    pub fn label(self) -> &'static str {
+        match self {
+            Confidence::High => "High",
+            Confidence::Moderate => "Moderate",
+            Confidence::Low => "Low",
+        }
+    }
+
+    /// Drop one notch (used when a birth time is unknown). `Low` is the floor.
+    pub fn notch_down(self) -> Confidence {
+        match self {
+            Confidence::High => Confidence::Moderate,
+            Confidence::Moderate => Confidence::Low,
+            Confidence::Low => Confidence::Low,
+        }
+    }
 }
 
 /// The structured measures Hamun-ana returns (never prose).
@@ -65,6 +128,12 @@ pub struct Measures {
     pub score: u8,
     /// The tightest few contacts, for the reading's "what was measured" beat.
     pub top: Vec<AspectHit>,
+    /// The dominant contact of the read (heaviest axis + tone), if there is any contact.
+    pub theme: Option<Theme>,
+    /// Cross-chart aspect patterns (Grand Trine, T-Square, Yod, Stellium).
+    pub patterns: Vec<Pattern>,
+    /// How much to trust this read.
+    pub confidence: Confidence,
 }
 
 /// The four-band fit scale — the same bands and thresholds as the PRD's Verdict mode (§5, §12).
@@ -123,7 +192,37 @@ pub struct Recommendation {
     pub name: String,
     pub fit: Fit,
     pub score: u8,
+    pub theme: Option<Theme>,
+    pub confidence: Confidence,
     pub reading: String,
+}
+
+/// The full synastry report for one choice (the flagship "Report" mode) — everything the measure
+/// produced, plus the interpreter's prose.
+#[derive(Debug, Clone)]
+pub struct SynastryReport {
+    pub choice: String,
+    pub name: String,
+    pub score: u8,
+    pub fit: Fit,
+    pub theme: Option<Theme>,
+    pub patterns: Vec<Pattern>,
+    pub aspects: Vec<AspectHit>,
+    pub top: Vec<AspectHit>,
+    pub confidence: Confidence,
+    pub reading: String,
+}
+
+/// A one-line fit call for one choice (the "Verdict" mode) — band, score, confidence, and a
+/// single measured→meaning line that ends in the guardrail.
+#[derive(Debug, Clone)]
+pub struct Verdict {
+    pub choice: String,
+    pub name: String,
+    pub fit: Fit,
+    pub score: u8,
+    pub confidence: Confidence,
+    pub why: String,
 }
 
 /// The grounded briefing (the ACT output).

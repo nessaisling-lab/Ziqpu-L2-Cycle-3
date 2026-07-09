@@ -178,7 +178,7 @@ fn aspects_block(measures: &Measures) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::AspectHit;
+    use crate::types::{AspectHit, Confidence};
 
     #[test]
     fn system_prompt_carries_the_guardrail() {
@@ -194,6 +194,9 @@ mod tests {
             aspects: vec![],
             score: 50,
             top: vec![],
+            theme: None,
+            patterns: vec![],
+            confidence: Confidence::Low,
         };
         assert!(aspects_block(&empty).contains("no close contacts"));
 
@@ -203,12 +206,16 @@ mod tests {
             aspect: "Trine".into(),
             orb: 1.2,
             harmonious: true,
+            weight: 0.0,
         };
         let m = Measures {
             choice: "X".into(),
             aspects: vec![hit.clone()],
             score: 70,
             top: vec![hit],
+            theme: None,
+            patterns: vec![],
+            confidence: Confidence::Low,
         };
         let block = aspects_block(&m);
         assert!(block.contains("Sun trine Moon"));

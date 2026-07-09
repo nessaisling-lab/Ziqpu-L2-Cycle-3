@@ -5,11 +5,12 @@
 use crate::grounded::GroundedSource;
 use crate::interpret::Interpreter;
 use crate::measure::{ChartSource, DeterministicMeasurer, Measurer};
-use crate::score::synastry_score;
+use crate::score::{assess_confidence, dominant_theme, synastry_score};
 use crate::types::{
     BirthMoment, Briefing, Choice, Fit, GateError, GroundedSignals, Measures, Recommendation,
-    ToolCall,
+    SynastryReport, ToolCall, Verdict,
 };
+use engine::{detect_patterns, NatalChart, PatternOrbs, Placed, Who};
 
 /// One run of the loop. Holds the tool sources and records the tool-call order (the eval basis).
 pub struct Session<C: ChartSource, G: GroundedSource, I: Interpreter> {
@@ -78,11 +79,53 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         let aspects = self.chart.synastry(&a, &b);
         let score = synastry_score(&aspects);
         let top = aspects.iter().take(4).cloned().collect();
+        let patterns = detect_patterns(&merge_placed(&a, &b), &PatternOrbs::default());
+        let theme = dominant_theme(&aspects);
+        let confidence = assess_confidence(&aspects, a.time_known && b.time_known);
         Measures {
             choice: choice.ticker.clone(),
             aspects,
             score,
             top,
+            theme,
+            patterns,
+            confidence,
+        }
+    }
+
+    /// The flagship **Report** projection of [`Session::measure`] — the full measure plus the
+    /// interpreter's long-form reading. Records the same three tool calls `measure` does.
+    pub fn report(&mut self, seeker: &BirthMoment, choice: &Choice) -> SynastryReport {
+        let m = self.measure(seeker, choice);
+        let fit = Fit::from_score(m.score);
+        let reading = self.interp.report_read(&m, fit, &choice.name);
+        SynastryReport {
+            choice: choice.ticker.clone(),
+            name: choice.name.clone(),
+            score: m.score,
+            fit,
+            theme: m.theme.clone(),
+            patterns: m.patterns.clone(),
+            aspects: m.aspects.clone(),
+            top: m.top.clone(),
+            confidence: m.confidence,
+            reading,
+        }
+    }
+
+    /// The **Verdict** projection of [`Session::measure`] — band, score, confidence, and a single
+    /// measured→meaning line that ends in the guardrail. Records the same three tool calls.
+    pub fn verdict(&mut self, seeker: &BirthMoment, choice: &Choice) -> Verdict {
+        let m = self.measure(seeker, choice);
+        let fit = Fit::from_score(m.score);
+        let why = self.interp.verdict_line(&m, fit, &choice.name);
+        Verdict {
+            choice: choice.ticker.clone(),
+            name: choice.name.clone(),
+            fit,
+            score: m.score,
+            confidence: m.confidence,
+            why,
         }
     }
 
@@ -100,6 +143,8 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
                     name: c.name.clone(),
                     fit,
                     score: measures.score,
+                    theme: measures.theme.clone(),
+                    confidence: measures.confidence,
                     reading,
                 }
             })
@@ -174,11 +219,19 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         let aspects = self.chart.synastry(&a, &b);
         let score = synastry_score(&aspects);
         let top = aspects.iter().take(4).cloned().collect();
+        // Built inline (not via `measure`) on purpose: `brief` must not re-record the tool-call
+        // sequence — that would double-count and break the tool-order eval.
+        let patterns = detect_patterns(&merge_placed(&a, &b), &PatternOrbs::default());
+        let theme = dominant_theme(&aspects);
+        let confidence = assess_confidence(&aspects, a.time_known && b.time_known);
         let measures = Measures {
             choice: choice.ticker.clone(),
             aspects,
             score,
             top,
+            theme,
+            patterns,
+            confidence,
         };
         let fit = Fit::from_score(score);
         Briefing {
@@ -187,6 +240,26 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
                 .grounded_brief(&measures, fit, &choice.name, grounded),
         }
     }
+}
+
+/// Merge two charts into one chart-tagged placement set (Seeker then Choice) for pattern detection.
+pub fn merge_placed(a: &NatalChart, b: &NatalChart) -> Vec<Placed> {
+    let mut placed = Vec::with_capacity(a.bodies.len() + b.bodies.len());
+    for p in &a.bodies {
+        placed.push(Placed {
+            who: Who::Seeker,
+            body: p.body,
+            longitude: p.longitude,
+        });
+    }
+    for p in &b.bodies {
+        placed.push(Placed {
+            who: Who::Choice,
+            body: p.body,
+            longitude: p.longitude,
+        });
+    }
+    placed
 }
 
 /// Does a question ask for a buy/sell/hold decision? Treated as data, not as an instruction —
@@ -207,4 +280,68 @@ pub fn is_advice_seeking(question: &str) -> bool {
     ]
     .iter()
     .any(|p| q.contains(p))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::interpret::TemplateInterpreter;
+    use crate::measure::EngineChartSource;
+    use crate::{demo_choices, demo_seeker, MockGroundedSource};
+
+    fn session() -> Session<EngineChartSource, MockGroundedSource, TemplateInterpreter> {
+        Session::new(
+            EngineChartSource::default(),
+            MockGroundedSource,
+            TemplateInterpreter,
+        )
+    }
+
+    fn assert_fixed_order(calls: &[ToolCall], ticker: &str) {
+        assert_eq!(
+            &calls[..3],
+            &[
+                ToolCall::GetChart("you".to_string()),
+                ToolCall::GetChart(ticker.to_string()),
+                ToolCall::GetSynastry("you".to_string(), ticker.to_string()),
+            ],
+            "the three chart tools must be called in the fixed order"
+        );
+    }
+
+    #[test]
+    fn report_records_the_fixed_tool_order() {
+        let mut s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+        let _ = s.report(&demo_seeker(), &choice);
+        assert_fixed_order(s.calls(), &choice.ticker);
+        assert_eq!(s.calls().len(), 3, "report records exactly the three tools");
+    }
+
+    #[test]
+    fn verdict_records_the_fixed_tool_order_and_fit_agrees() {
+        let mut s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+        let v = s.verdict(&demo_seeker(), &choice);
+        assert_fixed_order(s.calls(), &choice.ticker);
+        assert_eq!(v.fit, Fit::from_score(v.score));
+    }
+
+    #[test]
+    fn recommend_records_the_fixed_tool_order_then_proposes() {
+        let mut s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+        let _ = s.recommend(&demo_seeker(), std::slice::from_ref(&choice));
+        assert_fixed_order(s.calls(), &choice.ticker);
+        assert_eq!(s.calls().last(), Some(&ToolCall::Propose));
+    }
+
+    #[test]
+    fn report_aspects_match_a_fresh_measure() {
+        let seeker = demo_seeker();
+        let choice = demo_choices().into_iter().next().unwrap();
+        let report = session().report(&seeker, &choice);
+        let measured = session().measure(&seeker, &choice);
+        assert_eq!(report.aspects, measured.aspects);
+    }
 }

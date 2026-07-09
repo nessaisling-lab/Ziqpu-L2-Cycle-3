@@ -30,12 +30,21 @@ pub use measure::{
     SYNASTRY_ORB,
 };
 pub use measure_llm::LocalMeasurer;
-pub use orchestrator::{is_advice_seeking, Answer, ApprovalRequest, ApprovalToken, Session};
+pub use orchestrator::{
+    is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken, Session,
+};
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
-pub use score::synastry_score;
+pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use types::{
-    AspectHit, BirthMoment, Briefing, Choice, Fit, GateError, GroundedSignals, Measures,
-    Recommendation, ToolCall,
+    AspectHit, BirthMoment, Briefing, Choice, Confidence, Fit, GateError, GroundedSignals,
+    Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, Verdict,
+};
+
+// The engine's synastry + pattern surface, re-exported so callers above the agents layer can
+// build placements and score contacts without depending on `engine` directly.
+pub use engine::{
+    body_weight, detect_patterns, dignity_modifier, planet_nature, score_synastry_aspect, Member,
+    Pattern, PatternOrbs, Placed, Who,
 };
 
 use chrono::NaiveDate;
