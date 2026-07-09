@@ -10,6 +10,13 @@ pub trait GroundedSource {
     fn fetch(&self, choice: &Choice) -> GroundedSignals;
 }
 
+/// Lets a boxed source be used wherever a `GroundedSource` is expected (runtime selection).
+impl GroundedSource for Box<dyn GroundedSource> {
+    fn fetch(&self, choice: &Choice) -> GroundedSignals {
+        (**self).fetch(choice)
+    }
+}
+
 /// Deterministic stand-in — no network. Used in CI and as the default demo source.
 #[derive(Default)]
 pub struct MockGroundedSource;
