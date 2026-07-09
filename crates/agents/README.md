@@ -32,6 +32,16 @@ cargo run -p agents                  # the demo, mock grounded source
 ZIQPU_LIVE=1 cargo run -p agents     # the demo, live SEC EDGAR pull (needs curl + network)
 ```
 
+**Local model hub.** Hamun-ana can run on a real local model behind one shared hub URL:
+
+```bash
+scripts/run-agent.sh          # Hamun-ana -> LM Studio (http://localhost:1234/v1), model gemma-4-e4b-it
+LOCAL_LLM_BASE_URL=http://localhost:11434/v1 LOCAL_LLM_MODEL=qwen2.5:3b scripts/run-agent.sh   # -> Ollama
+```
+
+LM Studio and Ollama both expose the same OpenAI-compatible `/v1` API, so switching the whole stack's
+hub is only the URL + model name — no code change. (`scripts/run-agent.ps1` is the Windows equivalent.)
+
 ## Responsibility (blast radius · prompt injection · output accountability)
 
 **Blast radius.** The loop has exactly one action that touches the outside world:
