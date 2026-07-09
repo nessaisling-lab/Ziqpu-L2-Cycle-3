@@ -4,7 +4,7 @@
 //! the read-only sidecar instead, unchanged above it.
 
 use crate::types::{AspectHit, BirthMoment, ToolCall};
-use engine::{compute_chart, find_aspect, NatalChart};
+use engine::{compute_chart, find_aspect, score_synastry_aspect, NatalChart};
 use ephemeris::AnalyticBackend;
 
 /// Orb (degrees) for counting a cross-aspect — matches the sidecar's synastry orb.
@@ -38,12 +38,18 @@ impl ChartSource for EngineChartSource {
         for pa in &a.bodies {
             for pb in &b.bodies {
                 if let Some((aspect, orb)) = find_aspect(pa.longitude, pb.longitude, self.orb) {
+                    // Signed contribution computed where the bodies and signs are live, then cached
+                    // on the hit so scoring/theming stay pure vector reductions downstream.
+                    let weight = score_synastry_aspect(
+                        pa.body, pa.sign, pb.body, pb.sign, aspect, orb, self.orb,
+                    );
                     hits.push(AspectHit {
                         body_a: pa.body.name().to_string(),
                         body_b: pb.body.name().to_string(),
                         aspect: aspect.name().to_string(),
                         orb: (orb * 100.0).round() / 100.0,
                         harmonious: aspect.is_harmonious(),
+                        weight,
                     });
                 }
             }

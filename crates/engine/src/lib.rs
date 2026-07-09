@@ -8,6 +8,12 @@
 pub mod chart;
 pub use chart::{compute_chart, sign_of, BodyPosition, NatalChart};
 
+pub mod synastry;
+pub use synastry::{body_weight, dignity_modifier, planet_nature, score_synastry_aspect, Nature};
+
+pub mod patterns;
+pub use patterns::{detect_patterns, Member, Pattern, PatternOrbs, Placed, Who};
+
 /// The five Ptolemaic aspects Ziqpu scores, with their exact angles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Aspect {
