@@ -28,6 +28,7 @@ pub struct ApprovalToken {
 }
 
 /// The checkpoint prompt shown to the human before the grounded pull.
+#[derive(Debug, Clone)]
 pub struct ApprovalRequest {
     pub choice: String,
     pub prompt: String,
