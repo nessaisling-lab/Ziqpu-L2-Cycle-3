@@ -34,3 +34,6 @@ Thumbs.db
 
 # route-3 enrichment working dir (temp)
 /route3/
+
+# docx build tooling (temp)
+/.docbuild/

@@ -17,7 +17,8 @@ The **DCO** CI check fails any PR whose commits lack a `Signed-off-by` line.
 
 ## Workflow
 
-1. Branch off `main` (`feature/…`, `fix/…`).
+1. Branch off `main`. Name your branch **`<yourfirstname>/<topic>`** (e.g. `nathan/airlines-v1`);
+   `feature/…` / `fix/…` are also fine. **You cannot push to `main`** — it is protected.
 2. Keep diffs small and reviewable.
 3. Before pushing, run the local gates:
    ```bash
@@ -26,8 +27,14 @@ The **DCO** CI check fails any PR whose commits lack a `Signed-off-by` line.
    cargo test --workspace --all-features
    cargo deny check licenses bans sources
    ```
-4. Open a PR. **All CI jobs must be green** — `test`, `stability`, `smoke`, `security` on
-   macOS/Windows/Linux, plus `DCO` — before merge. This is the phase gate.
+4. Open a pull request. **All CI jobs must be green** — `test`, `stability`, `smoke`, `security`,
+   `integration`, and `anise cross-check` across macOS/Windows/Linux, plus `DCO` — and **the repo
+   owner approves and merges.** This is the phase gate.
+
+## Datasets
+
+Contributing domain data (not code)? See [datasets/README.md](datasets/README.md) for the shared
+"birth moment" schema and per-domain folders. Same flow: your `<firstname>/<topic>` branch → PR → owner approves.
 
 ## Dependencies
 

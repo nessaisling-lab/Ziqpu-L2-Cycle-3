@@ -24,9 +24,9 @@ invent one. A missing date just means that entity charts partially. Keep dates p
 domain (no 1600s airlines).
 
 ## Domains
-- [`aviation/`](aviation/) — airlines & first flights (Nathan)
+- [`aviation/`](aviation/) — airlines & first flights (Ahsan)
 - [`schools/`](schools/) — schools & founding/charter (Ahsan)
-- [`insurance/`](insurance/) — carriers & inception (Ahsan)
+- [`insurance/`](insurance/) — carriers & inception (Nathan)
 
 ## How to contribute
 1. Work on a branch named **`<yourfirstname>/<topic>`** — e.g. `nathan/airlines-v1`, `ahsan/schools-v1`.
