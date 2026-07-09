@@ -4,16 +4,24 @@
 //! the read-only sidecar instead, unchanged above it.
 
 use crate::types::{AspectHit, BirthMoment, ToolCall};
+use chrono::{Datelike, NaiveDate};
 use engine::{compute_chart, find_aspect, score_synastry_aspect, NatalChart};
-use ephemeris::AnalyticBackend;
+use ephemeris::{julian_day, AnalyticBackend};
 
 /// Orb (degrees) for counting a cross-aspect — matches the sidecar's synastry orb.
 pub const SYNASTRY_ORB: f64 = 6.0;
 
-/// The seam Hamun-ana measures through. Two operations: build a chart, and cross-aspect two charts.
+/// The seam Hamun-ana measures through. Three operations: build a chart, cross-aspect two charts,
+/// and build the transiting sky for a day — the same three tools the sidecar exposes
+/// (`/chart`, `/synastry`, `/transits`).
 pub trait ChartSource {
     fn chart(&self, birth: &BirthMoment) -> NatalChart;
     fn synastry(&self, a: &NatalChart, b: &NatalChart) -> Vec<AspectHit>;
+
+    /// The transiting sky for a calendar day — bodies only (no angles), at noon UT. Transit
+    /// longitudes are geocentric and location-independent, so a planet-to-natal-planet read needs
+    /// no birth place or time. Same recipe as the sidecar's `/transits/:date`.
+    fn transits(&self, date: NaiveDate) -> NatalChart;
 }
 
 /// Default source: the reused interpretation engine over the pure-Rust analytic ephemeris.
@@ -56,6 +64,13 @@ impl ChartSource for EngineChartSource {
         }
         hits.sort_by(|x, y| x.orb.total_cmp(&y.orb));
         hits
+    }
+
+    fn transits(&self, date: NaiveDate) -> NatalChart {
+        // Noon UT is fixed by the date parameter — nothing reads the system clock. Location and
+        // time are irrelevant to planet-to-planet transits, so lat/lon are 0 and angles withheld.
+        let jd = julian_day(date.year(), date.month(), date.day(), 12.0);
+        compute_chart(&AnalyticBackend, jd, 0.0, 0.0, false)
     }
 }
 

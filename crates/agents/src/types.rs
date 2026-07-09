@@ -64,6 +64,40 @@ pub struct AspectHit {
     pub weight: f64,
 }
 
+/// One transit contact on a given day: a transiting body aspecting a natal body. Derived from an
+/// [`AspectHit`] produced by `synastry(&sky, &natal)`, where `body_a` is the transiting (sky) body
+/// and `body_b` is the natal body.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TransitBeat {
+    pub transiting: String,
+    pub natal: String,
+    pub aspect: String,
+    pub orb: f64,
+    pub harmonious: bool,
+}
+
+impl TransitBeat {
+    /// Map a sky-vs-natal [`AspectHit`] into a named beat (`body_a` = transiting, `body_b` = natal).
+    pub fn from_hit(h: &AspectHit) -> Self {
+        Self {
+            transiting: h.body_a.clone(),
+            natal: h.body_b.clone(),
+            aspect: h.aspect.clone(),
+            orb: h.orb,
+            harmonious: h.harmonious,
+        }
+    }
+}
+
+/// Today's one-beat reading: the single tightest transit to a natal planet, and its rendered line.
+/// `beat` is `None` on a quiet sky (no transit within orb). Deterministic given `(seeker, date)`.
+#[derive(Debug, Clone)]
+pub struct DailyReading {
+    pub date: NaiveDate,
+    pub beat: Option<TransitBeat>,
+    pub reading: String,
+}
+
 /// Whether a set of contacts reads as net-flowing, net-friction, or balanced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {

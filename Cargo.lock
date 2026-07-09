@@ -2104,6 +2104,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo"
+version = "0.0.0"
+dependencies = [
+ "chrono-tz",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5936,6 +5943,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "dioxus",
+ "geo",
 ]
 
 [[package]]

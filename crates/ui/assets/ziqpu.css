@@ -549,6 +549,143 @@ button.ghost:hover {
   font-style: italic;
 }
 
+/* ---- setup mode switch + birth form ---- */
+.setup-modes {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.mode-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.mode-tab:hover {
+  background: var(--panel-2);
+}
+
+.mode-tab.current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.birth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.field-input {
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field-input:disabled {
+  opacity: 0.5;
+}
+
+.field-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-top: 0.3rem;
+}
+
+.place-results {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.place-result {
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.place-result:last-child {
+  border-bottom: none;
+}
+
+.place-result:hover {
+  background: var(--panel-2);
+}
+
+.place-selected {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.field-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field-error {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  background: var(--refusal-bg);
+  border: 1px solid var(--refusal-line);
+  color: var(--refusal-ink);
+}
+
+.honesty-note {
+  margin: 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
 /* ---- dark theme ---- */
 @media (prefers-color-scheme: dark) {
   :root {

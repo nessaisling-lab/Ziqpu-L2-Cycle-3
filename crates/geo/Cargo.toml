@@ -1,0 +1,24 @@
+[package]
+name = "geo"
+version = "0.0.0"
+description = "Ziqpu offline gazetteer: name → lat/lon + IANA timezone, from a committed GeoNames blob. No network."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "geo"
+path = "src/lib.rs"
+
+# The data generator. Reads a local `cities5000.txt` (GeoNames) and writes the committed
+# `data/cities.bin`. Run manually; never invoked at build or test time, and it touches no network.
+[[bin]]
+name = "gen"
+path = "src/bin/gen.rs"
+
+[dev-dependencies]
+# Test-only: guards the committed blob so every stored IANA name round-trips into `chrono_tz::Tz`.
+chrono-tz = "0.10"

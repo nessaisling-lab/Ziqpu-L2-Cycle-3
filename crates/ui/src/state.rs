@@ -85,6 +85,27 @@ pub fn fit_class(fit: Fit) -> &'static str {
     }
 }
 
+/// Run OBSERVE → DECIDE on the graded session and advance to the Ranked phase. Factored out of the
+/// seeded button so both Setup modes (seeded demo and the custom birth form) converge on one submit
+/// path — identical graded behavior, identical tool-order log. The caller sets `ctx.seeker` first.
+pub fn run_recommend(mut ctx: AppCtx) {
+    let seeker = ctx.seeker.read().clone();
+    let choices = ctx.choices.read().clone();
+    let recs = {
+        let mut session = ctx.session.borrow_mut();
+        session.recommend(&seeker, &choices)
+    };
+    let calls: Vec<String> = {
+        let session = ctx.session.borrow();
+        session.calls().iter().map(|c| format!("{c:?}")).collect()
+    };
+    ctx.measures.set(measures_for(&seeker, &choices));
+    ctx.recs.set(recs);
+    ctx.calls.set(calls);
+    ctx.selected.set(0);
+    ctx.phase.set(Phase::Ranked);
+}
+
 /// Compute per-choice [`Measures`] on a **throwaway** session, so the graded main session's
 /// `calls()` log records only the real run — not five extra measurement passes for the cards.
 pub fn measures_for(seeker: &BirthMoment, choices: &[Choice]) -> HashMap<String, Measures> {

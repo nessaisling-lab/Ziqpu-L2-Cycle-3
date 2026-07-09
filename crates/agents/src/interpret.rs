@@ -2,7 +2,8 @@
 //! The default interpreter is deterministic (CI-safe, demo-safe). The trait is the seam a
 //! real-model interpreter (Claude via the Anthropic API) implements later, unchanged above it.
 
-use crate::types::{Confidence, Fit, GroundedSignals, Measures};
+use crate::types::{Confidence, Fit, GroundedSignals, Measures, TransitBeat};
+use chrono::NaiveDate;
 
 const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
 
@@ -44,6 +45,12 @@ pub trait Interpreter {
             meaning_clause(fit),
         )
     }
+
+    /// The daily one-beat read: a single transit line ending in the guardrail. Defaulted so
+    /// real-model interpreters compile unchanged; the deterministic template overrides it.
+    fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
+        daily_beat_template(beat, date)
+    }
 }
 
 /// Lets a boxed interpreter be used wherever an `Interpreter` is expected (runtime selection).
@@ -67,6 +74,10 @@ impl Interpreter for Box<dyn Interpreter> {
     }
     fn verdict_line(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         (**self).verdict_line(measures, fit, name)
+    }
+    fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
+        // Explicit forward — or a boxed override is silently shadowed by the trait default.
+        (**self).daily_beat(beat, date)
     }
 }
 
@@ -198,6 +209,33 @@ impl Interpreter for TemplateInterpreter {
             measures.confidence.label(),
             self.meaning(fit),
         )
+    }
+
+    fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
+        daily_beat_template(beat, date)
+    }
+}
+
+/// One beat: the measured transit + a short traditional tone + the guardrail. Never advises. A
+/// single line (not the 3-line FIT/REPORT block); `None` renders the quiet-sky beat.
+fn daily_beat_template(beat: Option<&TransitBeat>, date: NaiveDate) -> String {
+    match beat {
+        Some(b) => format!(
+            "TODAY ({date}): transiting {} {} your natal {} (orb {:.1}°, {}) — {}. {REMINDER}",
+            b.transiting,
+            b.aspect.to_lowercase(),
+            b.natal,
+            b.orb,
+            if b.harmonious { "flowing" } else { "friction" },
+            if b.harmonious {
+                "a day that leans toward ease"
+            } else {
+                "a day with friction to work with, not against"
+            },
+        ),
+        None => format!(
+            "TODAY ({date}): no close transit to your natal chart — a quiet sky to steer yourself. {REMINDER}"
+        ),
     }
 }
 
