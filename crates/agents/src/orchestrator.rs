@@ -4,7 +4,7 @@
 
 use crate::grounded::GroundedSource;
 use crate::interpret::Interpreter;
-use crate::measure::ChartSource;
+use crate::measure::{ChartSource, DeterministicMeasurer, Measurer};
 use crate::score::synastry_score;
 use crate::types::{
     BirthMoment, Briefing, Choice, Fit, GateError, GroundedSignals, Measures, Recommendation,
@@ -16,6 +16,7 @@ pub struct Session<C: ChartSource, G: GroundedSource, I: Interpreter> {
     chart: C,
     grounded: G,
     interp: I,
+    measurer: Box<dyn Measurer>,
     calls: Vec<ToolCall>,
 }
 
@@ -46,8 +47,16 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
             chart,
             grounded,
             interp,
+            measurer: Box::new(DeterministicMeasurer),
             calls: Vec::new(),
         }
+    }
+
+    /// Swap Hamun-ana's sequencer — e.g. a real local Qwen. The chart math is unchanged, so this
+    /// only affects *which agent decided* the (always-correct) tool order.
+    pub fn with_measurer(mut self, measurer: Box<dyn Measurer>) -> Self {
+        self.measurer = measurer;
+        self
     }
 
     /// The ordered tool calls made so far — the CI tool-order eval reads this.
@@ -58,14 +67,13 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
     /// Hamun-ana: measure a choice against the seeker in the fixed order
     /// `get_chart(you) → get_chart(choice) → get_synastry`.
     pub fn measure(&mut self, seeker: &BirthMoment, choice: &Choice) -> Measures {
-        self.calls.push(ToolCall::GetChart("you".to_string()));
+        // Hamun-ana decides the tool sequence (deterministic by default; a local Qwen if
+        // configured). The recorded order is the contract; the chart math below is always exact.
+        for call in self.measurer.sequence(&choice.ticker) {
+            self.calls.push(call);
+        }
         let a = self.chart.chart(seeker);
-        self.calls.push(ToolCall::GetChart(choice.ticker.clone()));
         let b = self.chart.chart(&choice.birth);
-        self.calls.push(ToolCall::GetSynastry(
-            "you".to_string(),
-            choice.ticker.clone(),
-        ));
         let aspects = self.chart.synastry(&a, &b);
         let score = synastry_score(&aspects);
         let top = aspects.iter().take(4).cloned().collect();

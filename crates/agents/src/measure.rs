@@ -3,7 +3,7 @@
 //! loop is deterministic and testable offline. A deployment can implement [`ChartSource`] over
 //! the read-only sidecar instead, unchanged above it.
 
-use crate::types::{AspectHit, BirthMoment};
+use crate::types::{AspectHit, BirthMoment, ToolCall};
 use engine::{compute_chart, find_aspect, NatalChart};
 use ephemeris::AnalyticBackend;
 
@@ -50,5 +50,39 @@ impl ChartSource for EngineChartSource {
         }
         hits.sort_by(|x, y| x.orb.total_cmp(&y.orb));
         hits
+    }
+}
+
+/// Hamun-ana's sequencing decision — *which* tools to call, in order, to measure a choice. This is
+/// the seam a real local model (Qwen via Ollama) sits in. The chart math is always exact and
+/// deterministic; the measurer only decides (and records) the plan, so it can never corrupt a number.
+/// The one true contract is `get_chart(you) → get_chart(choice) → get_synastry(you, choice)`.
+pub trait Measurer {
+    fn sequence(&self, ticker: &str) -> Vec<ToolCall>;
+}
+
+/// The one correct measurement sequence for a choice.
+pub fn expected_sequence(ticker: &str) -> Vec<ToolCall> {
+    vec![
+        ToolCall::GetChart("you".to_string()),
+        ToolCall::GetChart(ticker.to_string()),
+        ToolCall::GetSynastry("you".to_string(), ticker.to_string()),
+    ]
+}
+
+/// The default measurer — emits the fixed, correct sequence with no model. Used in CI and by default.
+#[derive(Default)]
+pub struct DeterministicMeasurer;
+
+impl Measurer for DeterministicMeasurer {
+    fn sequence(&self, ticker: &str) -> Vec<ToolCall> {
+        expected_sequence(ticker)
+    }
+}
+
+/// Lets a boxed measurer be used wherever a `Measurer` is expected (runtime selection).
+impl Measurer for Box<dyn Measurer> {
+    fn sequence(&self, ticker: &str) -> Vec<ToolCall> {
+        (**self).sequence(ticker)
     }
 }
