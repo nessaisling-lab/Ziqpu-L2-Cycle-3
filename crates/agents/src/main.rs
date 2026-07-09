@@ -44,9 +44,11 @@ fn run(
     interp: Box<dyn Interpreter>,
 ) {
     let mut s = Session::new(EngineChartSource::default(), grounded, interp);
-    if let Some(qwen) = agents::OllamaMeasurer::from_env() {
-        s = s.with_measurer(Box::new(qwen));
-        println!("[measurer: Hamun-ana = Qwen via Ollama — set ZIQPU_QWEN]");
+    if let Some(local) = agents::LocalMeasurer::from_env() {
+        println!("[measurer: Hamun-ana = {} — local]", local.describe());
+        s = s.with_measurer(Box::new(local));
+    } else {
+        println!("[measurer: deterministic — set ZIQPU_LOCAL_LLM=1 for a local model]");
     }
 
     println!("OBSERVE  — seeker + {} choices\n", choices.len());

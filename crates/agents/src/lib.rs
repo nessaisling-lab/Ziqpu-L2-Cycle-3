@@ -29,7 +29,7 @@ pub use measure::{
     expected_sequence, ChartSource, DeterministicMeasurer, EngineChartSource, Measurer,
     SYNASTRY_ORB,
 };
-pub use measure_llm::OllamaMeasurer;
+pub use measure_llm::LocalMeasurer;
 pub use orchestrator::{is_advice_seeking, Answer, ApprovalRequest, ApprovalToken, Session};
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::synastry_score;

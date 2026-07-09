@@ -56,8 +56,12 @@ Phase 1a + 1b polish. Both agents default to deterministic (CI-safe) with real m
 traits, opt-in by env:
 
 - **Hamun-ana** — [`Measurer`](src/measure.rs) seam: `DeterministicMeasurer` (default) or
-  [`OllamaMeasurer`](src/measure_llm.rs) = local **Qwen** (`ZIQPU_QWEN=1`). Qwen only *sequences*
-  the tools; the chart math stays exact, so it can never corrupt a number.
+  [`LocalMeasurer`](src/measure_llm.rs) = a local model (`ZIQPU_LOCAL_LLM=1`). Speaks both
+  **OpenAI-compatible** (LM Studio / Jan / llama.cpp — default, `gemma-4-e4b-it`) and **Ollama**
+  (`ZIQPU_LLM_PROVIDER=ollama`, `qwen2.5:3b-instruct`); override with `ZIQPU_LLM_MODEL` /
+  `ZIQPU_LLM_URL`. The model only *sequences* the tools — accepted only if it names the exact order
+  `get_chart → get_chart → get_synastry`, else deterministic fallback — so it can never corrupt a
+  number. Verified live end-to-end against LM Studio (`gemma-4-e4b-it`).
 - **Ungasaga** — [`Interpreter`](src/interpret.rs) seam: `TemplateInterpreter` (default) or
   [`AnthropicInterpreter`](src/interpret_llm.rs) = **Claude** (`ANTHROPIC_API_KEY`).
 - **Grounded tool** — `MockGroundedSource` (CI) or `EdgarSource` (`ZIQPU_LIVE=1`): real SEC EDGAR
