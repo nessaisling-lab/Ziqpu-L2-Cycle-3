@@ -36,8 +36,9 @@ pub use orchestrator::{
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use types::{
-    AspectHit, BirthMoment, Briefing, Choice, Confidence, Fit, GateError, GroundedSignals,
-    Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, Verdict,
+    AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, Fit, GateError,
+    GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
+    Verdict,
 };
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can

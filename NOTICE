@@ -24,6 +24,9 @@ Third-party data (public-domain / freely redistributable U.S. Government works):
   https://ssd.jpl.nasa.gov/horizons/
 - SEC EDGAR (Form 8-A listing dates) — used to enrich the stock seed. https://www.sec.gov/edgar
 - Stock IPO dates originate from a Polygon.io-sourced dataset (public listing facts).
+- Place data © GeoNames (CC BY 4.0) — the offline gazetteer in crates/geo (derived from the
+  GeoNames cities5000 dump, preprocessed into the committed crates/geo/data/cities.bin).
+  https://www.geonames.org/ · https://creativecommons.org/licenses/by/4.0/
 
 NOT included in this repository:
 

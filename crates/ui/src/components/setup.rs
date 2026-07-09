@@ -1,12 +1,49 @@
-//! Setup — the seeded demo. A fixed seeker and five real US IPOs, measured offline. "Read the
-//! fits" runs OBSERVE → DECIDE on the graded session and moves to the ranked view.
+//! Setup — a two-mode entry point. **Seeded demo** is the original one-click default (a fixed
+//! seeker + five real US IPOs, measured offline). **Your birth moment** is the new form that lets
+//! the seeker enter their own details. Both converge on the same graded `run_recommend` path, so
+//! the loop, the checkpoint, and the guardrail are identical whichever mode is used.
 
 use dioxus::prelude::*;
 
-use crate::state::{measures_for, AppCtx, Phase};
+use crate::components::BirthInputForm;
+use crate::state::{run_recommend, AppCtx};
+
+#[derive(Clone, Copy, PartialEq)]
+enum Mode {
+    Seeded,
+    Custom,
+}
 
 #[component]
 pub fn Setup() -> Element {
+    let mut mode = use_signal(|| Mode::Seeded);
+    let current = *mode.read();
+
+    rsx! {
+        div { class: "setup-modes",
+            button {
+                class: if current == Mode::Seeded { "mode-tab current" } else { "mode-tab" },
+                onclick: move |_| mode.set(Mode::Seeded),
+                "Seeded demo"
+            }
+            button {
+                class: if current == Mode::Custom { "mode-tab current" } else { "mode-tab" },
+                onclick: move |_| mode.set(Mode::Custom),
+                "Enter my own birth details"
+            }
+        }
+
+        {match current {
+            Mode::Seeded => rsx! { SeededPanel {} },
+            Mode::Custom => rsx! { BirthInputForm {} },
+        }}
+    }
+}
+
+/// The original seeded demo card, verbatim — a fixed seeker and five real US IPOs, measured
+/// offline. "Read the fits" runs OBSERVE → DECIDE on the graded session via `run_recommend`.
+#[component]
+fn SeededPanel() -> Element {
     let ctx = use_context::<AppCtx>();
 
     let seeker = ctx.seeker.read().clone();
@@ -51,24 +88,8 @@ pub fn Setup() -> Element {
                 button {
                     class: "primary",
                     onclick: {
-                        let mut ctx = ctx.clone();
-                        move |_| {
-                            let seeker = ctx.seeker.read().clone();
-                            let choices = ctx.choices.read().clone();
-                            let recs = {
-                                let mut session = ctx.session.borrow_mut();
-                                session.recommend(&seeker, &choices)
-                            };
-                            let calls: Vec<String> = {
-                                let session = ctx.session.borrow();
-                                session.calls().iter().map(|c| format!("{c:?}")).collect()
-                            };
-                            ctx.measures.set(measures_for(&seeker, &choices));
-                            ctx.recs.set(recs);
-                            ctx.calls.set(calls);
-                            ctx.selected.set(0);
-                            ctx.phase.set(Phase::Ranked);
-                        }
+                        let ctx = ctx.clone();
+                        move |_| run_recommend(ctx.clone())
                     },
                     "Read the fits →"
                 }

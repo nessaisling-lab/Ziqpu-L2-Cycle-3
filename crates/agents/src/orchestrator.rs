@@ -7,9 +7,10 @@ use crate::interpret::Interpreter;
 use crate::measure::{ChartSource, DeterministicMeasurer, Measurer};
 use crate::score::{assess_confidence, dominant_theme, synastry_score};
 use crate::types::{
-    BirthMoment, Briefing, Choice, Fit, GateError, GroundedSignals, Measures, Recommendation,
-    SynastryReport, ToolCall, Verdict,
+    AspectHit, BirthMoment, Briefing, Choice, DailyReading, Fit, GateError, GroundedSignals,
+    Measures, Recommendation, SynastryReport, ToolCall, TransitBeat, Verdict,
 };
+use chrono::NaiveDate;
 use engine::{detect_patterns, NatalChart, PatternOrbs, Placed, Who};
 
 /// One run of the loop. Holds the tool sources and records the tool-call order (the eval basis).
@@ -240,6 +241,36 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
                 .grounded_brief(&measures, fit, &choice.name, grounded),
         }
     }
+
+    /// Today's one beat — the single tightest transit to a natal planet, for a given date.
+    ///
+    /// Deterministic by construction: the date is a parameter (never the system clock), and every
+    /// step is a pure reuse of the chart/transits/synastry tools. Takes `&self` and records **no**
+    /// tool call, so the graded observe→decide→act log and its tool-order eval stay untouched
+    /// (the same discipline `brief` follows).
+    pub fn daily_reading(&self, seeker: &BirthMoment, date: NaiveDate) -> DailyReading {
+        let natal = self.chart.chart(seeker);
+        let sky = self.chart.transits(date);
+        let hits = self.chart.synastry(&sky, &natal);
+        let beat = tightest_transit(&hits).map(TransitBeat::from_hit);
+        let reading = self.interp.daily_beat(beat.as_ref(), date);
+        DailyReading {
+            date,
+            beat,
+            reading,
+        }
+    }
+}
+
+/// The single tightest transit: smallest orb, breaking ties deterministically by heavier contact
+/// then lexicographic `(transiting, natal)` name — so the beat never depends on sort stability.
+fn tightest_transit(hits: &[AspectHit]) -> Option<&AspectHit> {
+    hits.iter().min_by(|x, y| {
+        x.orb
+            .total_cmp(&y.orb)
+            .then_with(|| y.weight.abs().total_cmp(&x.weight.abs()))
+            .then_with(|| (&x.body_a, &x.body_b).cmp(&(&y.body_a, &y.body_b)))
+    })
 }
 
 /// Merge two charts into one chart-tagged placement set (Seeker then Choice) for pattern detection.
@@ -286,7 +317,7 @@ pub fn is_advice_seeking(question: &str) -> bool {
 mod tests {
     use super::*;
     use crate::interpret::TemplateInterpreter;
-    use crate::measure::EngineChartSource;
+    use crate::measure::{EngineChartSource, SYNASTRY_ORB};
     use crate::{demo_choices, demo_seeker, MockGroundedSource};
 
     fn session() -> Session<EngineChartSource, MockGroundedSource, TemplateInterpreter> {
@@ -343,5 +374,96 @@ mod tests {
         let report = session().report(&seeker, &choice);
         let measured = session().measure(&seeker, &choice);
         assert_eq!(report.aspects, measured.aspects);
+    }
+
+    fn jul9() -> NaiveDate {
+        NaiveDate::from_ymd_opt(2026, 7, 9).unwrap()
+    }
+
+    /// A pure function of `(seeker, date)`: two independent sessions produce identical readings.
+    #[test]
+    fn daily_reading_is_deterministic_for_a_fixed_date() {
+        let seeker = demo_seeker();
+        let a = session().daily_reading(&seeker, jul9());
+        let b = session().daily_reading(&seeker, jul9());
+        assert_eq!(a.date, b.date);
+        assert_eq!(a.beat, b.beat);
+        assert_eq!(a.reading, b.reading);
+    }
+
+    /// It selects the ONE tightest transit — its orb equals the min over the sky-vs-natal set.
+    #[test]
+    fn daily_reading_picks_the_tightest_transit() {
+        let seeker = demo_seeker();
+        let dr = session().daily_reading(&seeker, jul9());
+
+        // Recompute the cross-aspect set independently via the same reused tools.
+        let src = EngineChartSource::default();
+        let natal = src.chart(&seeker);
+        let sky = src.transits(jul9());
+        let hits = src.synastry(&sky, &natal);
+
+        let beat = dr.beat.expect("the sky is not quiet on this date");
+        let min_orb = hits.iter().map(|h| h.orb).fold(f64::INFINITY, f64::min);
+        assert_eq!(beat.orb, min_orb, "beat must be the tightest contact");
+        assert!(
+            beat.orb <= SYNASTRY_ORB,
+            "the tightest transit is within orb"
+        );
+    }
+
+    /// Ungasaga renders exactly ONE beat and ends on the guardrail — not the 3-line FIT block.
+    #[test]
+    fn daily_reading_is_one_beat_with_the_guardrail() {
+        let dr = session().daily_reading(&demo_seeker(), jul9());
+        let r = &dr.reading;
+        assert_eq!(r.lines().count(), 1, "one beat, not a multi-line report");
+        assert!(!r.contains("measured:"), "not the FIT/REPORT block");
+        assert!(
+            r.starts_with("TODAY (2026-07-09)"),
+            "names the date it was asked for"
+        );
+        assert!(
+            r.contains("your natal"),
+            "names the transiting→natal contact"
+        );
+        let lc = r.to_lowercase();
+        assert!(lc.contains("measured, not fate"), "anti-fatalism guardrail");
+        assert!(lc.contains("not financial advice"), "standing guardrail");
+        assert_eq!(
+            r.matches("REMINDER").count(),
+            1,
+            "exactly one guardrail beat"
+        );
+    }
+
+    /// The graded loop + tool-order eval are untouched: `daily_reading` records nothing, and a
+    /// normal measure afterward still logs exactly the fixed synastry sequence.
+    #[test]
+    fn daily_reading_does_not_touch_the_graded_tool_order() {
+        let mut s = session();
+        let seeker = demo_seeker();
+        let _ = s.daily_reading(&seeker, jul9());
+        assert!(
+            s.calls().is_empty(),
+            "daily_reading must not record any tool call"
+        );
+
+        let choice = demo_choices().into_iter().next().unwrap();
+        let _ = s.report(&seeker, &choice);
+        assert_fixed_order(s.calls(), &choice.ticker);
+        assert_eq!(s.calls().len(), 3);
+    }
+
+    /// The quiet-sky branch renders one beat and both guardrail phrases (pure interpreter unit).
+    #[test]
+    fn quiet_sky_beat_is_honest_and_guarded() {
+        use crate::interpret::Interpreter;
+        let line = TemplateInterpreter.daily_beat(None, jul9());
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.contains("quiet sky"));
+        let lc = line.to_lowercase();
+        assert!(lc.contains("measured, not fate"));
+        assert!(lc.contains("not financial advice"));
     }
 }

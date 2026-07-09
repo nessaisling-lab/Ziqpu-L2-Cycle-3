@@ -1,6 +1,7 @@
 //! One component per file, wired to the loop's phases.
 
 mod backstage;
+mod birth_input;
 mod briefing;
 mod checkpoint;
 mod fit_card;
@@ -9,6 +10,7 @@ mod ranked;
 mod setup;
 
 pub use backstage::Backstage;
+pub use birth_input::BirthInputForm;
 pub use briefing::Briefing;
 pub use checkpoint::Checkpoint;
 pub use fit_card::FitCard;

@@ -9,8 +9,9 @@ description = "Local dev-only Postgres credential + generated public data — no
 # and SECURITY.md); production credentials come from an untracked .env / CI secret.
 regexes = ['''ziqpu_dev''']
 paths = [
-  '''db/init/02_seed\.sql''',   # generated public ticker data
-  '''Cargo\.lock''',            # dependency checksums, not secrets
-  '''(^|/)target/''',           # build artifacts
-  '''company_metadata\.csv''',  # gitignored raw export
+  '''db/init/02_seed\.sql''',       # generated public ticker data
+  '''Cargo\.lock''',                # dependency checksums, not secrets
+  '''(^|/)target/''',               # build artifacts
+  '''company_metadata\.csv''',      # gitignored raw export
+  '''crates/geo/data/cities\.bin''', # generated public GeoNames gazetteer (CC BY 4.0), not secrets
 ]
