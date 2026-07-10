@@ -5610,6 +5610,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tickers"
+version = "0.0.0"
+dependencies = [
+ "agents",
+ "chrono",
+ "chrono-tz",
+]
+
+[[package]]
 name = "tinystr"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5944,6 +5953,7 @@ dependencies = [
  "chrono-tz",
  "dioxus",
  "geo",
+ "tickers",
 ]
 
 [[package]]

@@ -143,8 +143,9 @@ pub fn BirthInputForm() -> Element {
     };
 
     rsx! {
-        section { class: "card birth-input",
-            h2 { "Your birth moment" }
+        section { class: "setup birth-input",
+            p { class: "eyebrow", "Begin · your birth moment" }
+            h2 { class: "setup-title", "Your birth moment" }
             p { class: "muted",
                 "Enter your own birth details — everything is resolved offline (no keys, no network). "
                 "An unknown time is honest: the angles are withheld, not guessed."
@@ -256,9 +257,10 @@ pub fn BirthInputForm() -> Element {
                     }
                 }
 
-                div { class: "actions",
+                div { class: "actions", style: "justify-content:flex-start",
                     button {
-                        class: "primary",
+                        class: "btn btn--go",
+                        r#type: "button",
                         disabled: !is_valid,
                         onclick: {
                             let mut ctx = ctx.clone();

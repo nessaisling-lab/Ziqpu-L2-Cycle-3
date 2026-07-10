@@ -11,12 +11,15 @@ use dioxus::prelude::*;
 use crate::components::{Briefing, Checkpoint, Guardrail, Ranked, Setup};
 use crate::state::{build_session, AppCtx, Phase};
 
-const STEPS: [&str; 4] = [
-    "Seeded demo",
-    "Ranked fits",
-    "Checkpoint",
-    "Grounded briefing",
-];
+/// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
+/// than linked via `asset!()`: the Dioxus asset server only resolves under `dx bundle`, so a plain
+/// `cargo build --release` exe would 404 the linked stylesheet and render unstyled. Inlining makes
+/// the brand always apply.
+const CSS: &str = include_str!("../assets/ziqpu.css");
+
+/// The real 4-beat sequence, in order. Rendered as the `.steps` rail with `aria-current` on the
+/// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
+const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefing"];
 
 #[component]
 pub fn App() -> Element {
@@ -47,40 +50,82 @@ pub fn App() -> Element {
     };
 
     rsx! {
-        document::Stylesheet { href: asset!("/assets/ziqpu.css") }
+        // Inlined stylesheet, baked into the binary — see `CSS` above for why this isn't `asset!()`.
+        style { dangerous_inner_html: CSS }
 
-        header { class: "app-header",
-            div { class: "brand",
-                h1 { "Ziqpu" }
-                span { class: "tagline", "the ledger of the sky — measured, not fate" }
+        // The faint cuneiform watermark — a fixed, rotated ground layer behind everything. Rendered
+        // in the bundled Noto Sans Cuneiform face (see ziqpu.css) so the glyphs actually draw.
+        div { class: "cuni-wm", "aria-hidden": "true",
+            "𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺"
+        }
+
+        div { class: "wrap",
+            header {
+                div { class: "brand",
+                    // The brand mark — the gold 8-ray star, drawn inline (simple line rays + a
+                    // center dot, stroked in --gold) so it recolors with the theme.
+                    div { class: "mark", "aria-hidden": "true",
+                        svg {
+                            width: "24",
+                            height: "24",
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "var(--gold)",
+                            "stroke-width": "1.5",
+                            "stroke-linecap": "round",
+                            line { x1: "12", y1: "12", x2: "12", y2: "2.3" }
+                            line { x1: "12", y1: "12", x2: "12", y2: "21.7" }
+                            line { x1: "12", y1: "12", x2: "2.3", y2: "12" }
+                            line { x1: "12", y1: "12", x2: "21.7", y2: "12" }
+                            line { x1: "12", y1: "12", x2: "5.5", y2: "5.5" }
+                            line { x1: "12", y1: "12", x2: "18.5", y2: "5.5" }
+                            line { x1: "12", y1: "12", x2: "5.5", y2: "18.5" }
+                            line { x1: "12", y1: "12", x2: "18.5", y2: "18.5" }
+                            circle { cx: "12", cy: "12", r: "1.6", fill: "var(--gold)", stroke: "none" }
+                        }
+                    }
+                    div {
+                        h1 { class: "word", "Ziqpu" }
+                        div { class: "tagline", "the ledger of the sky · measured, not fate" }
+                    }
+                }
+                button {
+                    class: "theme",
+                    r#type: "button",
+                    onclick: move |_| {
+                        // Flip data-theme on the document root, mirroring the mockup's toggle.
+                        let _ = document::eval(
+                            "const r=document.documentElement;\
+                             const e=r.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');\
+                             r.setAttribute('data-theme', e==='dark'?'light':'dark');",
+                        );
+                    },
+                    "◐ theme"
+                }
             }
-            nav { class: "stepper",
+
+            nav { class: "steps", role: "tablist", "aria-label": "Reading flow",
                 {STEPS.iter().enumerate().map(|(i, label)| {
-                    let cls = if i == step {
-                        "step current"
-                    } else if i < step {
-                        "step done"
-                    } else {
-                        "step"
-                    };
-                    let num = i + 1;
+                    let cls = if i < step { "step done" } else { "step" };
+                    let num = format!("{:02}", i + 1);
+                    let current = if i == step { "true" } else { "false" };
                     rsx! {
-                        span { key: "{i}", class: "{cls}",
-                            span { class: "step-num", "{num}" }
-                            span { class: "step-label", "{label}" }
+                        div { key: "{i}", class: "{cls}", role: "tab", "aria-current": "{current}",
+                            span { class: "n", "{num}" }
+                            span { class: "t", "{label}" }
                         }
                     }
                 })}
             }
-        }
 
-        main { class: "app-main",
-            {match phase {
-                Phase::Setup => rsx! { Setup {} },
-                Phase::Ranked => rsx! { Ranked {} },
-                Phase::Checkpoint => rsx! { Checkpoint {} },
-                Phase::Briefing => rsx! { Briefing {} },
-            }}
+            section { class: "phase", key: "{step}",
+                {match phase {
+                    Phase::Setup => rsx! { Setup {} },
+                    Phase::Ranked => rsx! { Ranked {} },
+                    Phase::Checkpoint => rsx! { Checkpoint {} },
+                    Phase::Briefing => rsx! { Briefing {} },
+                }}
+            }
 
             if phase != Phase::Setup {
                 Guardrail {}
