@@ -13,3 +13,11 @@
 pub mod relocate;
 #[cfg(feature = "relocation")]
 pub use relocate::{house_cusps, relocate, HouseSystem};
+
+#[cfg(feature = "acg")]
+pub mod astrocartography;
+#[cfg(feature = "acg")]
+pub use astrocartography::{
+    body_line, compute_acg, ecliptic_to_equatorial, horizon_longitude, mc_longitude,
+    rising_hour_angle, AcgLine, AcgMap, AcgOptions, Equatorial, GeoPoint, LineKind,
+};
