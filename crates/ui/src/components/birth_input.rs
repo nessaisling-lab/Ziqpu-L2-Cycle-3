@@ -306,14 +306,12 @@ pub fn BirthInputForm() -> Element {
                             // pins and round-trips on relaunch. Best-effort; never panics (see
                             // crate::profile). Does NOT require a valid moment.
                             let selected = selected.read().clone();
-                            crate::profile::save_profile(&crate::profile::SavedProfile {
-                                date_str: date_str.read().clone(),
-                                time_str: time_str.read().clone(),
-                                time_unknown: *time_unknown.read(),
-                                place: selected
-                                    .as_ref()
-                                    .map(crate::profile::SavedPlace::from_place),
-                            });
+                            crate::profile::save_draft(
+                                date_str.read().clone(),
+                                time_str.read().clone(),
+                                *time_unknown.read(),
+                                selected.as_ref().map(crate::profile::SavedPlace::from_place),
+                            );
                             saved_confirm.set(true);
                         },
                         "Save chart"
@@ -340,14 +338,12 @@ pub fn BirthInputForm() -> Element {
                                     // Persist the full draft (not just the moment) so the form
                                     // repopulates exactly as entered after a relaunch (best-effort,
                                     // never panics — see crate::profile), then drive the graded loop.
-                                    crate::profile::save_profile(&crate::profile::SavedProfile {
-                                        date_str: date_str.clone(),
-                                        time_str: time_str.clone(),
-                                        time_unknown: unknown,
-                                        place: selected
-                                            .as_ref()
-                                            .map(crate::profile::SavedPlace::from_place),
-                                    });
+                                    crate::profile::save_draft(
+                                        date_str.clone(),
+                                        time_str.clone(),
+                                        unknown,
+                                        selected.as_ref().map(crate::profile::SavedPlace::from_place),
+                                    );
                                     ctx.seeker.set(moment);
                                     run_recommend(ctx.clone());
                                 }

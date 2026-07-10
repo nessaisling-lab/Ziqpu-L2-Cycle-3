@@ -52,12 +52,20 @@ impl SavedPlace {
 /// The persisted birth-input draft — everything needed to repaint the form and re-derive the
 /// seeker's [`agents::BirthMoment`]. The `place` is optional because a partially-filled draft is
 /// still worth remembering (though the form only *submits*, and therefore only saves, a valid one).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct SavedProfile {
+    #[serde(default)]
     pub date_str: String,
+    #[serde(default)]
     pub time_str: String,
+    #[serde(default)]
     pub time_unknown: bool,
+    #[serde(default)]
     pub place: Option<SavedPlace>,
+    /// The market basket the seeker built — ticker symbols, in pick order. `#[serde(default)]`
+    /// so a profile written before baskets were saved still loads (empty basket).
+    #[serde(default)]
+    pub basket: Vec<String>,
 }
 
 impl SavedProfile {
@@ -94,4 +102,33 @@ pub fn save_profile(profile: &SavedProfile) {
     if let Ok(text) = serde_json::to_string_pretty(profile) {
         let _ = std::fs::write(&path, text);
     }
+}
+
+/// Save just the birth-input draft, **preserving** any saved market basket. Loads the existing
+/// profile (or a default), overwrites only the draft fields, and writes it back — so saving the
+/// chart never wipes the basket, and vice versa.
+pub fn save_draft(
+    date_str: String,
+    time_str: String,
+    time_unknown: bool,
+    place: Option<SavedPlace>,
+) {
+    let mut p = load_profile().unwrap_or_default();
+    p.date_str = date_str;
+    p.time_str = time_str;
+    p.time_unknown = time_unknown;
+    p.place = place;
+    save_profile(&p);
+}
+
+/// Save just the market basket (ticker symbols), **preserving** the birth draft.
+pub fn save_basket(tickers: &[String]) {
+    let mut p = load_profile().unwrap_or_default();
+    p.basket = tickers.to_vec();
+    save_profile(&p);
+}
+
+/// The saved basket's ticker symbols (empty if none saved).
+pub fn load_basket() -> Vec<String> {
+    load_profile().map(|p| p.basket).unwrap_or_default()
 }

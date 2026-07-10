@@ -124,8 +124,14 @@ fn MarketPanel() -> Element {
 
     let mut query = use_signal(String::new);
     let mut results = use_signal(Vec::<TickerRow>::new);
-    // The chosen-choices basket. `Choice` isn't `PartialEq`, so we dedupe by ticker.
-    let mut basket = use_signal(Vec::<Choice>::new);
+    // The chosen-choices basket. `Choice` isn't `PartialEq`, so we dedupe by ticker. Seeded once
+    // from the saved basket (persisted across launches) so the seeker's picks survive a relaunch.
+    let mut basket = use_signal(|| {
+        crate::profile::load_basket()
+            .iter()
+            .filter_map(|t| tickers::choice(t))
+            .collect::<Vec<Choice>>()
+    });
 
     let basket_now = basket.read().clone();
     let can_read = !basket_now.is_empty();
@@ -171,6 +177,9 @@ fn MarketPanel() -> Element {
                                             let already = basket.read().iter().any(|c| c.ticker == choice.ticker);
                                             if !already {
                                                 basket.write().push(choice);
+                                                // Persist the basket so the picks survive a relaunch.
+                                                let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
+                                                crate::profile::save_basket(&picks);
                                             }
                                         }
                                         query.set(String::new());
@@ -205,6 +214,9 @@ fn MarketPanel() -> Element {
                                         "aria-label": "Remove {ticker}",
                                         onclick: move |_| {
                                             basket.write().retain(|c| c.ticker != remove);
+                                            // Persist the trimmed basket too.
+                                            let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
+                                            crate::profile::save_basket(&picks);
                                         },
                                         "×"
                                     }
