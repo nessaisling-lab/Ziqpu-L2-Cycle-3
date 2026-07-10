@@ -193,11 +193,10 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
     pub fn ask(&self, question: &str) -> Answer {
         if is_advice_seeking(question) {
             Answer::Refusal(
-                "The ledger does not trade. It will not tell you to buy, sell, or hold — and that \
-                 is not timidity, it is the line: the decision is yours, and I can't tell you which \
-                 way to make it. What the ledger will do, without flinching, is measure how your \
-                 chart and this choice aspect and stake a verdict on that fit — and, if you approve, \
-                 set it beside real data. This is not financial advice."
+                "The ledger doesn't call trades — that decision is yours. But it won't dodge you: \
+                 it will measure how you and this choice aspect, and stake a verdict on that fit — \
+                 and you can ground that against the real record at the checkpoint. This is not \
+                 financial advice."
                     .to_string(),
             )
         } else {
@@ -241,6 +240,27 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         self.calls
             .push(ToolCall::PullGrounded(choice.ticker.clone()));
         Ok(self.grounded.fetch(choice))
+    }
+
+    /// Gate **and record** the grounded pull, but perform **no** external fetch. Splits
+    /// [`Session::pull_grounded`] the same way [`Session::recommend_measures`] splits `recommend`:
+    /// it enforces the approval gate and records [`ToolCall::PullGrounded`] on the graded log — the
+    /// two things that must happen synchronously on the real, `!Send` session — while leaving the
+    /// blocking [`GroundedSource::fetch`] to be run off the event loop (on a throwaway session), so
+    /// a slow SEC EDGAR pull never freezes the UI. A missing/mismatched token still errors before
+    /// anything is recorded, so the gate is identical to [`Session::pull_grounded`]'s.
+    pub fn pull_grounded_gate(
+        &mut self,
+        choice: &Choice,
+        approval: Option<&ApprovalToken>,
+    ) -> Result<(), GateError> {
+        let token = approval.ok_or(GateError::NotApproved)?;
+        if token.choice != choice.ticker {
+            return Err(GateError::WrongChoice);
+        }
+        self.calls
+            .push(ToolCall::PullGrounded(choice.ticker.clone()));
+        Ok(())
     }
 
     /// Fold grounded signals into a briefing that sets the chart read beside reality.
@@ -432,6 +452,37 @@ mod tests {
         }
         // …while recommend fills them.
         assert!(full_recs.iter().all(|r| !r.reading.is_empty()));
+    }
+
+    #[test]
+    fn pull_grounded_gate_enforces_the_token_and_records_without_fetching() {
+        let mut s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+
+        // No token → refused, and nothing is recorded on the graded log.
+        assert_eq!(
+            s.pull_grounded_gate(&choice, None),
+            Err(GateError::NotApproved)
+        );
+        assert!(s.calls().is_empty(), "a refused gate records no tool call");
+
+        // A token minted for a *different* choice → wrong-choice, still nothing recorded.
+        let other = demo_choices().into_iter().nth(1).unwrap();
+        let other_token = s.approve(s.propose_grounding(&other));
+        assert_eq!(
+            s.pull_grounded_gate(&choice, Some(&other_token)),
+            Err(GateError::WrongChoice)
+        );
+        assert!(s.calls().is_empty());
+
+        // The matching token → records exactly PullGrounded(ticker), no fetch, no other calls.
+        let token = s.approve(s.propose_grounding(&choice));
+        assert!(s.pull_grounded_gate(&choice, Some(&token)).is_ok());
+        assert_eq!(
+            s.calls(),
+            &[ToolCall::PullGrounded(choice.ticker.clone())],
+            "the gate records the pull without any chart/fetch tool calls"
+        );
     }
 
     #[test]

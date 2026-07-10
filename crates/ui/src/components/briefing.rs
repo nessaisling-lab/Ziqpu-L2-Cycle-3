@@ -106,6 +106,7 @@ pub fn Briefing() -> Element {
                         ctx.gate_proof.set(None);
                         ctx.signals.set(None);
                         ctx.briefing.set(None);
+                        ctx.grounding.set(false);
                         ctx.answer.set(None);
                         ctx.calls.set(Vec::new());
                         ctx.phase.set(Phase::Setup);

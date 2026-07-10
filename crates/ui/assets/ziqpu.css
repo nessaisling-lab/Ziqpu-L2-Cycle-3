@@ -241,15 +241,20 @@ header{
 .wheat-loader{display:flex;align-items:center;gap:14px;padding:12px 22px 8px}
 .wheat{width:82px;height:70px;flex:none;overflow:visible}
 .wheat-caption{font-style:italic;color:var(--gold-deep);font-size:15px}
-/* Each stalk rotates about its own stem base. Static upright by default; only sways when motion is welcome. */
+/* Each stalk rotates about its own stem base (fill-box origin at the base) at a staggered offset, so
+   the loader always reads as grain leaning in a breeze. This is a *loading affordance* — it must show
+   activity — so it sways unconditionally rather than only under no-preference. */
 .wheat .stalk{transform-box:fill-box;transform-origin:bottom center}
-@media(prefers-reduced-motion:no-preference){
-  .wheat .stalk--a{animation:sway 1.7s ease-in-out infinite alternate}
-  .wheat .stalk--b{animation:sway 2.0s ease-in-out -0.55s infinite alternate}
-  .wheat .stalk--c{animation:sway 1.85s ease-in-out -1.15s infinite alternate}
-}
+.wheat .stalk--a{animation:sway 1.7s ease-in-out infinite alternate}
+.wheat .stalk--b{animation:sway 2.0s ease-in-out -0.55s infinite alternate}
+.wheat .stalk--c{animation:sway 1.85s ease-in-out -1.15s infinite alternate}
 /* A clearly visible ±11° oscillation about the stem base — grain leaning in the wind. */
 @keyframes sway{from{transform:rotate(-11deg)}to{transform:rotate(11deg)}}
+/* Reduced-motion: don't kill the loading feedback — calm the amplitude to a gentle ±3.5° and slow it. */
+@keyframes sway-calm{from{transform:rotate(-3.5deg)}to{transform:rotate(3.5deg)}}
+@media(prefers-reduced-motion:reduce){
+  .wheat .stalk--a,.wheat .stalk--b,.wheat .stalk--c{animation-name:sway-calm;animation-duration:3.4s}
+}
 .measured{font:500 12.5px/1.75 var(--f-mono);color:var(--ink-soft);padding:6px 22px 18px;overflow-x:auto}
 .measured .flow,td .flow,.measured.grounded-line{color:var(--lapis)}
 .measured .fric,td .fric{color:var(--carnelian)}
@@ -319,6 +324,9 @@ td.b{color:var(--ink)}
   border:1px dashed color-mix(in srgb,var(--carnelian) 45%,transparent);
   border-radius:10px;padding:9px 13px;display:inline-block;
 }
+/* The off-thread "grounding…" hold — the window stays live while the real pull + brief run. */
+.gate--grounding{text-align:left}
+.gate--grounding .ask-reading--pending{margin-top:0}
 
 /* ---- guardrail rail ---- */
 .rail{background:var(--parchment);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-top:8px}
@@ -384,6 +392,13 @@ td.b{color:var(--ink)}
 .chip strong{color:var(--ink);font-weight:600}
 
 /* ---- birth-input form ---- */
+.birth-title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+/* The "chart saved" / "Saved ✓" affirmation — a small gold pill, never shouting. */
+.chart-saved-badge{
+  font:600 10.5px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gold-deep);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:999px;padding:5px 10px;white-space:nowrap;
+}
 .birth-form{display:flex;flex-direction:column;gap:16px;margin-top:8px}
 .field{display:flex;flex-direction:column;gap:7px;position:relative}
 .field-label{font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep)}
@@ -444,3 +459,94 @@ td.b{color:var(--ink)}
 }
 .chip-x:hover{background:color-mix(in srgb,var(--carnelian) 14%,transparent);color:var(--carnelian)}
 .basket-empty{font:500 12.5px/1.6 var(--f-mono);color:var(--ink-faint)}
+
+/* ========================================================================
+   Star field — a fixed, seeded "searching the stars" sky behind everything.
+   Pure CSS/SVG, no libraries. The star coordinates are generated once from a
+   fixed seed (see state.rs::seeded_stars), so the sky is identical every
+   launch. Each star twinkles (opacity + scale only) on its own staggered
+   cycle; the grounded pull intensifies the whole field.
+   ======================================================================== */
+.sky{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;user-select:none}
+.star{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,var(--gold) 0%,color-mix(in srgb,var(--gold) 55%,transparent) 45%,transparent 72%);
+  opacity:.3;transform:scale(.6);
+  animation-name:twinkle;animation-iteration-count:infinite;
+  animation-timing-function:ease-in-out;animation-direction:alternate;
+}
+@keyframes twinkle{
+  from{opacity:.10;transform:scale(.5)}
+  to{opacity:.85;transform:scale(1.15)}
+}
+/* light default: a quiet gold shimmer. dark: brighter, white-hot stars — but dim the whole layer
+   so the night sky reads as depth, not glare. */
+:root:not([data-theme="dark"]) .sky{opacity:.55}
+:root[data-theme="dark"] .sky{opacity:.72}
+:root[data-theme="dark"] .star{
+  background:radial-gradient(circle,#fff 0%,color-mix(in srgb,var(--gold) 65%,transparent) 45%,transparent 72%);
+}
+/* the intensified state, held while the grounded pull runs off-thread — faster, brighter, a clear
+   "the viziers are searching the stars" affordance. */
+.sky--searching{opacity:.9!important}
+.sky--searching .star{
+  animation-duration:1.05s!important;animation-delay:0s!important;opacity:.6;
+  filter:drop-shadow(0 0 3px color-mix(in srgb,var(--gold) 70%,transparent));
+}
+:root[data-theme="dark"] .sky--searching .star{
+  filter:drop-shadow(0 0 4px color-mix(in srgb,#fff 70%,transparent));
+}
+/* Reduced-motion: keep the sky alive with an opacity-only pulse (no scale/translation, the parts that
+   trouble vestibular sensitivity) rather than freezing it — the "searching the stars" feel remains. */
+@keyframes twinkle-calm{from{opacity:.16}to{opacity:.5}}
+@media(prefers-reduced-motion:reduce){
+  .star{animation-name:twinkle-calm;transform:none}
+  .sky--searching .star{opacity:.55;filter:none}
+}
+
+/* Local reading mode — the malachite/green sibling of the lapis Live and muted Raw toggle chips. */
+.mode-toggle--local{color:var(--malachite);border-color:color-mix(in srgb,var(--gold) 45%,var(--malachite))}
+
+/* ========================================================================
+   Legend / dictionary — a self-contained collapsible glossary card. On-brand
+   parchment; opens on demand so it never competes with the reading.
+   ======================================================================== */
+.legend{
+  margin:34px 0 10px;background:var(--parchment);border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+}
+.legend-summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+  font:600 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);
+  padding:16px 20px;transition:.15s;
+}
+.legend-summary::-webkit-details-marker{display:none}
+.legend-summary__mark{color:var(--gold);font-size:14px}
+.legend-summary__caret{margin-left:auto;font-size:18px;color:var(--ink-faint);transition:transform .18s}
+.legend[open] .legend-summary__caret{transform:rotate(90deg)}
+.legend-summary:hover{color:var(--gold)}
+.legend-summary:focus-visible{outline:2px solid var(--lapis);outline-offset:2px}
+.legend-body{padding:2px 20px 22px;border-top:1px solid var(--line-soft)}
+.legend-intro{font-size:15.5px;color:var(--ink-soft);max-width:64ch;margin:14px 0 2px}
+.legend-intro em{font-style:italic;color:var(--lapis);font-weight:600}
+.legend-section{margin-top:20px}
+.legend-heading{
+  font:600 10.5px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);
+  margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid var(--gold-line);
+}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:11px 24px}
+.legend-row{display:flex;gap:12px;align-items:baseline}
+.legend-glyph{flex:none;width:24px;text-align:center;color:var(--gold-deep);font-size:16px;line-height:1.35}
+.legend-glyph--flow{color:var(--lapis)}
+.legend-glyph--fric{color:var(--carnelian)}
+.legend-band{
+  flex:none;width:14px;height:14px;border-radius:4px;
+  background:var(--b);border:1px solid var(--gold-line);position:relative;top:2px;
+}
+.legend-def{display:flex;flex-direction:column;gap:2px}
+.legend-term{font-family:var(--f-body);font-weight:600;font-size:15px;color:var(--ink)}
+.legend-meaning{font-size:13.5px;line-height:1.5;color:var(--ink-soft);max-width:54ch}
+.legend-foot{
+  margin-top:22px;font:600 11px/1.5 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);
+}

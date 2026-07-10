@@ -4,11 +4,27 @@
 
 use dioxus::prelude::*;
 
-use crate::state::{pretty_call, AppCtx, Phase};
+use crate::state::{run_grounding, AppCtx, Phase};
 
 #[component]
 pub fn Checkpoint() -> Element {
     let ctx = use_context::<AppCtx>();
+
+    // While the approved pull runs off-thread, hold the checkpoint on a "grounding…" loading view so
+    // the window stays responsive (the fetch + brief no longer run on the event loop). The `grounder`
+    // coroutine flips this off and advances to Briefing when the worker lands.
+    if *ctx.grounding.read() {
+        return rsx! {
+            p { class: "eyebrow", "Human-in-the-loop · grounding the read" }
+            div { class: "gate gate--grounding",
+                div { class: "ask-reading ask-reading--pending",
+                    span { class: "wheat-caption",
+                        "Pulling the real record (SEC EDGAR) and writing the grounded briefing… the window stays live."
+                    }
+                }
+            }
+        };
+    }
 
     let prompt = ctx
         .request
@@ -80,39 +96,11 @@ pub fn Checkpoint() -> Element {
                     class: "btn btn--go",
                     r#type: "button",
                     onclick: {
-                        let mut ctx = ctx.clone();
-                        move |_| {
-                            // Move the non-Copy request out of the signal.
-                            let request = ctx.request.write().take();
-                            let Some(request) = request else { return };
-                            let ticker = request.choice.clone();
-                            let choice = ctx
-                                .choices
-                                .read()
-                                .iter()
-                                .find(|c| c.ticker == ticker)
-                                .cloned();
-                            let Some(choice) = choice else { return };
-
-                            // Approve mints the token; the costed pull is now reachable.
-                            let token = ctx.session.borrow().approve(request);
-                            let seeker = ctx.seeker.read().clone();
-                            let pulled = {
-                                let mut session = ctx.session.borrow_mut();
-                                session.pull_grounded(&choice, Some(&token))
-                            };
-                            let Ok(signals) = pulled else { return };
-                            let briefing = ctx.session.borrow().brief(&seeker, &choice, &signals);
-                            let calls: Vec<String> = {
-                                let session = ctx.session.borrow();
-                                session.calls().iter().map(pretty_call).collect()
-                            };
-
-                            ctx.signals.set(Some(signals));
-                            ctx.briefing.set(Some(briefing));
-                            ctx.calls.set(calls);
-                            ctx.phase.set(Phase::Briefing);
-                        }
+                        let ctx = ctx.clone();
+                        // Approve mints the token and records the gated PullGrounded on the real
+                        // session synchronously (tool-order log + gate preserved); the blocking fetch
+                        // + grounded-brief then run off-thread, so the window never freezes here.
+                        move |_| run_grounding(ctx.clone())
                     },
                     "Approve & ground"
                 }

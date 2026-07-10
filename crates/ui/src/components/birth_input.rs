@@ -146,6 +146,12 @@ pub fn BirthInputForm() -> Element {
     let mut selected = use_signal(|| saved.as_ref().and_then(|s| s.place()));
     let mut tz_override = use_signal(|| None::<Tz>);
     let mut show_errors = use_signal(|| false);
+    // Whether a chart is already persisted (drives the header "chart saved" indicator on mount).
+    let had_saved = saved.is_some();
+    // Flips true right after the explicit "Save chart" button persists the current draft, showing a
+    // brief "Saved ✓" confirmation. Any edit to a field clears it, so it only ever affirms the
+    // just-saved state.
+    let mut saved_confirm = use_signal(|| false);
 
     // Recompute validation each render (pure + cheap) from the current draft.
     let date_now = date_str.read().clone();
@@ -164,7 +170,12 @@ pub fn BirthInputForm() -> Element {
     rsx! {
         section { class: "setup birth-input",
             p { class: "eyebrow", "Begin · your birth moment" }
-            h2 { class: "setup-title", "Your birth moment" }
+            div { class: "birth-title-row",
+                h2 { class: "setup-title", "Your birth moment" }
+                if had_saved {
+                    span { class: "chart-saved-badge", "✦ chart saved" }
+                }
+            }
             p { class: "muted",
                 "Enter your own birth details — everything is resolved offline (no keys, no network). "
                 "An unknown time is honest: the angles are withheld, not guessed."
@@ -177,7 +188,10 @@ pub fn BirthInputForm() -> Element {
                         class: "field-input",
                         r#type: "date",
                         value: "{date_now}",
-                        oninput: move |e| date_str.set(e.value()),
+                        oninput: move |e| {
+                            saved_confirm.set(false);
+                            date_str.set(e.value());
+                        },
                     }
                 }
 
@@ -188,13 +202,17 @@ pub fn BirthInputForm() -> Element {
                         r#type: "time",
                         value: "{time_now}",
                         disabled: unknown_now,
-                        oninput: move |e| time_str.set(e.value()),
+                        oninput: move |e| {
+                            saved_confirm.set(false);
+                            time_str.set(e.value());
+                        },
                     }
                     label { class: "field-check",
                         input {
                             r#type: "checkbox",
                             checked: unknown_now,
                             onchange: move |_| {
+                                saved_confirm.set(false);
                                 let now = *time_unknown.read();
                                 time_unknown.set(!now);
                             },
@@ -216,6 +234,7 @@ pub fn BirthInputForm() -> Element {
                         placeholder: "Search a city — e.g. New York",
                         value: "{query}",
                         oninput: move |e| {
+                            saved_confirm.set(false);
                             let q = e.value();
                             results.set(geo::lookup(&q));
                             query.set(q);
@@ -231,6 +250,7 @@ pub fn BirthInputForm() -> Element {
                                         key: "{key}",
                                         class: "place-result",
                                         onclick: move |_| {
+                                            saved_confirm.set(false);
                                             query.set(p.name.clone());
                                             selected.set(Some(p.clone()));
                                             tz_override.set(None); // a fresh place resets the override
@@ -276,7 +296,31 @@ pub fn BirthInputForm() -> Element {
                     }
                 }
 
-                div { class: "actions", style: "justify-content:flex-start",
+                div { class: "actions", style: "justify-content:flex-start;align-items:center",
+                    button {
+                        class: "btn",
+                        r#type: "button",
+                        title: "Save this chart so it repopulates next time",
+                        onclick: move |_| {
+                            // Persist the current draft verbatim — even a partly-filled one — so it
+                            // pins and round-trips on relaunch. Best-effort; never panics (see
+                            // crate::profile). Does NOT require a valid moment.
+                            let selected = selected.read().clone();
+                            crate::profile::save_profile(&crate::profile::SavedProfile {
+                                date_str: date_str.read().clone(),
+                                time_str: time_str.read().clone(),
+                                time_unknown: *time_unknown.read(),
+                                place: selected
+                                    .as_ref()
+                                    .map(crate::profile::SavedPlace::from_place),
+                            });
+                            saved_confirm.set(true);
+                        },
+                        "Save chart"
+                    }
+                    if *saved_confirm.read() {
+                        span { class: "chart-saved-badge", "Saved ✓" }
+                    }
                     button {
                         class: "btn btn--go",
                         r#type: "button",
