@@ -1,7 +1,7 @@
 //! Setup — a two-mode entry point. **Seeded demo** is the original one-click default (a fixed
-//! seeker + five real US IPOs, measured offline). **Your birth moment** is the new form that lets
-//! the seeker enter their own details. Both converge on the same graded `run_recommend` path, so
-//! the loop, the checkpoint, and the guardrail are identical whichever mode is used.
+//! seeker + five real US IPOs, measured offline). **Your birth moment** is the form that lets the
+//! seeker enter their own details. Both converge on the same graded `run_recommend` path, so the
+//! loop, the checkpoint, and the guardrail are identical whichever mode is used.
 
 use dioxus::prelude::*;
 
@@ -23,11 +23,13 @@ pub fn Setup() -> Element {
         div { class: "setup-modes",
             button {
                 class: if current == Mode::Seeded { "mode-tab current" } else { "mode-tab" },
+                r#type: "button",
                 onclick: move |_| mode.set(Mode::Seeded),
                 "Seeded demo"
             }
             button {
                 class: if current == Mode::Custom { "mode-tab current" } else { "mode-tab" },
+                r#type: "button",
                 onclick: move |_| mode.set(Mode::Custom),
                 "Enter my own birth details"
             }
@@ -40,8 +42,8 @@ pub fn Setup() -> Element {
     }
 }
 
-/// The original seeded demo card, verbatim — a fixed seeker and five real US IPOs, measured
-/// offline. "Read the fits" runs OBSERVE → DECIDE on the graded session via `run_recommend`.
+/// The original seeded demo card, verbatim in behavior — a fixed seeker and five real US IPOs,
+/// measured offline. "Read the fits" runs OBSERVE → DECIDE on the graded session via `run_recommend`.
 #[component]
 fn SeededPanel() -> Element {
     let ctx = use_context::<AppCtx>();
@@ -59,8 +61,9 @@ fn SeededPanel() -> Element {
     let lon = seeker.lon;
 
     rsx! {
-        section { class: "card setup",
-            h2 { "Seeded demo" }
+        section { class: "setup",
+            p { class: "eyebrow", "Begin · a seeded reading" }
+            h2 { class: "setup-title", "Seeded demo" }
             p { class: "muted",
                 "A fixed seeker and five real US IPOs, measured entirely offline — no keys, no network. "
                 "Hamun-ana measures the charts; Ungasaga reads the fit."
@@ -84,9 +87,10 @@ fn SeededPanel() -> Element {
                 })}
             }
 
-            div { class: "actions",
+            div { class: "actions", style: "justify-content:flex-start",
                 button {
-                    class: "primary",
+                    class: "btn btn--go",
+                    r#type: "button",
                     onclick: {
                         let ctx = ctx.clone();
                         move |_| run_recommend(ctx.clone())

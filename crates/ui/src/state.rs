@@ -11,7 +11,7 @@ use std::rc::Rc;
 use agents::{
     AnthropicInterpreter, ApprovalRequest, BirthMoment, Briefing, Choice, EdgarSource,
     EngineChartSource, Fit, GroundedSignals, GroundedSource, Interpreter, LocalMeasurer, Measures,
-    MockGroundedSource, Recommendation, Session, TemplateInterpreter,
+    MockGroundedSource, Recommendation, Session, TemplateInterpreter, ToolCall,
 };
 use dioxus::prelude::*;
 
@@ -75,13 +75,27 @@ pub struct AppCtx {
     pub calls: Signal<Vec<String>>,
 }
 
-/// Map a fit band to its CSS modifier class.
-pub fn fit_class(fit: Fit) -> &'static str {
+/// Render a graded tool call in the Backstage's "tool order" voice — lowercase, call-shaped
+/// (`get_chart(you)`, `get_synastry(you, TSLA)`, `propose`, `pull_grounded(TSLA)`). Matches the
+/// approved mockup and lets the Backstage tag the `propose`/`pull_grounded` chips distinctly.
+pub fn pretty_call(call: &ToolCall) -> String {
+    match call {
+        ToolCall::GetChart(who) => format!("get_chart({who})"),
+        ToolCall::GetSynastry(a, b) => format!("get_synastry({a}, {b})"),
+        ToolCall::Propose => "propose".to_string(),
+        ToolCall::PullGrounded(ticker) => format!("pull_grounded({ticker})"),
+    }
+}
+
+/// Map a fit band to the mockup's semantic band CSS variable name (drives the card's left stripe,
+/// badge, and score meter via the `--band` custom property). Note the terse `--band-misalign` to
+/// match the approved stylesheet's token spelling.
+pub fn fit_band_var(fit: Fit) -> &'static str {
     match fit {
-        Fit::StronglyAligned => "band-strong",
-        Fit::Aligned => "band-aligned",
-        Fit::Mixed => "band-mixed",
-        Fit::Misaligned => "band-misaligned",
+        Fit::StronglyAligned => "--band-strong",
+        Fit::Aligned => "--band-aligned",
+        Fit::Mixed => "--band-mixed",
+        Fit::Misaligned => "--band-misalign",
     }
 }
 
@@ -97,7 +111,7 @@ pub fn run_recommend(mut ctx: AppCtx) {
     };
     let calls: Vec<String> = {
         let session = ctx.session.borrow();
-        session.calls().iter().map(|c| format!("{c:?}")).collect()
+        session.calls().iter().map(pretty_call).collect()
     };
     ctx.measures.set(measures_for(&seeker, &choices));
     ctx.recs.set(recs);

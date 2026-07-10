@@ -1,5 +1,6 @@
-//! Backstage — the receipts behind a card: the choice's full synastry measures (every cross-aspect,
-//! marked flowing/friction) and the live tool-call order from the graded session.
+//! Backstage — the receipts behind a card: the choice's full synastry measures as a raw mono table
+//! (every cross-aspect, marked flowing/friction) and the live tool-call order as chips (the
+//! `propose` and `pull_grounded` beats tagged distinctly).
 
 use dioxus::prelude::*;
 
@@ -12,82 +13,88 @@ pub fn Backstage(choice: String) -> Element {
     let measures = ctx.measures.read().get(&choice).cloned();
     let calls = ctx.calls.read().clone();
 
-    let body = match measures {
-        Some(m) => {
-            let score = m.score;
+    let table = match measures {
+        Some(m) if !m.aspects.is_empty() => {
             let rows = m
                 .aspects
                 .iter()
                 .enumerate()
                 .map(|(i, a)| {
-                    let flow = if a.harmonious { "flowing" } else { "friction" };
-                    let flow_cls = if a.harmonious {
-                        "flow-good"
-                    } else {
-                        "flow-bad"
-                    };
+                    let nature = if a.harmonious { "flowing" } else { "friction" };
+                    let nature_cls = if a.harmonious { "flow" } else { "fric" };
                     let body_a = a.body_a.clone();
                     let aspect = a.aspect.clone();
                     let body_b = a.body_b.clone();
-                    let orb_val = a.orb;
-                    let orb = format!("{orb_val:.2}°");
+                    let orb = format!("{:.2}°", a.orb);
                     rsx! {
                         tr { key: "{i}",
-                            td { "{body_a}" }
+                            td { class: "b", "{body_a}" }
                             td { "{aspect}" }
-                            td { "{body_b}" }
-                            td { class: "orb", "{orb}" }
-                            td { class: "{flow_cls}", "{flow}" }
+                            td { class: "b", "{body_b}" }
+                            td { "{orb}" }
+                            td { span { class: "{nature_cls}", "{nature}" } }
                         }
                     }
                 })
                 .collect::<Vec<_>>();
 
             rsx! {
-                div { class: "backstage-body",
-                    div { class: "measure-score", "Synastry score: {score} / 100" }
-                    if rows.is_empty() {
-                        p { class: "muted", "No cross-aspects within orb." }
-                    } else {
-                        table { class: "aspect-table",
-                            thead {
-                                tr {
-                                    th { "You" }
-                                    th { "Aspect" }
-                                    th { "Choice" }
-                                    th { "Orb" }
-                                    th { "Flow" }
-                                }
+                div { class: "bs__scroll",
+                    table {
+                        thead {
+                            tr {
+                                th { "Your body" }
+                                th { "Aspect" }
+                                th { "{choice} body" }
+                                th { "Orb" }
+                                th { "Nature" }
                             }
-                            tbody { {rows.into_iter()} }
                         }
+                        tbody { {rows.into_iter()} }
                     }
                 }
             }
         }
+        Some(_) => rsx! {
+            p { class: "measured", span { class: "orb", "No cross-aspects within orb." } }
+        },
         None => rsx! {
-            div { class: "backstage-body muted", "No measures for this choice." }
+            p { class: "measured", span { class: "orb", "No measures for this choice." } }
         },
     };
 
-    let tool_order = if calls.is_empty() {
-        rsx! { span { class: "muted", "—" } }
+    let chips = if calls.is_empty() {
+        rsx! { li { "—" } }
     } else {
         let items = calls
             .iter()
             .enumerate()
-            .map(|(i, c)| rsx! { li { key: "{i}", "{c}" } })
+            .map(|(i, c)| {
+                let cls = if c == "propose" {
+                    "propose"
+                } else if c.starts_with("pull_grounded") {
+                    "pull"
+                } else {
+                    ""
+                };
+                rsx! { li { key: "{i}", class: "{cls}", "{c}" } }
+            })
             .collect::<Vec<_>>();
-        rsx! { ol { class: "calls", {items.into_iter()} } }
+        rsx! { {items.into_iter()} }
     };
 
     rsx! {
-        details { class: "backstage",
-            summary { "Backstage — the measures & tool order" }
-            {body}
-            div { class: "tool-order",
-                span { class: "tool-label", "Tool order" }
-                {tool_order}
+        details { class: "bs",
+            summary { class: "bs__h",
+                span { class: "caret", "▸" }
+                " Backstage — the measures & tool order"
+            }
+            div { class: "bs__body",
+                {table}
+                div { class: "trace",
+                    div { class: "eyebrow", style: "color:var(--ink-faint)", "Tool order" }
+                    ol { {chips} }
+                }
             }
         }
     }

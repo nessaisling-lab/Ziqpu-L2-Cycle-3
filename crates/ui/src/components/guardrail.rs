@@ -11,20 +11,29 @@ use crate::state::AppCtx;
 #[component]
 pub fn Guardrail() -> Element {
     let ctx = use_context::<AppCtx>();
-    let mut question = use_signal(|| "Should I buy AAPL?".to_string());
+    let mut question = use_signal(|| "Should I buy Tesla?".to_string());
     let answer = ctx.answer.read().clone();
 
     rsx! {
-        section { class: "card guardrail",
-            h2 { "Ask" }
-            div { class: "ask-row",
+        p { class: "eyebrow", "Enforced in code, not in a prompt" }
+        p { class: "lead",
+            "Ask how you "
+            em { "fit" }
+            " a choice and I'll measure it. Ask whether to "
+            em { "buy" }
+            " it and I won't."
+        }
+
+        div { class: "rail",
+            div { class: "ask",
                 input {
-                    class: "ask-input",
                     value: "{question}",
+                    "aria-label": "Ask about a choice",
                     oninput: move |e| question.set(e.value()),
                 }
                 button {
-                    class: "primary",
+                    class: "btn btn--go",
+                    r#type: "button",
                     onclick: {
                         let mut ctx = ctx.clone();
                         move |_| {
@@ -43,14 +52,14 @@ pub fn Guardrail() -> Element {
             {
                 match answer {
                     Some((refusal, msg)) => {
-                        let cls = if refusal { "answer refusal" } else { "answer reflection" };
+                        let cls = if refusal { "refusal" } else { "reflection" };
                         rsx! { p { class: "{cls}", "{msg}" } }
                     }
                     None => rsx! {},
                 }
             }
-
-            footer { class: "disclaimer", "measured, not fate — not financial advice." }
         }
+
+        p { class: "reminder", "measured, not fate — not financial advice" }
     }
 }

@@ -1,9 +1,10 @@
-//! Checkpoint — the graded human-in-the-loop gate. It shows the proposal, *proves* the gate blocks
-//! without approval, and only on Approve mints a token, pulls grounded signals, and briefs.
+//! Checkpoint — the graded human-in-the-loop gate, rendered as a held "seal" moment. It shows the
+//! proposal, *proves* the gate blocks without approval, and only on Approve mints a token, pulls
+//! grounded signals, and briefs.
 
 use dioxus::prelude::*;
 
-use crate::state::{AppCtx, Phase};
+use crate::state::{pretty_call, AppCtx, Phase};
 
 #[component]
 pub fn Checkpoint() -> Element {
@@ -17,19 +18,54 @@ pub fn Checkpoint() -> Element {
         .unwrap_or_default();
     let proof = ctx.gate_proof.read().clone().unwrap_or_default();
 
-    rsx! {
-        section { class: "card checkpoint",
-            h2 { "Checkpoint" }
-            p { class: "prompt", "{prompt}" }
+    // The prompt is one sentence ("Ground this read for TSLA? I'll pull …"); split it into the
+    // seal's question (heading) and its costed-call explanation (body).
+    let (question, explanation) = match prompt.split_once('?') {
+        Some((q, rest)) => (format!("{q}?"), rest.trim().to_string()),
+        None => (prompt.clone(), String::new()),
+    };
 
-            div { class: "gate-proof",
-                span { class: "gate-label", "Gate check — pull attempted with no approval:" }
-                code { "blocked: {proof}" }
+    rsx! {
+        p { class: "eyebrow", "Human-in-the-loop · the costed step" }
+        div { class: "gate",
+            svg {
+                class: "seal",
+                view_box: "0 0 54 54",
+                "aria-hidden": "true",
+                circle {
+                    cx: "27",
+                    cy: "27",
+                    r: "24",
+                    fill: "none",
+                    stroke: "var(--gold)",
+                    "stroke-width": "1.2",
+                }
+                circle {
+                    cx: "27",
+                    cy: "27",
+                    r: "17",
+                    fill: "none",
+                    stroke: "var(--line)",
+                    "stroke-width": "1",
+                }
+                path {
+                    d: "M27 12v9m0 12v9m-15-15h9m12 0h9",
+                    fill: "none",
+                    stroke: "var(--gold)",
+                    "stroke-width": "1.4",
+                }
+                circle { cx: "27", cy: "27", r: "3.4", fill: "var(--gold)" }
             }
+            h3 { "{question}" }
+            if !explanation.is_empty() {
+                p { "{explanation}" }
+            }
+            div { class: "blocked", "↳ attempt without approval → blocked: {proof}" }
 
             div { class: "actions",
                 button {
-                    class: "ghost",
+                    class: "btn",
+                    r#type: "button",
                     onclick: {
                         let mut ctx = ctx.clone();
                         move |_| {
@@ -38,10 +74,11 @@ pub fn Checkpoint() -> Element {
                             ctx.phase.set(Phase::Ranked);
                         }
                     },
-                    "Decline — keep the symbolic read"
+                    "Keep the symbolic read"
                 }
                 button {
-                    class: "primary",
+                    class: "btn btn--go",
+                    r#type: "button",
                     onclick: {
                         let mut ctx = ctx.clone();
                         move |_| {
@@ -68,7 +105,7 @@ pub fn Checkpoint() -> Element {
                             let briefing = ctx.session.borrow().brief(&seeker, &choice, &signals);
                             let calls: Vec<String> = {
                                 let session = ctx.session.borrow();
-                                session.calls().iter().map(|c| format!("{c:?}")).collect()
+                                session.calls().iter().map(pretty_call).collect()
                             };
 
                             ctx.signals.set(Some(signals));
@@ -77,7 +114,7 @@ pub fn Checkpoint() -> Element {
                             ctx.phase.set(Phase::Briefing);
                         }
                     },
-                    "Approve — pull grounded signals"
+                    "Approve & ground"
                 }
             }
         }
