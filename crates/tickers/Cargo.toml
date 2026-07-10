@@ -1,0 +1,20 @@
+[package]
+name = "tickers"
+version = "0.0.0"
+description = "Ziqpu offline ticker index: full-universe symbol/name search → an agents::Choice dated by IPO. No network."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "tickers"
+path = "src/lib.rs"
+
+[dependencies]
+# The loop's shared value types — `choice()` returns a ready-to-rank `agents::Choice`.
+agents = { path = "../agents" }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10"

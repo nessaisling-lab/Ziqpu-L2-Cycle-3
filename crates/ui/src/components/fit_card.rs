@@ -3,10 +3,53 @@
 //! collapsible Backstage. Reads its recommendation from the shared context by index so it stays
 //! reactive to selection without needing `PartialEq` props.
 
+use agents::Fit;
 use dioxus::prelude::*;
 
 use crate::components::Backstage;
 use crate::state::{fit_band_var, AppCtx};
+
+/// The card's rune tile — a small band-colored glyph that reads at a glance: a star for a good fit,
+/// a clock for a mixed one, an X for a misaligned one. Stroked in `currentColor` so the `.rune`
+/// tile's `--band` color flows through.
+fn rune(fit: Fit) -> Element {
+    match fit {
+        Fit::StronglyAligned | Fit::Aligned => rsx! {
+            svg {
+                class: "i",
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                "stroke-linecap": "round",
+                "stroke-linejoin": "round",
+                path { d: "M11.5 2.3a.53.53 0 0 1 .95 0l2.31 4.68a2.1 2.1 0 0 0 1.6 1.16l5.16.75a.53.53 0 0 1 .3.91l-3.74 3.64a2.1 2.1 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.1 2.1 0 0 0-1.97 0L6.4 21a.53.53 0 0 1-.77-.56l.88-5.14a2.1 2.1 0 0 0-.61-1.88L2.16 9.79a.53.53 0 0 1 .29-.9l5.17-.76a2.1 2.1 0 0 0 1.6-1.16z" }
+            }
+        },
+        Fit::Mixed => rsx! {
+            svg {
+                class: "i",
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                "stroke-linecap": "round",
+                "stroke-linejoin": "round",
+                circle { cx: "12", cy: "12", r: "10" }
+                path { d: "M12 6v6l4 2" }
+            }
+        },
+        Fit::Misaligned => rsx! {
+            svg {
+                class: "i",
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                "stroke-linecap": "round",
+                "stroke-linejoin": "round",
+                path { d: "M18 6 6 18M6 6l12 12" }
+            }
+        },
+    }
+}
 
 #[component]
 pub fn FitCard(index: usize) -> Element {
@@ -52,6 +95,7 @@ pub fn FitCard(index: usize) -> Element {
             },
 
             div { class: "card__top",
+                div { class: "rune", "aria-hidden": "true", {rune(rec.fit)} }
                 h2 { class: "card__name", "{name}" }
                 span { class: "ticker", "{ticker}" }
                 span { class: "badge", "{label}" }

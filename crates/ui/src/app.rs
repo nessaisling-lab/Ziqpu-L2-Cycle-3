@@ -17,10 +17,6 @@ use crate::state::{build_session, AppCtx, Phase};
 /// the brand always apply.
 const CSS: &str = include_str!("../assets/ziqpu.css");
 
-/// The header brand mark — the Nisaba glyph, recolored to gold. Embedded as raw SVG markup because
-/// its masks/filters/gradients don't translate cleanly to RSX.
-const MARK_SVG: &str = include_str!("../assets/mark.svg");
-
 /// The real 4-beat sequence, in order. Rendered as the `.steps` rail with `aria-current` on the
 /// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
 const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefing"];
@@ -57,12 +53,37 @@ pub fn App() -> Element {
         // Inlined stylesheet, baked into the binary — see `CSS` above for why this isn't `asset!()`.
         style { dangerous_inner_html: CSS }
 
+        // The faint cuneiform watermark — a fixed, rotated ground layer behind everything. Rendered
+        // in the bundled Noto Sans Cuneiform face (see ziqpu.css) so the glyphs actually draw.
+        div { class: "cuni-wm", "aria-hidden": "true",
+            "𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺 𒀭 𒉀 𒁾 𒊺"
+        }
+
         div { class: "wrap",
             header {
                 div { class: "brand",
-                    // The brand mark — the gold Nisaba glyph, embedded as raw SVG so its
-                    // masks/filters survive intact.
-                    div { class: "mark", "aria-hidden": "true", dangerous_inner_html: MARK_SVG }
+                    // The brand mark — the gold 8-ray star, drawn inline (simple line rays + a
+                    // center dot, stroked in --gold) so it recolors with the theme.
+                    div { class: "mark", "aria-hidden": "true",
+                        svg {
+                            width: "24",
+                            height: "24",
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "var(--gold)",
+                            "stroke-width": "1.5",
+                            "stroke-linecap": "round",
+                            line { x1: "12", y1: "12", x2: "12", y2: "2.3" }
+                            line { x1: "12", y1: "12", x2: "12", y2: "21.7" }
+                            line { x1: "12", y1: "12", x2: "2.3", y2: "12" }
+                            line { x1: "12", y1: "12", x2: "21.7", y2: "12" }
+                            line { x1: "12", y1: "12", x2: "5.5", y2: "5.5" }
+                            line { x1: "12", y1: "12", x2: "18.5", y2: "5.5" }
+                            line { x1: "12", y1: "12", x2: "5.5", y2: "18.5" }
+                            line { x1: "12", y1: "12", x2: "18.5", y2: "18.5" }
+                            circle { cx: "12", cy: "12", r: "1.6", fill: "var(--gold)", stroke: "none" }
+                        }
+                    }
                     div {
                         h1 { class: "word", "Ziqpu" }
                         div { class: "tagline", "the ledger of the sky · measured, not fate" }
