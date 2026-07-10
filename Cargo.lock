@@ -47,6 +47,7 @@ dependencies = [
  "chrono-tz",
  "engine",
  "ephemeris",
+ "serde",
  "serde_json",
 ]
 
@@ -548,6 +549,7 @@ checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
  "num-traits",
+ "serde",
  "windows-link",
 ]
 
@@ -559,6 +561,7 @@ checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
 dependencies = [
  "chrono",
  "phf 0.12.1",
+ "serde",
 ]
 
 [[package]]
@@ -5954,6 +5957,7 @@ dependencies = [
  "dioxus",
  "futures-util",
  "geo",
+ "serde_json",
  "tickers",
 ]
 

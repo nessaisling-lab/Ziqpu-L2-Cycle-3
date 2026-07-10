@@ -74,11 +74,15 @@ pub struct AppCtx {
     /// Tickers whose prose reading is still being fetched off-thread — each such card shows a
     /// shimmer placeholder until its reading arrives.
     pub pending: Signal<std::collections::HashSet<String>>,
-    /// The event-loop-thread coroutine that receives `(ticker, prose)` results from the worker
-    /// thread and writes them back into `recs`/`pending`. `Coroutine<T>` is `Copy`, and its
-    /// `tx()` yields a `Send` sender the worker thread can hold (Signals are `!Send`, so they never
-    /// cross the thread boundary — only this channel does).
-    pub reader: Coroutine<(String, String)>,
+    /// Per-ticker provenance of the finished reading: `Some(model)` when the OpenRouter/OpenAI-compat
+    /// API produced the prose (the live model id), `None` when it fell back to the deterministic
+    /// template. Drives the card's live/offline badge so it is unmistakable whether the API worked.
+    pub sources: Signal<HashMap<String, Option<String>>>,
+    /// The event-loop-thread coroutine that receives `(ticker, prose, live_model)` results from the
+    /// worker thread and writes them back into `recs`/`sources`/`pending`. `Coroutine<T>` is `Copy`,
+    /// and its `tx()` yields a `Send` sender the worker thread can hold (Signals are `!Send`, so they
+    /// never cross the thread boundary — only this channel does).
+    pub reader: Coroutine<(String, String, Option<String>)>,
 }
 
 /// Render a graded tool call in the Backstage's "tool order" voice — lowercase, call-shaped
@@ -159,9 +163,11 @@ pub fn run_recommend(mut ctx: AppCtx) {
                 continue;
             };
             let fit = Fit::from_score(m.score);
-            let prose = agents::reading_for(m, fit, &name);
+            // `reading_for` returns `(prose, live_model_id)` — `Some(model)` when the API produced
+            // the prose, `None` on template fallback. Thread the source through so the card can badge it.
+            let (prose, model) = agents::reading_for(m, fit, &name);
             // If the UI is gone (receiver dropped), this send just fails — nothing to do.
-            let _ = tx.unbounded_send((ticker, prose));
+            let _ = tx.unbounded_send((ticker, prose, model));
         }
     });
 }

@@ -23,32 +23,32 @@ use std::process::{Command, Stdio};
 const UNGASAGA_SYSTEM: &str = "\
 You are Ungasaga, vizier of Nisaba — the interpreter of Ziqpu. You are a warm, precise, and \
 UNFLINCHING steward of the ledger of the sky; never an oracle, never a fortune-teller. You are \
-given exact measures that another vizier already computed — you do not compute, you interpret, and \
-you interpret with conviction.
+given exact measures that another vizier already computed — you do not compute, you interpret.
 
-Commit. A reading that hedges everything says nothing and carries no weight. State the \
-ASTROLOGICAL fit of the two charts plainly, with weight, and stake yourself on it: name what the \
-contacts actually do, be vivid and specific, and end the fit beat with a staked line — e.g. \
-\"I'd stake this reading on <band>.\" Do not drown the verdict in maybes; the stakes are the point.
+Write for a normal person, not an astrologer. Your reading is warm, plain, evocative prose that \
+anyone gets on first read — the feeling of the fit, in everyday language. It should read like a \
+proper horoscope, not a technical printout. The raw astrological detail (aspect names, orbs, \
+degrees) lives in a separate Backstage panel the reader can open — so it must NEVER appear in your \
+reading. Do not name aspects (trine, square, opposition, conjunction), and never state an orb or a \
+degree. Translate every contact into human terms instead: drive meeting restraint, ease between \
+how you feel and what you value, and so on.
 
-Every reading follows three beats:
-1) measured — restate the actual aspects you were given, plainly.
-2) meaning — what tradition reads into them, marked clearly as tradition and stated with \
-conviction, never as fact or market prediction.
-3) reminder — that this is a symbolic reflection of how the charts aspect, not a prediction, and \
-not financial advice.
+Commit. A reading that hedges everything says nothing and carries no weight. State the fit of the \
+two charts plainly, with weight, and stake yourself on it — e.g. \"I'd stake the read right here.\" \
+Do not drown the verdict in maybes; the staked conviction is the point. But your conviction is only \
+ever about the FIT of the two charts — never about a trade, a price, or a market.
 
 Guardrails you never cross: never give financial/medical/legal advice; never emit a buy/sell/hold \
 signal or a price expectation; never predict a market or a stock's direction; never present \
 interpretation as prediction or guarantee; never claim astrology predicts markets — the tradition \
-is a lens, not proof; never invent a measure you were not given. Your conviction is only ever about \
-the FIT of two charts — you stake a verdict on that fit, and never on a trade or a price.
+is a lens, not proof; never invent a measure you were not given.
 
 Output ONLY the reading, in exactly this shape, with no preamble and no meta-commentary:
 FIT: <band> (<score> / 100) — <name>
-  measured: <the aspects, in one plain clause each, separated by ';'>
-  meaning: tradition reads <one warm, committed sentence>.
-  verdict: I'd stake this reading on <band> — <one specific, unhedged line about the fit>.
+<one or two sentences of warm, plain prose that name the fit and stake a verdict on it — no aspect \
+names, no orbs, no degrees>
+  why: <one plain sentence naming the single strongest dynamic in human terms — e.g. 'the \
+strongest thread is a tense one, between your drive and its caution'>
   [GROUNDED (<source>): <the real signals, plainly>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
@@ -124,10 +124,17 @@ impl AnthropicInterpreter {
         let text = text.trim();
         (!text.is_empty()).then(|| text.to_string())
     }
-}
 
-impl Interpreter for AnthropicInterpreter {
-    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+    /// The live model id this interpreter calls (for an in-app "who wrote this" badge).
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+
+    /// The live fit read **without** the template fallback — `Some(prose)` only when the model
+    /// actually ran and returned non-empty text, `None` on any failure. Lets a caller tell whether
+    /// the words are the model's or the deterministic template's (which [`Interpreter::fit_read`]
+    /// hides by design). Same prompt as `fit_read`.
+    pub fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
         let prompt = format!(
             "Choice: {name}. Fit band: {} ({} / 100).\nMeasures (tightest contacts first):\n{}\n\nWrite the fit read (no grounded signals available).",
             fit.label(),
@@ -135,6 +142,12 @@ impl Interpreter for AnthropicInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
+    }
+}
+
+impl Interpreter for AnthropicInterpreter {
+    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+        self.try_fit_read(measures, fit, name)
             .unwrap_or_else(|| self.fallback.fit_read(measures, fit, name))
     }
 
@@ -213,10 +226,17 @@ impl OpenAiCompatInterpreter {
             user_prompt,
         )
     }
-}
 
-impl Interpreter for OpenAiCompatInterpreter {
-    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+    /// The live model id this interpreter calls (for an in-app "who wrote this" badge).
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+
+    /// The live fit read **without** the template fallback — `Some(prose)` only when the model
+    /// actually ran and returned non-empty text, `None` on any failure. Lets a caller tell whether
+    /// the words are the model's or the deterministic template's (which [`Interpreter::fit_read`]
+    /// hides by design). Same prompt as `fit_read`.
+    pub fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
         let prompt = format!(
             "Choice: {name}. Fit band: {} ({} / 100).\nMeasures (tightest contacts first):\n{}\n\nWrite the fit read (no grounded signals available).",
             fit.label(),
@@ -224,6 +244,12 @@ impl Interpreter for OpenAiCompatInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
+    }
+}
+
+impl Interpreter for OpenAiCompatInterpreter {
+    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+        self.try_fit_read(measures, fit, name)
             .unwrap_or_else(|| self.fallback.fit_read(measures, fit, name))
     }
 
@@ -280,16 +306,27 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
 /// template, and returns an **owned** `String`. It borrows nothing thread-unsafe and can be called
 /// straight from a `std::thread`.
 ///
-/// With **no** API keys set it returns byte-identical [`TemplateInterpreter::fit_read`], so the
-/// offline demo and CI stay deterministic.
-pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> String {
+/// Returns `(prose, source)` where `source` is the live model id that actually wrote the reading,
+/// or `None` when the deterministic template wrote it — so the UI can show a truthful "who wrote
+/// this" badge instead of silently masking a failed live call. Precedence: OpenAI-compat /
+/// OpenRouter, then Anthropic; a configured model whose live call *fails* falls through to the next
+/// source (and finally the template), never a silent stall.
+///
+/// With **no** API keys set it returns exactly
+/// `(TemplateInterpreter.fit_read(measures, fit, name), None)`, so the offline demo and CI stay
+/// deterministic.
+pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> (String, Option<String>) {
     if let Some(interp) = OpenAiCompatInterpreter::from_env() {
-        interp.fit_read(measures, fit, name)
-    } else if let Some(interp) = AnthropicInterpreter::from_env() {
-        interp.fit_read(measures, fit, name)
-    } else {
-        TemplateInterpreter.fit_read(measures, fit, name)
+        if let Some(prose) = interp.try_fit_read(measures, fit, name) {
+            return (prose, Some(interp.model().to_string()));
+        }
     }
+    if let Some(interp) = AnthropicInterpreter::from_env() {
+        if let Some(prose) = interp.try_fit_read(measures, fit, name) {
+            return (prose, Some(interp.model().to_string()));
+        }
+    }
+    (TemplateInterpreter.fit_read(measures, fit, name), None)
 }
 
 /// The tightest few contacts, one per line, for the model to read.
@@ -387,9 +424,14 @@ mod tests {
             std::env::remove_var(k);
         }
         let m = measures();
+        let (prose, source) = reading_for(&m, Fit::Aligned, "Apple");
         assert_eq!(
-            reading_for(&m, Fit::Aligned, "Apple"),
+            prose,
             TemplateInterpreter.fit_read(&m, Fit::Aligned, "Apple"),
+        );
+        assert_eq!(
+            source, None,
+            "no keys → the template wrote it, source is None"
         );
     }
 

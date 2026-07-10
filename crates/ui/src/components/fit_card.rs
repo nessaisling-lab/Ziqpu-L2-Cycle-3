@@ -51,6 +51,44 @@ fn rune(fit: Fit) -> Element {
     }
 }
 
+/// One swaying wheat stalk — a vertical stem with paired grain kernels up the top third, stroked and
+/// filled in `--gold`. Wrapped in an outer `<g>` that statically translates it into place; the inner
+/// `.stalk` group is what the CSS `sway` animation rotates about its base (Nisaba, goddess of grain).
+fn wheat_stalk(cls: &str, dx: f32) -> Element {
+    // Kernel row centers down the stem's top third; each row gets a left + right teardrop.
+    let kernels = [21.0_f32, 28.0, 35.0, 42.0];
+    let pods = kernels
+        .iter()
+        .enumerate()
+        .flat_map(|(i, &y)| {
+            let lt = format!("rotate(-34 20 {y})");
+            let rt = format!("rotate(34 28 {y})");
+            [
+                rsx! { ellipse { key: "l{i}", cx: "20", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--gold)", opacity: "0.9", transform: "{lt}" } },
+                rsx! { ellipse { key: "r{i}", cx: "28", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--gold)", opacity: "0.9", transform: "{rt}" } },
+            ]
+        })
+        .collect::<Vec<_>>();
+    let translate = format!("translate({dx} 0)");
+    rsx! {
+        g { transform: "{translate}",
+            g { class: "stalk {cls}",
+                // the stem
+                path {
+                    d: "M24 74 C24 60 24 44 24 18",
+                    fill: "none",
+                    stroke: "var(--gold)",
+                    "stroke-width": "1.6",
+                    "stroke-linecap": "round",
+                }
+                // crowning kernel at the tip
+                ellipse { cx: "24", cy: "14", rx: "2.6", ry: "5.4", fill: "var(--gold)" }
+                {pods.into_iter()}
+            }
+        }
+    }
+}
+
 #[component]
 pub fn FitCard(index: usize) -> Element {
     let ctx = use_context::<AppCtx>();
@@ -70,23 +108,28 @@ pub fn FitCard(index: usize) -> Element {
     let label = rec.fit.label();
     let name = rec.name.clone();
     let ticker = rec.choice.clone();
-    let reading = rec.reading.clone();
+    // The card header already shows band + score + name, so strip a leading redundant
+    // "FIT: <band> (score) — name" line from the prose if the interpreter emitted one; keep the
+    // warm reading + why + REMINDER intact.
+    let reading = {
+        let r = rec.reading.clone();
+        match r.split_once('\n') {
+            Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
+                rest.trim_start().to_string()
+            }
+            _ => r,
+        }
+    };
     let score = rec.score;
+    // Provenance of the finished reading: Some(model) => live API, None => template fallback. Only
+    // meaningful once the fill has landed (i.e. not pending).
+    let source_model = ctx.sources.read().get(&ticker).cloned().flatten();
     let card_cls = if is_selected {
         "card card--fit card--selected"
     } else {
         "card card--fit"
     };
     let choice = rec.choice.clone();
-
-    // The measured line binds to the tightest contacts (Measures.top), flowing in lapis / friction
-    // in terracotta — the "data" half of the card's typographic duality.
-    let tops = ctx
-        .measures
-        .read()
-        .get(&ticker)
-        .map(|m| m.top.clone())
-        .unwrap_or_default();
 
     rsx! {
         article {
@@ -111,29 +154,34 @@ pub fn FitCard(index: usize) -> Element {
             }
 
             if is_pending {
-                p { class: "reading reading-loading", "Consulting the viziers…" }
+                // The grain-in-the-wind loader — a small field of gold wheat stalks swaying while the
+                // vizier's reading is fetched. Static upright fallback under prefers-reduced-motion.
+                div { class: "wheat-loader",
+                    svg {
+                        class: "wheat",
+                        view_box: "0 0 96 84",
+                        fill: "none",
+                        "aria-hidden": "true",
+                        {wheat_stalk("stalk--a", 4.0)}
+                        {wheat_stalk("stalk--b", 24.0)}
+                        {wheat_stalk("stalk--c", 44.0)}
+                    }
+                    span { class: "wheat-caption", "Consulting the viziers…" }
+                }
             } else {
                 p { class: "reading", "{reading}" }
-            }
-
-            p { class: "measured",
-                if tops.is_empty() {
-                    span { class: "orb", "no close contacts between the two charts" }
-                } else {
-                    {tops.iter().take(3).enumerate().map(|(i, a)| {
-                        let cls = if a.harmonious { "flow" } else { "fric" };
-                        let contact = format!("{} {} {}", a.body_a, a.aspect, a.body_b);
-                        let orb = format!("{:.1}°", a.orb);
-                        let sep = if i > 0 { " · " } else { "" };
-                        rsx! {
-                            span { key: "{i}",
-                                "{sep}"
-                                span { class: "{cls}", "{contact}" }
-                                " "
-                                span { class: "orb", "{orb}" }
-                            }
+                // Live-model provenance badge: lapis/gold "✦ {model} · live" when the API produced the
+                // reading, a muted "○ offline · template" chip when it fell back to the template.
+                match source_model {
+                    Some(model) => rsx! {
+                        span { class: "src-badge src-badge--live",
+                            span { class: "spark", "✦" }
+                            "{model} · live"
                         }
-                    })}
+                    },
+                    None => rsx! {
+                        span { class: "src-badge src-badge--tmpl", "○ offline · template" }
+                    },
                 }
             }
 

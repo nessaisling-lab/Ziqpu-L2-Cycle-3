@@ -22,6 +22,15 @@ const CSS: &str = include_str!("../assets/ziqpu.css");
 /// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
 const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefing"];
 
+/// The `Phase` each step index maps to, so a clicked step (index `i`) can drive `ctx.phase`. Kept
+/// in lockstep with [`STEPS`] and with the `step` derivation below.
+const STEP_PHASES: [Phase; 4] = [
+    Phase::Setup,
+    Phase::Ranked,
+    Phase::Checkpoint,
+    Phase::Briefing,
+];
+
 #[component]
 pub fn App() -> Element {
     // The graded session lives for the whole app, interior-mutable and single-threaded.
@@ -32,15 +41,18 @@ pub fn App() -> Element {
     // `Copy`, so capturing them by move here still leaves copies for the `AppCtx` below.
     let mut recs = use_signal(Vec::<Recommendation>::new);
     let mut pending = use_signal(HashSet::<String>::new);
+    let mut sources = use_signal(HashMap::<String, Option<String>>::new);
 
-    // The event-loop-thread half of the off-thread fill: receive `(ticker, prose)` from the worker
-    // thread and splice each reading back into `recs`, clearing that ticker from `pending`.
+    // The event-loop-thread half of the off-thread fill: receive `(ticker, prose, live_model)` from
+    // the worker thread and splice each reading back into `recs`, record its provenance in `sources`
+    // (Some(model) = live API, None = template), and clear that ticker from `pending`.
     let reader = use_coroutine(
-        move |mut rx: UnboundedReceiver<(String, String)>| async move {
-            while let Some((ticker, prose)) = rx.next().await {
+        move |mut rx: UnboundedReceiver<(String, String, Option<String>)>| async move {
+            while let Some((ticker, prose, model)) = rx.next().await {
                 if let Some(r) = recs.write().iter_mut().find(|r| r.choice == ticker) {
                     r.reading = prose;
                 }
+                sources.write().insert(ticker.clone(), model);
                 pending.write().remove(&ticker);
             }
         },
@@ -49,7 +61,9 @@ pub fn App() -> Element {
     let ctx = AppCtx {
         session,
         phase: use_signal(|| Phase::Setup),
-        seeker: use_signal(demo_seeker),
+        // Restore the last-entered birth chart if one was saved; fall back to the demo seeker on a
+        // missing/corrupt profile (load_seeker never panics — see crate::profile).
+        seeker: use_signal(|| crate::profile::load_seeker().unwrap_or_else(demo_seeker)),
         choices: use_signal(demo_choices),
         recs,
         measures: use_signal(HashMap::new),
@@ -61,6 +75,7 @@ pub fn App() -> Element {
         answer: use_signal(|| None),
         calls: use_signal(Vec::new),
         pending,
+        sources,
         reader,
     };
     use_context_provider(|| ctx.clone());
@@ -130,11 +145,46 @@ pub fn App() -> Element {
 
             nav { class: "steps", role: "tablist", "aria-label": "Reading flow",
                 {STEPS.iter().enumerate().map(|(i, label)| {
-                    let cls = if i < step { "step done" } else { "step" };
+                    // A step is reachable once you have advanced at least to it (i <= step). Reachable
+                    // steps are clickable — they jump back (or to the current) phase without wiping any
+                    // signal (seeker/choices/recs all live on). Steps *after* the current one stay
+                    // non-interactive: you can never skip ahead past the checkpoint.
+                    let reachable = i <= step;
+                    let done = i < step;
+                    let cls = match (done, reachable) {
+                        (true, _) => "step done clickable",
+                        (false, true) => "step clickable",
+                        (false, false) => "step",
+                    };
                     let num = format!("{:02}", i + 1);
                     let current = if i == step { "true" } else { "false" };
+                    // Only a reachable step gets a target phase + interactive affordances.
+                    let target = reachable.then(|| STEP_PHASES[i]);
+                    let mut phase_sig = ctx.phase;
                     rsx! {
-                        div { key: "{i}", class: "{cls}", role: "tab", "aria-current": "{current}",
+                        div {
+                            key: "{i}",
+                            class: "{cls}",
+                            role: "tab",
+                            "aria-current": "{current}",
+                            tabindex: if target.is_some() { "0" } else { "-1" },
+                            onclick: move |_| {
+                                if let Some(p) = target {
+                                    phase_sig.set(p);
+                                }
+                            },
+                            onkeydown: move |e| {
+                                // Enter/Space activate a tab, matching the tablist keyboard contract.
+                                let key = e.key();
+                                let activate = key == Key::Enter
+                                    || matches!(&key, Key::Character(c) if c == " ");
+                                if activate {
+                                    if let Some(p) = target {
+                                        e.prevent_default();
+                                        phase_sig.set(p);
+                                    }
+                                }
+                            },
                             span { class: "n", "{num}" }
                             span { class: "t", "{label}" }
                         }

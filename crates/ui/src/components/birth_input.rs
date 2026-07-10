@@ -274,6 +274,9 @@ pub fn BirthInputForm() -> Element {
                                 if let Ok(moment) = draft_to_moment(
                                     &date_str, &time_str, unknown, &selected, tz_override,
                                 ) {
+                                    // Persist the entered chart so it survives a relaunch (best-effort,
+                                    // never panics — see crate::profile), then drive the graded loop.
+                                    crate::profile::save_seeker(&moment);
                                     ctx.seeker.set(moment);
                                     run_recommend(ctx.clone());
                                 }

@@ -6,6 +6,7 @@
 
 mod app;
 mod components;
+mod profile;
 mod state;
 
 use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
