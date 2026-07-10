@@ -148,6 +148,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "astro"
+version = "0.0.0"
+dependencies = [
+ "engine",
+ "ephemeris",
+]
+
+[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
