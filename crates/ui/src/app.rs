@@ -11,6 +11,16 @@ use dioxus::prelude::*;
 use crate::components::{Briefing, Checkpoint, Guardrail, Ranked, Setup};
 use crate::state::{build_session, AppCtx, Phase};
 
+/// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
+/// than linked via `asset!()`: the Dioxus asset server only resolves under `dx bundle`, so a plain
+/// `cargo build --release` exe would 404 the linked stylesheet and render unstyled. Inlining makes
+/// the brand always apply.
+const CSS: &str = include_str!("../assets/ziqpu.css");
+
+/// The header brand mark — the Nisaba glyph, recolored to gold. Embedded as raw SVG markup because
+/// its masks/filters/gradients don't translate cleanly to RSX.
+const MARK_SVG: &str = include_str!("../assets/mark.svg");
+
 /// The real 4-beat sequence, in order. Rendered as the `.steps` rail with `aria-current` on the
 /// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
 const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefing"];
@@ -44,35 +54,15 @@ pub fn App() -> Element {
     };
 
     rsx! {
-        document::Stylesheet { href: asset!("/assets/ziqpu.css") }
+        // Inlined stylesheet, baked into the binary — see `CSS` above for why this isn't `asset!()`.
+        style { dangerous_inner_html: CSS }
 
         div { class: "wrap",
             header {
                 div { class: "brand",
-                    // The brand mark — a bronze star in a ruled circle, inline so it inherits tokens.
-                    svg {
-                        class: "mark",
-                        view_box: "0 0 40 40",
-                        "aria-hidden": "true",
-                        circle {
-                            cx: "20",
-                            cy: "20",
-                            r: "18.5",
-                            fill: "none",
-                            stroke: "var(--gold)",
-                            "stroke-width": "1",
-                        }
-                        path {
-                            d: "M20 2.5V37.5M2.5 20H37.5",
-                            stroke: "var(--line)",
-                            "stroke-width": "1",
-                        }
-                        path {
-                            d: "M20 6 L23.4 17 L34 17 L25.3 23.8 L28.6 34.5 L20 27.8 L11.4 34.5 L14.7 23.8 L6 17 L16.6 17 Z",
-                            fill: "var(--gold)",
-                        }
-                        circle { cx: "20", cy: "20", r: "2.2", fill: "var(--bg)" }
-                    }
+                    // The brand mark — the gold Nisaba glyph, embedded as raw SVG so its
+                    // masks/filters survive intact.
+                    div { class: "mark", "aria-hidden": "true", dangerous_inner_html: MARK_SVG }
                     div {
                         h1 { class: "word", "Ziqpu" }
                         div { class: "tagline", "the ledger of the sky · measured, not fate" }
