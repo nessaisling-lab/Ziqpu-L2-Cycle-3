@@ -42,6 +42,13 @@ pub fn App() -> Element {
     let mut recs = use_signal(Vec::<Recommendation>::new);
     let mut pending = use_signal(HashSet::<String>::new);
     let mut sources = use_signal(HashMap::<String, Option<String>>::new);
+    // The Raw ⇄ Live display toggle. Pulled out here (rather than inline in the `AppCtx` literal) so
+    // the header button can both read it for its label and flip it on click. Default Live.
+    let mut live_mode = use_signal(|| true);
+    // The Ask box's answer lives here (rather than inline in the `AppCtx` literal) so the
+    // `ask_reader` coroutine below — a hook, which cannot be created inside an event handler — can
+    // capture it and fill an in-flight measured reading once the off-thread prose arrives.
+    let mut answer = use_signal(|| None::<crate::state::AnswerView>);
 
     // The event-loop-thread half of the off-thread fill: receive `(ticker, prose, live_model)` from
     // the worker thread and splice each reading back into `recs`, record its provenance in `sources`
@@ -58,12 +65,55 @@ pub fn App() -> Element {
         },
     );
 
+    // The Ask box's off-thread reader: receive `(ticker, prose)` from the guardrail's worker thread
+    // and splice the prose into the in-flight measured reading — but only if the current answer is
+    // still that same pending reading (a newer question may have replaced it in the meantime).
+    let ask_reader = use_coroutine(
+        move |mut rx: UnboundedReceiver<(String, String)>| async move {
+            while let Some((ticker, prose)) = rx.next().await {
+                let current = answer.read().clone();
+                if let Some(crate::state::AnswerView::Reading {
+                    name,
+                    ticker: t,
+                    label,
+                    pending: true,
+                    ..
+                }) = current
+                {
+                    if t == ticker {
+                        answer.set(Some(crate::state::AnswerView::Reading {
+                            name,
+                            ticker: t,
+                            label,
+                            pending: false,
+                            text: prose,
+                        }));
+                    }
+                }
+            }
+        },
+    );
+
     let ctx = AppCtx {
         session,
         phase: use_signal(|| Phase::Setup),
-        // Restore the last-entered birth chart if one was saved; fall back to the demo seeker on a
-        // missing/corrupt profile (load_seeker never panics — see crate::profile).
-        seeker: use_signal(|| crate::profile::load_seeker().unwrap_or_else(demo_seeker)),
+        // Restore the last-entered birth chart if one was saved and still validates; fall back to the
+        // demo seeker on a missing/corrupt/invalid profile. So the ranked readings compute against the
+        // SAVED chart, not the demo default. `load_profile`/`draft_to_moment` never panic.
+        seeker: use_signal(|| {
+            crate::profile::load_profile()
+                .and_then(|p| {
+                    crate::components::draft_to_moment(
+                        &p.date_str,
+                        &p.time_str,
+                        p.time_unknown,
+                        &p.place(),
+                        None,
+                    )
+                    .ok()
+                })
+                .unwrap_or_else(demo_seeker)
+        }),
         choices: use_signal(demo_choices),
         recs,
         measures: use_signal(HashMap::new),
@@ -72,11 +122,14 @@ pub fn App() -> Element {
         gate_proof: use_signal(|| None),
         signals: use_signal(|| None),
         briefing: use_signal(|| None),
-        answer: use_signal(|| None),
+        live_mode,
+        raw_readings: use_signal(HashMap::new),
+        answer,
         calls: use_signal(Vec::new),
         pending,
         sources,
         reader,
+        ask_reader,
     };
     use_context_provider(|| ctx.clone());
 
@@ -128,18 +181,34 @@ pub fn App() -> Element {
                         div { class: "tagline", "the ledger of the sky · measured, not fate" }
                     }
                 }
-                button {
-                    class: "theme",
-                    r#type: "button",
-                    onclick: move |_| {
-                        // Flip data-theme on the document root, mirroring the mockup's toggle.
-                        let _ = document::eval(
-                            "const r=document.documentElement;\
-                             const e=r.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');\
-                             r.setAttribute('data-theme', e==='dark'?'light':'dark');",
-                        );
-                    },
-                    "◐ theme"
+                div { class: "header-actions",
+                    // Raw ⇄ Live display toggle — reads the same computed readings both ways, so
+                    // flipping is instant (no re-fetch). Live = streamed model prose; Raw = template.
+                    button {
+                        class: if *live_mode.read() { "mode-toggle mode-toggle--live" } else { "mode-toggle mode-toggle--raw" },
+                        r#type: "button",
+                        title: "Toggle between the live model reading and the raw local template",
+                        "aria-pressed": if *live_mode.read() { "true" } else { "false" },
+                        onclick: move |_| {
+                            let now = *live_mode.read();
+                            live_mode.set(!now);
+                        },
+                        if *live_mode.read() { "✦ live" } else { "○ raw" }
+                        span { class: "mode-toggle__hint", "raw ⇄ live" }
+                    }
+                    button {
+                        class: "theme",
+                        r#type: "button",
+                        onclick: move |_| {
+                            // Flip data-theme on the document root, mirroring the mockup's toggle.
+                            let _ = document::eval(
+                                "const r=document.documentElement;\
+                                 const e=r.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');\
+                                 r.setAttribute('data-theme', e==='dark'?'light':'dark');",
+                            );
+                        },
+                        "◐ theme"
+                    }
                 }
             }
 

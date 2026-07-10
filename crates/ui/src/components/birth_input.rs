@@ -119,12 +119,31 @@ pub fn draft_to_moment(
 pub fn BirthInputForm() -> Element {
     let ctx = use_context::<AppCtx>();
 
-    let mut date_str = use_signal(String::new);
-    let mut time_str = use_signal(String::new);
-    let mut time_unknown = use_signal(|| false);
-    let mut query = use_signal(String::new);
+    // Repopulate the form from the last saved draft (best-effort; loaded once on mount). A missing or
+    // corrupt profile yields `None`, so every field simply starts empty — the form still works.
+    let saved = use_hook(crate::profile::load_profile);
+    let mut date_str = use_signal(|| {
+        saved
+            .as_ref()
+            .map(|s| s.date_str.clone())
+            .unwrap_or_default()
+    });
+    let mut time_str = use_signal(|| {
+        saved
+            .as_ref()
+            .map(|s| s.time_str.clone())
+            .unwrap_or_default()
+    });
+    let mut time_unknown = use_signal(|| saved.as_ref().map(|s| s.time_unknown).unwrap_or(false));
+    let mut query = use_signal(|| {
+        saved
+            .as_ref()
+            .and_then(|s| s.place.as_ref())
+            .map(|p| p.name.clone())
+            .unwrap_or_default()
+    });
     let mut results = use_signal(Vec::<geo::Place>::new);
-    let mut selected = use_signal(|| None::<geo::Place>);
+    let mut selected = use_signal(|| saved.as_ref().and_then(|s| s.place()));
     let mut tz_override = use_signal(|| None::<Tz>);
     let mut show_errors = use_signal(|| false);
 
@@ -274,9 +293,17 @@ pub fn BirthInputForm() -> Element {
                                 if let Ok(moment) = draft_to_moment(
                                     &date_str, &time_str, unknown, &selected, tz_override,
                                 ) {
-                                    // Persist the entered chart so it survives a relaunch (best-effort,
+                                    // Persist the full draft (not just the moment) so the form
+                                    // repopulates exactly as entered after a relaunch (best-effort,
                                     // never panics — see crate::profile), then drive the graded loop.
-                                    crate::profile::save_seeker(&moment);
+                                    crate::profile::save_profile(&crate::profile::SavedProfile {
+                                        date_str: date_str.clone(),
+                                        time_str: time_str.clone(),
+                                        time_unknown: unknown,
+                                        place: selected
+                                            .as_ref()
+                                            .map(crate::profile::SavedPlace::from_place),
+                                    });
                                     ctx.seeker.set(moment);
                                     run_recommend(ctx.clone());
                                 }

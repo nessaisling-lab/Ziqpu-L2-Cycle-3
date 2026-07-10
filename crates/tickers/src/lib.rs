@@ -89,6 +89,149 @@ fn rank(r: &Row, q: &str) -> Option<u8> {
     }
 }
 
+/// Common short English words that must never resolve to a ticker, even though some are real symbols
+/// (e.g. `AM`, `IT`, `A`) — so free text like "am I compatible with …" never spuriously matches a
+/// company on a stray function word.
+const STOPWORDS: &[&str] = &[
+    "a", "am", "an", "and", "any", "are", "as", "at", "be", "but", "buy", "by", "can", "do", "for",
+    "go", "he", "her", "here", "him", "his", "how", "i", "if", "in", "is", "it", "its", "me", "my",
+    "no", "not", "of", "on", "or", "out", "sell", "she", "should", "so", "the", "them", "then",
+    "this", "to", "up", "us", "we", "what", "when", "with", "you", "your", "about", "nothing",
+];
+
+/// Corporate-name noise tokens stripped from a company name's ends to reach its distinctive core, so
+/// "Coca-Cola Company" matches the text "coca-cola" and "Apple Inc." matches "apple".
+const NAME_NOISE: &[&str] = &[
+    "inc",
+    "incorporated",
+    "corp",
+    "corporation",
+    "co",
+    "company",
+    "companies",
+    "ltd",
+    "limited",
+    "plc",
+    "llc",
+    "lp",
+    "holdings",
+    "holding",
+    "group",
+    "common",
+    "stock",
+    "ordinary",
+    "shares",
+    "share",
+    "class",
+    "sa",
+    "nv",
+    "ag",
+    "se",
+    "the",
+    "and",
+];
+
+/// Find a company in free text — the seam that lets a chat surface ("am I compatible with
+/// Coca-Cola?") resolve to a datable symbol. Two passes, most-precise first:
+///
+/// 1. a **whole-word ticker** match (e.g. `KO`, `AAPL`), case-insensitive, in reading order —
+///    short/common words ([`STOPWORDS`], and anything under two characters) are ignored so a stray
+///    "I"/"a"/"am" never resolves to a symbol;
+/// 2. otherwise a **company-name** match — the row whose distinctive core name (corporate suffixes
+///    stripped) appears as a whole phrase in the text, preferring the longest such name and
+///    tie-breaking lexicographically by ticker.
+///
+/// Returns `None` when nothing distinctive matches. Pure, dependency-free, and deterministic.
+pub fn find_in_text(text: &str) -> Option<TickerRow> {
+    // Pass 1 — whole-word ticker symbol, in reading order.
+    for raw in text.split_whitespace() {
+        let tok = raw.trim_matches(|c: char| !c.is_alphanumeric());
+        if tok.len() < 2 {
+            continue;
+        }
+        let lc = tok.to_lowercase();
+        if STOPWORDS.contains(&lc.as_str()) {
+            continue;
+        }
+        if let Some(r) = rows().iter().find(|r| r.ticker_lc == lc) {
+            return Some(TickerRow {
+                ticker: r.ticker.clone(),
+                name: r.name.clone(),
+            });
+        }
+    }
+
+    // Pass 2 — company core name as a whole phrase in the text. Prefer the longest (most specific)
+    // core, tie-broken by lexicographically smallest ticker, so the result is deterministic.
+    let hay = normalize(text);
+    let mut best: Option<(usize, &Row)> = None;
+    for r in rows() {
+        let core = core_name(&r.name_lc);
+        if core.len() < 4 {
+            continue;
+        }
+        if !phrase_contains(&hay, &core) {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((blen, brow)) => {
+                core.len() > blen || (core.len() == blen && r.ticker < brow.ticker)
+            }
+        };
+        if better {
+            best = Some((core.len(), r));
+        }
+    }
+    best.map(|(_, r)| TickerRow {
+        ticker: r.ticker.clone(),
+        name: r.name.clone(),
+    })
+}
+
+/// Lowercase `s`, fold every run of non-alphanumeric characters to a single space, and bracket the
+/// result with spaces — so a needle padded the same way matches only on whole-word boundaries.
+fn normalize(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push(' ');
+    let mut prev_space = true;
+    for c in s.chars() {
+        if c.is_alphanumeric() {
+            out.extend(c.to_lowercase());
+            prev_space = false;
+        } else if !prev_space {
+            out.push(' ');
+            prev_space = true;
+        }
+    }
+    if !prev_space {
+        out.push(' ');
+    }
+    out
+}
+
+/// The distinctive core of a (already-lowercased) company name: normalized, with a leading "the" and
+/// any trailing corporate-noise tokens ([`NAME_NOISE`]) removed. Returned space-trimmed.
+fn core_name(name_lc: &str) -> String {
+    let norm = normalize(name_lc);
+    let mut toks: Vec<&str> = norm.split_whitespace().collect();
+    while toks.first() == Some(&"the") {
+        toks.remove(0);
+    }
+    while toks.last().is_some_and(|t| NAME_NOISE.contains(t)) {
+        toks.pop();
+    }
+    toks.join(" ")
+}
+
+/// Whether `core` appears as a whole-word phrase in the space-bracketed haystack `hay`.
+fn phrase_contains(hay: &str, core: &str) -> bool {
+    if core.is_empty() {
+        return false;
+    }
+    hay.contains(&format!(" {core} "))
+}
+
 /// Resolve a ticker (case-insensitive) to a datable [`Choice`]. The birth moment is the IPO:
 /// `ipo_date` at `ipo_time` (all rows list `09:30:00`) in `America/New_York` — every symbol here is
 /// US-listed — at the exchange's coordinates. `cik`/`wiki` are `None` (the full universe has no
@@ -220,6 +363,38 @@ mod tests {
     fn choice_is_case_insensitive_and_none_for_unknown() {
         assert!(choice("aapl").is_some(), "lookup must be case-insensitive");
         assert!(choice("__no_such_ticker__").is_none());
+    }
+
+    #[test]
+    fn find_in_text_matches_company_name() {
+        // "Coca-Cola" is not a ticker token; it resolves by company name to KO — and the leading
+        // "am"/"I" (both real-ish function words; AM is even a real ticker) must not steal the match.
+        let r = find_in_text("am I compatible with Coca-Cola").expect("should find KO by name");
+        assert_eq!(r.ticker, "KO");
+    }
+
+    #[test]
+    fn find_in_text_prefers_whole_word_ticker() {
+        let r = find_in_text("how about AAPL").expect("should find AAPL by ticker");
+        assert_eq!(r.ticker, "AAPL");
+    }
+
+    #[test]
+    fn find_in_text_returns_none_when_nothing_matches() {
+        // Only function words and a common word ("nothing") — no ticker, no company name.
+        assert!(find_in_text("should I buy nothing here").is_none());
+    }
+
+    #[test]
+    fn find_in_text_ignores_bare_function_words() {
+        // "I"/"a"/"it" are (or map to) real tickers, but as stray words they must never resolve.
+        assert!(find_in_text("I a it").is_none());
+    }
+
+    #[test]
+    fn find_in_text_finds_apple_by_name() {
+        let r = find_in_text("does apple fit me").expect("apple resolves by name");
+        assert_eq!(r.ticker, "AAPL");
     }
 
     #[test]

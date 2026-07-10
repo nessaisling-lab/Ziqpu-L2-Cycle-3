@@ -193,6 +193,19 @@ fn why_line(measures: &Measures) -> String {
     }
 }
 
+/// One neutral, hedged "this is what reality says:" sentence for the grounded beat. The deterministic
+/// template cannot read the *content* of the filings, so it must never characterize them (no "lean
+/// steady", no direction, no price) — that would be an invented claim that could contradict the real
+/// `GROUNDED (...)` items printed right above it. Instead it points at the actual record as the thing
+/// to weigh. (The live model, which does read the signal text, writes a substantive reality sentence.)
+fn reality_sentence(grounded: &GroundedSignals) -> &'static str {
+    if grounded.items.is_empty() {
+        "this is what reality says: the record is quiet right now — nothing on file to set beside the chart"
+    } else {
+        "this is what reality says: the filings above are the actual record — weigh those, not the sky, for the numbers"
+    }
+}
+
 /// Deterministic templated interpreter — the default.
 #[derive(Default)]
 pub struct TemplateInterpreter;
@@ -258,13 +271,14 @@ impl Interpreter for TemplateInterpreter {
             grounded.items.join("; ")
         };
         format!(
-            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}\n  {REMINDER}",
             fit.label(),
             measures.score,
             warm_prose(fit),
             why_line(measures),
             grounded.source,
             signals,
+            reality_sentence(grounded),
         )
     }
 
@@ -363,6 +377,63 @@ mod tests {
         }
         // The verdict must end on the guardrail.
         assert!(verdict.trim_end().ends_with("Not financial advice."));
+    }
+
+    #[test]
+    fn grounded_brief_states_reality_beside_the_read() {
+        let interp = TemplateInterpreter;
+        let m = measures();
+
+        // With signals present → a neutral reality sentence that points at the real record WITHOUT
+        // characterizing the filings (the template can't read them, so it must not invent "steady"
+        // etc. — that could contradict the GROUNDED items above). Guardrail + GROUNDED intact.
+        let with_signals = interp.grounded_brief(
+            &m,
+            Fit::Aligned,
+            "Apple",
+            &GroundedSignals {
+                choice: "AAPL".into(),
+                source: "SEC EDGAR".into(),
+                items: vec!["10-Q filed 2024-05-02".into()],
+            },
+        );
+        assert!(
+            with_signals.contains("this is what reality says:"),
+            "missing reality framing: {with_signals}"
+        );
+        assert!(
+            with_signals.contains("the actual record"),
+            "reality sentence should point at the record, not characterize it: {with_signals}"
+        );
+        // It must NOT invent an un-grounded characterization of the numbers.
+        assert!(
+            !with_signals.contains("lean steady") && !with_signals.contains("nothing dramatic"),
+            "template must not invent a filings characterization: {with_signals}"
+        );
+        assert!(
+            with_signals.contains("GROUNDED (SEC EDGAR)"),
+            "{with_signals}"
+        );
+        assert!(
+            with_signals.to_lowercase().contains("not financial advice"),
+            "missing guardrail: {with_signals}"
+        );
+
+        // With no signals → the quiet-record reality sentence.
+        let empty = interp.grounded_brief(
+            &m,
+            Fit::Aligned,
+            "Apple",
+            &GroundedSignals {
+                choice: "AAPL".into(),
+                source: "SEC EDGAR".into(),
+                items: vec![],
+            },
+        );
+        assert!(
+            empty.contains("this is what reality says: the record is quiet right now"),
+            "missing quiet-record reality sentence: {empty}"
+        );
     }
 
     /// A distinctive interpreter whose overrides return sentinels absent from the default bodies.

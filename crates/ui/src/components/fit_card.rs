@@ -52,8 +52,10 @@ fn rune(fit: Fit) -> Element {
 }
 
 /// One swaying wheat stalk — a vertical stem with paired grain kernels up the top third, stroked and
-/// filled in `--gold`. Wrapped in an outer `<g>` that statically translates it into place; the inner
-/// `.stalk` group is what the CSS `sway` animation rotates about its base (Nisaba, goddess of grain).
+/// filled in the malachite/green brand token (`--band-strong`), so the loader reads as a stalk of
+/// green grain bending in the wind. Wrapped in an outer `<g>` that statically translates it into
+/// place; the inner `.stalk` group is what the CSS `sway` animation rotates about its base (Nisaba,
+/// goddess of grain).
 fn wheat_stalk(cls: &str, dx: f32) -> Element {
     // Kernel row centers down the stem's top third; each row gets a left + right teardrop.
     let kernels = [21.0_f32, 28.0, 35.0, 42.0];
@@ -64,8 +66,8 @@ fn wheat_stalk(cls: &str, dx: f32) -> Element {
             let lt = format!("rotate(-34 20 {y})");
             let rt = format!("rotate(34 28 {y})");
             [
-                rsx! { ellipse { key: "l{i}", cx: "20", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--gold)", opacity: "0.9", transform: "{lt}" } },
-                rsx! { ellipse { key: "r{i}", cx: "28", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--gold)", opacity: "0.9", transform: "{rt}" } },
+                rsx! { ellipse { key: "l{i}", cx: "20", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--band-strong)", opacity: "0.9", transform: "{lt}" } },
+                rsx! { ellipse { key: "r{i}", cx: "28", cy: "{y}", rx: "2.6", ry: "5.1", fill: "var(--band-strong)", opacity: "0.9", transform: "{rt}" } },
             ]
         })
         .collect::<Vec<_>>();
@@ -77,12 +79,12 @@ fn wheat_stalk(cls: &str, dx: f32) -> Element {
                 path {
                     d: "M24 74 C24 60 24 44 24 18",
                     fill: "none",
-                    stroke: "var(--gold)",
+                    stroke: "var(--band-strong)",
                     "stroke-width": "1.6",
                     "stroke-linecap": "round",
                 }
                 // crowning kernel at the tip
-                ellipse { cx: "24", cy: "14", rx: "2.6", ry: "5.4", fill: "var(--gold)" }
+                ellipse { cx: "24", cy: "14", rx: "2.6", ry: "5.4", fill: "var(--band-strong)" }
                 {pods.into_iter()}
             }
         }
@@ -100,30 +102,55 @@ pub fn FitCard(index: usize) -> Element {
 
     let selected = *ctx.selected.read();
     let is_selected = selected == index;
-    // While this ticker's prose is still being fetched off-thread, show a shimmer placeholder in
-    // place of the (empty) reading.
-    let is_pending = ctx.pending.read().contains(&rec.choice);
+    // Live vs Raw display mode (a pure display switch — both readings are already computed).
+    let live_mode = *ctx.live_mode.read();
+    // While this ticker's live prose is still being fetched off-thread, show the swaying loader in
+    // place of the (empty) reading. In Raw mode there is nothing to wait for — the template reading is
+    // always present — so the loader never shows.
+    let is_pending = live_mode && ctx.pending.read().contains(&rec.choice);
 
     let band = fit_band_var(rec.fit);
     let label = rec.fit.label();
     let name = rec.name.clone();
     let ticker = rec.choice.clone();
+    // Pick the source text: Live streams the model prose into `rec.reading`; Raw uses the deterministic
+    // local template from `raw_readings` (always present the instant the ranking paints).
+    let raw_text = ctx.raw_readings.read().get(&ticker).cloned();
+    let source_text = if live_mode {
+        rec.reading.clone()
+    } else {
+        raw_text.unwrap_or_else(|| rec.reading.clone())
+    };
     // The card header already shows band + score + name, so strip a leading redundant
     // "FIT: <band> (score) — name" line from the prose if the interpreter emitted one; keep the
     // warm reading + why + REMINDER intact.
-    let reading = {
-        let r = rec.reading.clone();
-        match r.split_once('\n') {
-            Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
-                rest.trim_start().to_string()
-            }
-            _ => r,
+    let reading = match source_text.split_once('\n') {
+        Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
+            rest.trim_start().to_string()
         }
+        _ => source_text,
     };
     let score = rec.score;
     // Provenance of the finished reading: Some(model) => live API, None => template fallback. Only
     // meaningful once the fill has landed (i.e. not pending).
     let source_model = ctx.sources.read().get(&ticker).cloned().flatten();
+    // The "who wrote this" chip. Raw mode: always "○ raw · local" (deterministic template, no model).
+    // Live mode: "✦ {model} · live" when the API produced the prose, else the template-fallback chip.
+    let source_badge = if !live_mode {
+        rsx! { span { class: "src-badge src-badge--tmpl", "○ raw · local" } }
+    } else {
+        match &source_model {
+            Some(model) => rsx! {
+                span { class: "src-badge src-badge--live",
+                    span { class: "spark", "✦" }
+                    "{model} · live"
+                }
+            },
+            None => rsx! {
+                span { class: "src-badge src-badge--tmpl", "○ offline · template" }
+            },
+        }
+    };
     let card_cls = if is_selected {
         "card card--fit card--selected"
     } else {
@@ -170,19 +197,9 @@ pub fn FitCard(index: usize) -> Element {
                 }
             } else {
                 p { class: "reading", "{reading}" }
-                // Live-model provenance badge: lapis/gold "✦ {model} · live" when the API produced the
-                // reading, a muted "○ offline · template" chip when it fell back to the template.
-                match source_model {
-                    Some(model) => rsx! {
-                        span { class: "src-badge src-badge--live",
-                            span { class: "spark", "✦" }
-                            "{model} · live"
-                        }
-                    },
-                    None => rsx! {
-                        span { class: "src-badge src-badge--tmpl", "○ offline · template" }
-                    },
-                }
+                // Provenance badge (computed above): Raw mode is always the muted "○ raw · local" chip;
+                // Live mode is the lapis/gold "✦ {model} · live" or the "○ offline · template" fallback.
+                {source_badge}
             }
 
             Backstage { choice }

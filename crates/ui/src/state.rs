@@ -11,7 +11,7 @@ use std::rc::Rc;
 use agents::{
     ApprovalRequest, BirthMoment, Briefing, Choice, EdgarSource, EngineChartSource, Fit,
     GroundedSignals, GroundedSource, Interpreter, LocalMeasurer, Measures, MockGroundedSource,
-    Recommendation, Session, ToolCall,
+    Recommendation, Session, TemplateInterpreter, ToolCall,
 };
 use dioxus::prelude::*;
 
@@ -28,13 +28,38 @@ pub enum Phase {
     Briefing,
 }
 
-/// Build a session exactly as the terminal demo does (`agents/src/main.rs`): deterministic and
-/// offline unless the operator opts in via env (`ZIQPU_LIVE`, `ANTHROPIC_API_KEY`, `ZIQPU_LOCAL_LLM`).
+/// What the Ask box renders in its answer area. The no-advice guardrail routes a question to exactly
+/// one of these: a **Refusal** (buy/sell/hold — the bold no-advice palette), a plain **Reflection**,
+/// a **Reading** that measures a named company (which fills in off-thread — `pending` shows the
+/// "Consulting the viziers…" state until the prose lands), or a **Nudge** when no company was named.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnswerView {
+    /// The enforced-in-code refusal for an advice-seeking question.
+    Refusal(String),
+    /// A plain reflection (non-advice, no company named-and-measured).
+    Reflection(String),
+    /// A measured reading for a named company. `text` is empty while `pending`, then filled by the
+    /// off-thread reader; `ticker` lets the reader fill only the matching in-flight request.
+    Reading {
+        name: String,
+        ticker: String,
+        label: String,
+        pending: bool,
+        text: String,
+    },
+    /// A helpful nudge — the question named no measurable choice.
+    Nudge(String),
+}
+
+/// Build a session. The grounded briefing shows **real reality by default**: [`EdgarSource`] does a
+/// live keyless SEC EDGAR pull when online and transparently falls back to the bundled recorded
+/// filing fixture when the network is blocked (never a bare mock) — both non-panicking. Set
+/// `ZIQPU_MOCK=1` to force the offline [`MockGroundedSource`] (used by deterministic CI/tests).
 pub fn build_session() -> SessionT {
-    let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_LIVE").is_ok() {
-        Box::new(EdgarSource::default())
-    } else {
+    let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
         Box::new(MockGroundedSource)
+    } else {
+        Box::new(EdgarSource::default())
     };
 
     // Interpreter precedence (OpenAI-compat / OpenRouter → Anthropic → deterministic template).
@@ -67,8 +92,18 @@ pub struct AppCtx {
     pub gate_proof: Signal<Option<String>>,
     pub signals: Signal<Option<GroundedSignals>>,
     pub briefing: Signal<Option<Briefing>>,
-    /// `(is_refusal, message)` from the no-advice guardrail.
-    pub answer: Signal<Option<(bool, String)>>,
+    /// `true` = **Live** (show the streamed model prose in `recs`, with the wheat loader while
+    /// pending); `false` = **Raw** (show the deterministic local template reading from
+    /// [`Self::raw_readings`], instantly). A pure *display* switch — toggling never re-runs the loop
+    /// or re-fetches, because both readings are already computed.
+    pub live_mode: Signal<bool>,
+    /// The deterministic local template reading for every ranked ticker, filled synchronously in
+    /// [`run_recommend`] (no network). Always present the instant the ranking paints, so the Raw view
+    /// renders immediately when the toggle flips.
+    pub raw_readings: Signal<HashMap<String, String>>,
+    /// What the no-advice guardrail is currently showing (refusal, reflection, measured reading, or
+    /// nudge). See [`AnswerView`].
+    pub answer: Signal<Option<AnswerView>>,
     /// The graded session's tool-call order, rendered for the Backstage panel.
     pub calls: Signal<Vec<String>>,
     /// Tickers whose prose reading is still being fetched off-thread — each such card shows a
@@ -83,6 +118,11 @@ pub struct AppCtx {
     /// and its `tx()` yields a `Send` sender the worker thread can hold (Signals are `!Send`, so they
     /// never cross the thread boundary — only this channel does).
     pub reader: Coroutine<(String, String, Option<String>)>,
+    /// The event-loop-thread coroutine that receives `(ticker, prose)` from the Ask box's worker
+    /// thread and fills the in-flight [`AnswerView::Reading`] with the returned prose — so a live
+    /// interpreter call from the guardrail never blocks (freezes) the window. Same `!Send` discipline
+    /// as [`Self::reader`]: only this channel crosses the thread boundary, never a `Signal`.
+    pub ask_reader: Coroutine<(String, String)>,
 }
 
 /// Render a graded tool call in the Backstage's "tool order" voice — lowercase, call-shaped
@@ -138,6 +178,21 @@ pub fn run_recommend(mut ctx: AppCtx) {
         session.calls().iter().map(pretty_call).collect()
     };
 
+    // The Raw view's readings: the deterministic local template prose for every choice, computed
+    // synchronously here (no network) so flipping to Raw is instant. The live prose still streams
+    // into `recs` separately via the worker thread below.
+    let raw_readings: HashMap<String, String> = recs
+        .iter()
+        .filter_map(|r| {
+            let m = measures.get(&r.choice)?;
+            let fit = Fit::from_score(m.score);
+            Some((
+                r.choice.clone(),
+                TemplateInterpreter.fit_read(m, fit, &r.name),
+            ))
+        })
+        .collect();
+
     // Every ranked ticker starts "still reading"; the list renders now, prose fills in later.
     let pending: std::collections::HashSet<String> =
         recs.iter().map(|r| r.choice.clone()).collect();
@@ -148,6 +203,7 @@ pub fn run_recommend(mut ctx: AppCtx) {
         .collect();
 
     ctx.measures.set(measures.clone());
+    ctx.raw_readings.set(raw_readings);
     ctx.recs.set(recs);
     ctx.calls.set(calls);
     ctx.selected.set(0);

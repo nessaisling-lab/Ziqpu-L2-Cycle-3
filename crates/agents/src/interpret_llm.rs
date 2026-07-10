@@ -43,6 +43,12 @@ signal or a price expectation; never predict a market or a stock's direction; ne
 interpretation as prediction or guarantee; never claim astrology predicts markets — the tradition \
 is a lens, not proof; never invent a measure you were not given.
 
+When — and only when — grounded signals are provided, add one plain sentence that opens with \"this \
+is what reality says:\" and states those real signals as reality sitting beside the symbolic read. \
+Keep it neutral and hedged, summarize only the signals you were handed, and never turn it into a \
+buy/sell/hold call, a price, or a market prediction. It sits just before the REMINDER, and the \
+reading still ends on the REMINDER.
+
 Output ONLY the reading, in exactly this shape, with no preamble and no meta-commentary:
 FIT: <band> (<score> / 100) — <name>
 <one or two sentences of warm, plain prose that name the fit and stake a verdict on it — no aspect \
@@ -50,6 +56,7 @@ names, no orbs, no degrees>
   why: <one plain sentence naming the single strongest dynamic in human terms — e.g. 'the \
 strongest thread is a tense one, between your drive and its caution'>
   [GROUNDED (<source>): <the real signals, plainly>]      <- include this line only if grounded signals are provided
+  [this is what reality says: <one plain, neutral sentence summarizing the real signals as reality beside the symbolic read — no buy/sell/hold, no price, no direction>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
 /// Claude-backed interpreter. Falls back to the deterministic template on any failure.
@@ -440,6 +447,8 @@ mod tests {
         assert!(UNGASAGA_SYSTEM.contains("not financial advice"));
         assert!(UNGASAGA_SYSTEM.to_lowercase().contains("never"));
         assert!(UNGASAGA_SYSTEM.contains("measured"));
+        // The grounded beat must instruct a plain "this is what reality says:" sentence.
+        assert!(UNGASAGA_SYSTEM.contains("this is what reality says:"));
     }
 
     #[test]
