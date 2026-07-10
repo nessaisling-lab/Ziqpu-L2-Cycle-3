@@ -9,9 +9,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use agents::{
-    AnthropicInterpreter, ApprovalRequest, BirthMoment, Briefing, Choice, EdgarSource,
-    EngineChartSource, Fit, GroundedSignals, GroundedSource, Interpreter, LocalMeasurer, Measures,
-    MockGroundedSource, Recommendation, Session, TemplateInterpreter, ToolCall,
+    ApprovalRequest, BirthMoment, Briefing, Choice, EdgarSource, EngineChartSource, Fit,
+    GroundedSignals, GroundedSource, Interpreter, LocalMeasurer, Measures, MockGroundedSource,
+    Recommendation, Session, ToolCall,
 };
 use dioxus::prelude::*;
 
@@ -37,10 +37,8 @@ pub fn build_session() -> SessionT {
         Box::new(MockGroundedSource)
     };
 
-    let interp: Box<dyn Interpreter> = match AnthropicInterpreter::from_env() {
-        Some(a) => Box::new(a),
-        None => Box::new(TemplateInterpreter),
-    };
+    // Interpreter precedence (OpenAI-compat / OpenRouter → Anthropic → deterministic template).
+    let interp: Box<dyn Interpreter> = agents::build_interpreter();
 
     let mut session = Session::new(EngineChartSource::default(), grounded, interp);
     if let Some(local) = LocalMeasurer::from_env() {

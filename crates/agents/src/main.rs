@@ -7,8 +7,8 @@
 //! from SEC EDGAR (requires `curl` and network).
 
 use agents::{
-    Answer, AnthropicInterpreter, BirthMoment, Choice, EdgarSource, EngineChartSource,
-    GroundedSource, Interpreter, MockGroundedSource, Session, TemplateInterpreter,
+    Answer, BirthMoment, Choice, EdgarSource, EngineChartSource, GroundedSource, Interpreter,
+    MockGroundedSource, Session,
 };
 
 fn main() {
@@ -23,16 +23,10 @@ fn main() {
         Box::new(MockGroundedSource)
     };
 
-    let interp: Box<dyn Interpreter> = match AnthropicInterpreter::from_env() {
-        Some(a) => {
-            println!("[interpreter: Ungasaga = Claude — live]\n");
-            Box::new(a)
-        }
-        None => {
-            println!("[interpreter: deterministic template — set ANTHROPIC_API_KEY for Claude]\n");
-            Box::new(TemplateInterpreter)
-        }
-    };
+    // Interpreter precedence (OpenAI-compat / OpenRouter → Anthropic → deterministic template),
+    // with a one-line banner printed by the factory.
+    let interp: Box<dyn Interpreter> = agents::build_interpreter();
+    println!();
 
     run(&seeker, &choices, grounded, interp);
 }
