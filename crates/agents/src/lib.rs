@@ -25,7 +25,9 @@ pub mod types;
 
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
 pub use interpret::{Interpreter, TemplateInterpreter};
-pub use interpret_llm::{build_interpreter, AnthropicInterpreter, OpenAiCompatInterpreter};
+pub use interpret_llm::{
+    build_interpreter, reading_for, AnthropicInterpreter, OpenAiCompatInterpreter,
+};
 pub use measure::{
     expected_sequence, ChartSource, DeterministicMeasurer, EngineChartSource, Measurer,
     SYNASTRY_ORB,

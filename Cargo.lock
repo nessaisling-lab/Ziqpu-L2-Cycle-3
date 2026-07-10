@@ -5952,6 +5952,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "dioxus",
+ "futures-util",
  "geo",
  "tickers",
 ]

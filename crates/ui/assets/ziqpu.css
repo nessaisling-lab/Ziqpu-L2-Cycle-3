@@ -193,6 +193,24 @@ header{
 .score{font:600 13px/1 var(--f-mono);color:var(--ink-faint);padding:9px 22px 0}
 .score b{font-size:17px;color:var(--ink)}
 .reading{font-size:16.5px;color:var(--ink);padding:12px 22px 4px;max-width:62ch}
+/* reading still loading — a gold sweep in the Sunlit-Clay palette. Static, legible fallback by
+   default (italic gold text); the shimmer sweep only runs when motion is welcome. */
+.reading-loading{font-style:italic;color:var(--gold-deep)}
+@media(prefers-reduced-motion:no-preference){
+  .reading-loading{
+    background:linear-gradient(100deg,
+      var(--gold-deep) 0%,
+      var(--gold) 30%,
+      color-mix(in srgb,var(--gold) 45%,#fff3d6) 50%,
+      var(--gold) 70%,
+      var(--gold-deep) 100%);
+    background-size:220% 100%;
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+    animation:reading-shimmer 1.6s linear infinite;
+  }
+}
+@keyframes reading-shimmer{from{background-position:180% 0}to{background-position:-80% 0}}
 .measured{font:500 12.5px/1.75 var(--f-mono);color:var(--ink-soft);padding:6px 22px 18px;overflow-x:auto}
 .measured .flow,td .flow,.measured.grounded-line{color:var(--lapis)}
 .measured .fric,td .fric{color:var(--carnelian)}

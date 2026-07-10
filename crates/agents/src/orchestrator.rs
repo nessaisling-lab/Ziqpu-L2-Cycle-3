@@ -75,6 +75,14 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         for call in self.measurer.sequence(&choice.ticker) {
             self.calls.push(call);
         }
+        self.compute_measures(seeker, choice)
+    }
+
+    /// The pure chart math for one choice — **records no tool call**. Split out of
+    /// [`Session::measure`] so a caller that already recorded the tool order (e.g. `recommend`
+    /// filling readings after `recommend_measures`) can recompute the exact same [`Measures`]
+    /// without double-counting the graded sequence.
+    fn compute_measures(&self, seeker: &BirthMoment, choice: &Choice) -> Measures {
         let a = self.chart.chart(seeker);
         let b = self.chart.chart(&choice.birth);
         let aspects = self.chart.synastry(&a, &b);
@@ -130,15 +138,22 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         }
     }
 
-    /// DECIDE: measure and interpret each choice into a fit read, ranked best-fit first, then
-    /// propose grounding (the checkpoint). This is the whole product for a symbolic-only seeker.
-    pub fn recommend(&mut self, seeker: &BirthMoment, choices: &[Choice]) -> Vec<Recommendation> {
+    /// DECIDE (measures only, **no interpreter**): measure each choice into a ranked
+    /// [`Recommendation`] with an **empty** `reading`, recording the same fixed per-choice tool
+    /// order as [`Session::recommend`] and the trailing [`ToolCall::Propose`]. This is the
+    /// `Send`-safe half of the loop: the UI calls it on the event-loop thread to get the ranking +
+    /// tool log, then fills each reading off-thread via [`crate::reading_for`] (a [`Session`] is
+    /// `!Send`, so the interpreter cannot run on a worker thread that holds one).
+    pub fn recommend_measures(
+        &mut self,
+        seeker: &BirthMoment,
+        choices: &[Choice],
+    ) -> Vec<Recommendation> {
         let mut recs: Vec<Recommendation> = choices
             .iter()
             .map(|c| {
                 let measures = self.measure(seeker, c);
                 let fit = Fit::from_score(measures.score);
-                let reading = self.interp.fit_read(&measures, fit, &c.name);
                 Recommendation {
                     choice: c.ticker.clone(),
                     name: c.name.clone(),
@@ -146,7 +161,7 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
                     score: measures.score,
                     theme: measures.theme.clone(),
                     confidence: measures.confidence,
-                    reading,
+                    reading: String::new(),
                 }
             })
             .collect();
@@ -155,14 +170,34 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         recs
     }
 
+    /// DECIDE: measure and interpret each choice into a fit read, ranked best-fit first, then
+    /// propose grounding (the checkpoint). This is the whole product for a symbolic-only seeker.
+    ///
+    /// Shares one path with [`Session::recommend_measures`]: it records the tool order there (once),
+    /// then fills each reading via `self.interp.fit_read`. The reading fill recomputes measures
+    /// through the non-recording [`Session::compute_measures`], so the graded tool log is byte-for-
+    /// byte identical to `recommend_measures`.
+    pub fn recommend(&mut self, seeker: &BirthMoment, choices: &[Choice]) -> Vec<Recommendation> {
+        let mut recs = self.recommend_measures(seeker, choices);
+        for rec in &mut recs {
+            if let Some(c) = choices.iter().find(|c| c.ticker == rec.choice) {
+                let measures = self.compute_measures(seeker, c);
+                rec.reading = self.interp.fit_read(&measures, rec.fit, &c.name);
+            }
+        }
+        recs
+    }
+
     /// The no-advice guardrail. Advice-seeking → reflection + explicit refusal (never a signal);
     /// anything else → a plain reflective nudge. Enforced in code, not left to a prompt.
     pub fn ask(&self, question: &str) -> Answer {
         if is_advice_seeking(question) {
             Answer::Refusal(
-                "I measure how a choice aspects you — I can't tell you whether to buy, sell, or \
-                 hold, and I won't. That decision is yours. What I can show is the symbolic fit, \
-                 and (if you approve) a reality-check against real data. This is not financial advice."
+                "The ledger does not trade. It will not tell you to buy, sell, or hold — and that \
+                 is not timidity, it is the line: the decision is yours, and I can't tell you which \
+                 way to make it. What the ledger will do, without flinching, is measure how your \
+                 chart and this choice aspect and stake a verdict on that fit — and, if you approve, \
+                 set it beside real data. This is not financial advice."
                     .to_string(),
             )
         } else {
@@ -365,6 +400,38 @@ mod tests {
         let _ = s.recommend(&demo_seeker(), std::slice::from_ref(&choice));
         assert_fixed_order(s.calls(), &choice.ticker);
         assert_eq!(s.calls().last(), Some(&ToolCall::Propose));
+    }
+
+    #[test]
+    fn recommend_measures_matches_recommend_order_with_empty_readings() {
+        let seeker = demo_seeker();
+        let choices = demo_choices();
+
+        // Same recorded tool order + trailing Propose as `recommend`.
+        let mut s_measures = session();
+        let measures_recs = s_measures.recommend_measures(&seeker, &choices);
+        let mut s_full = session();
+        let full_recs = s_full.recommend(&seeker, &choices);
+        assert_eq!(
+            s_measures.calls(),
+            s_full.calls(),
+            "recommend_measures records the identical tool order recommend does"
+        );
+        assert_eq!(s_measures.calls().last(), Some(&ToolCall::Propose));
+
+        // Same ranking, but recommend_measures leaves every reading empty…
+        assert_eq!(measures_recs.len(), full_recs.len());
+        for (m, f) in measures_recs.iter().zip(full_recs.iter()) {
+            assert_eq!(m.choice, f.choice, "identical ranking");
+            assert_eq!(m.score, f.score);
+            assert!(
+                m.reading.is_empty(),
+                "recommend_measures leaves readings empty: {}",
+                m.reading
+            );
+        }
+        // …while recommend fills them.
+        assert!(full_recs.iter().all(|r| !r.reading.is_empty()));
     }
 
     #[test]

@@ -71,6 +71,14 @@ pub struct AppCtx {
     pub answer: Signal<Option<(bool, String)>>,
     /// The graded session's tool-call order, rendered for the Backstage panel.
     pub calls: Signal<Vec<String>>,
+    /// Tickers whose prose reading is still being fetched off-thread — each such card shows a
+    /// shimmer placeholder until its reading arrives.
+    pub pending: Signal<std::collections::HashSet<String>>,
+    /// The event-loop-thread coroutine that receives `(ticker, prose)` results from the worker
+    /// thread and writes them back into `recs`/`pending`. `Coroutine<T>` is `Copy`, and its
+    /// `tx()` yields a `Send` sender the worker thread can hold (Signals are `!Send`, so they never
+    /// cross the thread boundary — only this channel does).
+    pub reader: Coroutine<(String, String)>,
 }
 
 /// Render a graded tool call in the Backstage's "tool order" voice — lowercase, call-shaped
@@ -97,25 +105,65 @@ pub fn fit_band_var(fit: Fit) -> &'static str {
     }
 }
 
-/// Run OBSERVE → DECIDE on the graded session and advance to the Ranked phase. Factored out of the
-/// seeded button so both Setup modes (seeded demo and the custom birth form) converge on one submit
-/// path — identical graded behavior, identical tool-order log. The caller sets `ctx.seeker` first.
+/// Run OBSERVE → DECIDE on the graded session and advance to the Ranked phase — **without blocking
+/// the event loop on the readings**. Factored out of the seeded button so both Setup modes (seeded
+/// demo and the custom birth form) converge on one submit path — identical graded behavior,
+/// identical tool-order log. The caller sets `ctx.seeker` first.
+///
+/// The ranked list paints instantly: [`Session::recommend_measures`] records the graded tool order
+/// synchronously on the real session and returns the ranking with **empty** readings, so no `curl`
+/// runs here. Every card starts in `pending` (shimmer). One background thread then fills each
+/// reading via [`agents::reading_for`] — where the blocking `curl` actually runs — and streams the
+/// prose back through `ctx.reader` to the UI thread. The thread captures only owned, `Send` values;
+/// it never touches `ctx.session` or any `Signal` (both `!Send`).
 pub fn run_recommend(mut ctx: AppCtx) {
     let seeker = ctx.seeker.read().clone();
     let choices = ctx.choices.read().clone();
+
+    // Per-choice measures (throwaway session, so the graded log stays clean). Also the worker
+    // thread's source of truth for each reading's Measures + band.
+    let measures = measures_for(&seeker, &choices);
+
+    // Fast DECIDE on the REAL graded session: ranking + trailing `Propose`, empty readings, no curl.
     let recs = {
         let mut session = ctx.session.borrow_mut();
-        session.recommend(&seeker, &choices)
+        session.recommend_measures(&seeker, &choices)
     };
     let calls: Vec<String> = {
         let session = ctx.session.borrow();
         session.calls().iter().map(pretty_call).collect()
     };
-    ctx.measures.set(measures_for(&seeker, &choices));
+
+    // Every ranked ticker starts "still reading"; the list renders now, prose fills in later.
+    let pending: std::collections::HashSet<String> =
+        recs.iter().map(|r| r.choice.clone()).collect();
+    // The (ticker, name) work list for the worker thread — owned and `Send`.
+    let work: Vec<(String, String)> = recs
+        .iter()
+        .map(|r| (r.choice.clone(), r.name.clone()))
+        .collect();
+
+    ctx.measures.set(measures.clone());
     ctx.recs.set(recs);
     ctx.calls.set(calls);
     ctx.selected.set(0);
+    ctx.pending.set(pending);
     ctx.phase.set(Phase::Ranked);
+
+    // Fill readings off the event-loop thread: the only place the blocking `curl` runs. The closure
+    // moves only owned, `Send` values (the measures map, the work list, and the channel sender).
+    let tx = ctx.reader.tx();
+    std::thread::spawn(move || {
+        for (ticker, name) in work {
+            let Some(m) = measures.get(&ticker) else {
+                continue;
+            };
+            let fit = Fit::from_score(m.score);
+            let prose = agents::reading_for(m, fit, &name);
+            // If the UI is gone (receiver dropped), this send just fails — nothing to do.
+            let _ = tx.unbounded_send((ticker, prose));
+        }
+    });
 }
 
 /// Compute per-choice [`Measures`] on a **throwaway** session, so the graded main session's

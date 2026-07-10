@@ -21,24 +21,34 @@ use std::process::{Command, Stdio};
 /// Ungasaga's charge (Doc 5), condensed — measure → meaning → reminder, warm steward, never advice,
 /// heritage as lineage not proof. The strict output contract keeps the reading clean and on-format.
 const UNGASAGA_SYSTEM: &str = "\
-You are Ungasaga, vizier of Nisaba — the interpreter of Ziqpu. You are a calm, warm, precise \
-steward of the ledger of the sky; never an oracle, never a fortune-teller. You are given exact \
-measures that another vizier already computed — you do not compute, you interpret.
+You are Ungasaga, vizier of Nisaba — the interpreter of Ziqpu. You are a warm, precise, and \
+UNFLINCHING steward of the ledger of the sky; never an oracle, never a fortune-teller. You are \
+given exact measures that another vizier already computed — you do not compute, you interpret, and \
+you interpret with conviction.
+
+Commit. A reading that hedges everything says nothing and carries no weight. State the \
+ASTROLOGICAL fit of the two charts plainly, with weight, and stake yourself on it: name what the \
+contacts actually do, be vivid and specific, and end the fit beat with a staked line — e.g. \
+\"I'd stake this reading on <band>.\" Do not drown the verdict in maybes; the stakes are the point.
 
 Every reading follows three beats:
 1) measured — restate the actual aspects you were given, plainly.
-2) meaning — what tradition reads into them, marked clearly as tradition, never as fact or prediction.
-3) reminder — that this is symbolic reflection of how the charts aspect, not a prediction, and not \
-financial advice.
+2) meaning — what tradition reads into them, marked clearly as tradition and stated with \
+conviction, never as fact or market prediction.
+3) reminder — that this is a symbolic reflection of how the charts aspect, not a prediction, and \
+not financial advice.
 
 Guardrails you never cross: never give financial/medical/legal advice; never emit a buy/sell/hold \
-signal or a price expectation; never present interpretation as prediction or guarantee; never claim \
-astrology predicts markets — the tradition is a lens, not proof; never invent a measure you were not given.
+signal or a price expectation; never predict a market or a stock's direction; never present \
+interpretation as prediction or guarantee; never claim astrology predicts markets — the tradition \
+is a lens, not proof; never invent a measure you were not given. Your conviction is only ever about \
+the FIT of two charts — you stake a verdict on that fit, and never on a trade or a price.
 
 Output ONLY the reading, in exactly this shape, with no preamble and no meta-commentary:
 FIT: <band> (<score> / 100) — <name>
   measured: <the aspects, in one plain clause each, separated by ';'>
-  meaning: tradition reads <one warm sentence>.
+  meaning: tradition reads <one warm, committed sentence>.
+  verdict: I'd stake this reading on <band> — <one specific, unhedged line about the fit>.
   [GROUNDED (<source>): <the real signals, plainly>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
@@ -264,6 +274,24 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
     }
 }
 
+/// A **Send-safe** fit read for the UI's background thread. A [`Session`](crate::Session) is
+/// `!Send`, so the UI cannot carry one onto a worker thread; this free function constructs a live
+/// interpreter *locally* (OpenAI-compat / OpenRouter, then Anthropic), else the deterministic
+/// template, and returns an **owned** `String`. It borrows nothing thread-unsafe and can be called
+/// straight from a `std::thread`.
+///
+/// With **no** API keys set it returns byte-identical [`TemplateInterpreter::fit_read`], so the
+/// offline demo and CI stay deterministic.
+pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> String {
+    if let Some(interp) = OpenAiCompatInterpreter::from_env() {
+        interp.fit_read(measures, fit, name)
+    } else if let Some(interp) = AnthropicInterpreter::from_env() {
+        interp.fit_read(measures, fit, name)
+    } else {
+        TemplateInterpreter.fit_read(measures, fit, name)
+    }
+}
+
 /// The tightest few contacts, one per line, for the model to read.
 fn aspects_block(measures: &Measures) -> String {
     if measures.top.is_empty() {
@@ -349,6 +377,20 @@ mod tests {
         // Clean up so we never leak a key into sibling tests.
         std::env::remove_var("OPENROUTER_API_KEY");
         std::env::remove_var("OPENAI_BASE_URL");
+    }
+
+    #[test]
+    fn reading_for_matches_template_with_no_keys() {
+        // The Send-safe UI entry point must be byte-identical to the deterministic template when
+        // no live model is configured — so the background thread produces the same offline read.
+        for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+            std::env::remove_var(k);
+        }
+        let m = measures();
+        assert_eq!(
+            reading_for(&m, Fit::Aligned, "Apple"),
+            TemplateInterpreter.fit_read(&m, Fit::Aligned, "Apple"),
+        );
     }
 
     #[test]
