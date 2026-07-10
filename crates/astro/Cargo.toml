@@ -1,0 +1,21 @@
+[package]
+name = "astro"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Ziqpu astrotopography (#21): relocation charts now; A*C*G lines + parans behind features later. Pure f64, no new deps."
+
+[features]
+default = ["relocation"]
+relocation = []
+# Roadmap tiers — declared now so promotion is a config flip; they gate no code yet.
+acg = []
+parans = ["acg"]
+
+[dependencies]
+engine = { path = "../engine" }
+ephemeris = { path = "../ephemeris" }
