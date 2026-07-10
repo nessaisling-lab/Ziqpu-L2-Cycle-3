@@ -50,17 +50,46 @@ impl Default for EdgarSource {
 
 impl GroundedSource for EdgarSource {
     fn fetch(&self, choice: &Choice) -> GroundedSignals {
-        let mut items = Vec::new();
-        // 1) SEC EDGAR recent filings + industry (may be blocked/rate-limited on some networks —
-        //    degrade to a clean note rather than an error).
-        if let Some(cik) = choice.cik {
-            items.extend(self.fetch_filings(cik));
-        }
-        // 2) Wikipedia — a keyless "what this actually is" reality check that works everywhere.
-        if let Some(title) = choice.wiki.as_deref() {
-            if let Some(summary) = self.fetch_wikipedia(title) {
+        // 1) Try the live SEC EDGAR filings pull. `None` = transport error / blocked / rate-limited.
+        let live_filings = choice.cik.and_then(|cik| self.fetch_filings(cik));
+        // 2) Wikipedia — a keyless "what this actually is" reality check that works on most networks.
+        let wiki = choice
+            .wiki
+            .as_deref()
+            .and_then(|title| self.fetch_wikipedia(title));
+
+        // Live filings succeeded → the real briefing takes precedence.
+        if let Some(mut items) = live_filings {
+            if let Some(summary) = wiki {
                 items.push(format!("what it is: {summary}"));
             }
+            if items.is_empty() {
+                items.push("no public signals available".to_string());
+            }
+            return GroundedSignals {
+                choice: choice.ticker.clone(),
+                source: "SEC EDGAR + Wikipedia".to_string(),
+                items,
+            };
+        }
+
+        // Live filings failed/blocked. For a known demo ticker, fall back to a bundled recorded
+        // fixture so the demo's grounded ACT beat still lands (labelled honestly as a fixture).
+        if let Some(mut items) = fixture_filings(&choice.ticker) {
+            if let Some(summary) = wiki {
+                items.push(format!("what it is: {summary}"));
+            }
+            return GroundedSignals {
+                choice: choice.ticker.clone(),
+                source: "SEC EDGAR (recorded fixture — live pull unavailable)".to_string(),
+                items,
+            };
+        }
+
+        // Unknown ticker and no live data — degrade honestly rather than invent signals.
+        let mut items = Vec::new();
+        if let Some(summary) = wiki {
+            items.push(format!("what it is: {summary}"));
         }
         if items.is_empty() {
             items.push("no public signals available".to_string());
@@ -71,6 +100,48 @@ impl GroundedSource for EdgarSource {
             items,
         }
     }
+}
+
+/// Bundled recorded-fixture filings for the five demo tickers (AAPL, MSFT, TSLA, KO, JNJ), used
+/// only when a live SEC EDGAR pull fails or is blocked — so the demo's grounded beat still lands
+/// with realistic recent-filing lines instead of an empty/blocked note. These are recorded
+/// snapshots, not live data; the fetch labels them as a fixture. Unknown tickers return `None`
+/// (honest degrade).
+fn fixture_filings(ticker: &str) -> Option<Vec<String>> {
+    let lines: &[&str] = match ticker {
+        "AAPL" => &[
+            "recent filing: 10-K on 2025-11-01",
+            "recent filing: 8-K on 2026-01-30",
+            "recent filing: 10-Q on 2026-01-31",
+            "industry: Electronic Computers",
+        ],
+        "MSFT" => &[
+            "recent filing: 10-K on 2025-07-30",
+            "recent filing: 8-K on 2026-01-27",
+            "recent filing: 10-Q on 2026-01-28",
+            "industry: Services-Prepackaged Software",
+        ],
+        "TSLA" => &[
+            "recent filing: 10-K on 2026-01-27",
+            "recent filing: 8-K on 2026-01-22",
+            "recent filing: 10-Q on 2025-10-23",
+            "industry: Motor Vehicles & Passenger Car Bodies",
+        ],
+        "KO" => &[
+            "recent filing: 10-K on 2026-02-20",
+            "recent filing: 8-K on 2026-02-11",
+            "recent filing: 10-Q on 2025-10-28",
+            "industry: Beverages",
+        ],
+        "JNJ" => &[
+            "recent filing: 10-K on 2026-02-13",
+            "recent filing: 8-K on 2026-01-21",
+            "recent filing: 10-Q on 2025-10-14",
+            "industry: Pharmaceutical Preparations",
+        ],
+        _ => return None,
+    };
+    Some(lines.iter().map(|s| s.to_string()).collect())
 }
 
 impl EdgarSource {
@@ -92,36 +163,35 @@ impl EdgarSource {
     }
 
     /// Three most recent filings (form + date) plus the SIC industry, from the submissions payload.
-    fn fetch_filings(&self, cik: u32) -> Vec<String> {
+    /// Returns `None` on a transport error, a non-JSON body (a 403/HTML block or throttle on some
+    /// networks), or a malformed payload — the caller then falls back to a recorded fixture for
+    /// known tickers rather than surfacing a bare error note.
+    fn fetch_filings(&self, cik: u32) -> Option<Vec<String>> {
         let url = format!("https://data.sec.gov/submissions/CIK{cik:010}.json");
-        let Some(bytes) = self.get(&url) else {
-            return vec!["SEC EDGAR unreachable".to_string()];
-        };
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
-            // A 403/HTML body (some networks block SEC) or throttle — say so, don't crash.
-            return vec!["SEC EDGAR returned no data (blocked or rate-limited)".to_string()];
-        };
+        let bytes = self.get(&url)?;
+        let value = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
         let recent = &value["filings"]["recent"];
-        let mut out: Vec<String> =
-            match (recent["form"].as_array(), recent["filingDate"].as_array()) {
-                (Some(forms), Some(dates)) => forms
-                    .iter()
-                    .zip(dates)
-                    .take(3)
-                    .map(|(form, date)| {
-                        format!(
-                            "recent filing: {} on {}",
-                            form.as_str().unwrap_or("?"),
-                            date.as_str().unwrap_or("?")
-                        )
-                    })
-                    .collect(),
-                _ => vec!["no recent filings in SEC response".to_string()],
-            };
+        let (Some(forms), Some(dates)) =
+            (recent["form"].as_array(), recent["filingDate"].as_array())
+        else {
+            return None;
+        };
+        let mut out: Vec<String> = forms
+            .iter()
+            .zip(dates)
+            .take(3)
+            .map(|(form, date)| {
+                format!(
+                    "recent filing: {} on {}",
+                    form.as_str().unwrap_or("?"),
+                    date.as_str().unwrap_or("?")
+                )
+            })
+            .collect();
         if let Some(sic) = value["sicDescription"].as_str() {
             out.push(format!("industry: {sic}"));
         }
-        out
+        Some(out)
     }
 
     /// A short blurb from the Wikipedia summary for `title` (keyless REST API). Capped at ~200
@@ -142,5 +212,29 @@ impl EdgarSource {
             short.truncate(idx);
         }
         Some(format!("{short}…"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixture_fallback_yields_items_for_every_demo_ticker() {
+        for ticker in ["AAPL", "MSFT", "TSLA", "KO", "JNJ"] {
+            let items =
+                fixture_filings(ticker).unwrap_or_else(|| panic!("no fixture for {ticker}"));
+            assert!(!items.is_empty(), "fixture for {ticker} is empty");
+            assert!(
+                items.iter().any(|i| i.starts_with("recent filing:")),
+                "fixture for {ticker} has no filing line: {items:?}"
+            );
+            assert!(
+                items.iter().any(|i| i.starts_with("industry:")),
+                "fixture for {ticker} has no industry line: {items:?}"
+            );
+        }
+        // Unknown tickers degrade honestly — no invented fixture.
+        assert!(fixture_filings("ZZZZ").is_none());
     }
 }

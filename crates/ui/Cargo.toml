@@ -21,3 +21,6 @@ geo = { path = "../geo" }
 tickers = { path = "../tickers" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 chrono-tz = "0.10"
+# For `StreamExt` on the coroutine's UnboundedReceiver (rx.next().await) and the worker thread's
+# UnboundedSender. Already in the lock (0.3.32) transitively via Dioxus, so this pins no new dep.
+futures-util = { version = "0.3", default-features = false }

@@ -104,13 +104,16 @@ fn measured_clause(measures: &Measures) -> String {
         .join("; ")
 }
 
-/// The tradition-side meaning of a fit band — shared by the default trait bodies.
+/// The tradition-side meaning of a fit band — shared by the default trait bodies. Committed, not
+/// hedged: each band names what the contacts actually do.
 fn meaning_clause(fit: Fit) -> &'static str {
     match fit {
-        Fit::StronglyAligned => "an easy, recognizing resonance",
-        Fit::Aligned => "more ease than friction",
-        Fit::Mixed => "a genuine mix of ease and tension",
-        Fit::Misaligned => "more friction than flow",
+        Fit::StronglyAligned => {
+            "a deep, unmistakable resonance — the two charts recognize each other on sight"
+        }
+        Fit::Aligned => "clearly more ease than friction; the flow carries the day",
+        Fit::Mixed => "a real, unresolved split — genuine ease braided through genuine tension",
+        Fit::Misaligned => "friction that outweighs the flow, plainly",
     }
 }
 
@@ -148,10 +151,12 @@ impl TemplateInterpreter {
 
     fn meaning(&self, fit: Fit) -> &'static str {
         match fit {
-            Fit::StronglyAligned => "an easy, recognizing resonance",
-            Fit::Aligned => "more ease than friction",
-            Fit::Mixed => "a genuine mix of ease and tension",
-            Fit::Misaligned => "more friction than flow",
+            Fit::StronglyAligned => {
+                "a deep, unmistakable resonance — the two charts recognize each other on sight"
+            }
+            Fit::Aligned => "clearly more ease than friction; the flow carries the day",
+            Fit::Mixed => "a real, unresolved split — genuine ease braided through genuine tension",
+            Fit::Misaligned => "friction that outweighs the flow, plainly",
         }
     }
 }
@@ -159,11 +164,12 @@ impl TemplateInterpreter {
 impl Interpreter for TemplateInterpreter {
     fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         format!(
-            "FIT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  verdict: the ledger stakes this at {}.\n  {REMINDER}",
             fit.label(),
             measures.score,
             self.measured(measures),
             self.meaning(fit),
+            fit.label(),
         )
     }
 
@@ -192,11 +198,12 @@ impl Interpreter for TemplateInterpreter {
 
     fn report_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         format!(
-            "REPORT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  confidence {}\n  {REMINDER}",
+            "REPORT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  verdict: the ledger stakes this at {}.\n  confidence {}\n  {REMINDER}",
             fit.label(),
             measures.score,
             self.measured(measures),
             self.meaning(fit),
+            fit.label(),
             measures.confidence.label(),
         )
     }

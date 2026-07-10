@@ -2,11 +2,12 @@
 //! current phase, and mounts the persistent guardrail from the Ranked step onward.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use agents::{demo_choices, demo_seeker};
+use agents::{demo_choices, demo_seeker, Recommendation};
 use dioxus::prelude::*;
+use futures_util::StreamExt;
 
 use crate::components::{Briefing, Checkpoint, Guardrail, Ranked, Setup};
 use crate::state::{build_session, AppCtx, Phase};
@@ -24,12 +25,33 @@ const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefi
 #[component]
 pub fn App() -> Element {
     // The graded session lives for the whole app, interior-mutable and single-threaded.
+    let session = use_hook(|| Rc::new(RefCell::new(build_session())));
+
+    // These two are pulled out of the struct literal so the reader coroutine (a hook, which cannot
+    // be created inside an event handler) can capture them at component top level. `Signal` is
+    // `Copy`, so capturing them by move here still leaves copies for the `AppCtx` below.
+    let mut recs = use_signal(Vec::<Recommendation>::new);
+    let mut pending = use_signal(HashSet::<String>::new);
+
+    // The event-loop-thread half of the off-thread fill: receive `(ticker, prose)` from the worker
+    // thread and splice each reading back into `recs`, clearing that ticker from `pending`.
+    let reader = use_coroutine(
+        move |mut rx: UnboundedReceiver<(String, String)>| async move {
+            while let Some((ticker, prose)) = rx.next().await {
+                if let Some(r) = recs.write().iter_mut().find(|r| r.choice == ticker) {
+                    r.reading = prose;
+                }
+                pending.write().remove(&ticker);
+            }
+        },
+    );
+
     let ctx = AppCtx {
-        session: use_hook(|| Rc::new(RefCell::new(build_session()))),
+        session,
         phase: use_signal(|| Phase::Setup),
         seeker: use_signal(demo_seeker),
         choices: use_signal(demo_choices),
-        recs: use_signal(Vec::new),
+        recs,
         measures: use_signal(HashMap::new),
         selected: use_signal(|| 0usize),
         request: use_signal(|| None),
@@ -38,6 +60,8 @@ pub fn App() -> Element {
         briefing: use_signal(|| None),
         answer: use_signal(|| None),
         calls: use_signal(Vec::new),
+        pending,
+        reader,
     };
     use_context_provider(|| ctx.clone());
 

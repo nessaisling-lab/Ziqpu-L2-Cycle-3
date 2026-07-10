@@ -62,6 +62,9 @@ pub fn FitCard(index: usize) -> Element {
 
     let selected = *ctx.selected.read();
     let is_selected = selected == index;
+    // While this ticker's prose is still being fetched off-thread, show a shimmer placeholder in
+    // place of the (empty) reading.
+    let is_pending = ctx.pending.read().contains(&rec.choice);
 
     let band = fit_band_var(rec.fit);
     let label = rec.fit.label();
@@ -107,7 +110,11 @@ pub fn FitCard(index: usize) -> Element {
                 " / 100"
             }
 
-            p { class: "reading", "{reading}" }
+            if is_pending {
+                p { class: "reading reading-loading", "Consulting the viziers…" }
+            } else {
+                p { class: "reading", "{reading}" }
+            }
 
             p { class: "measured",
                 if tops.is_empty() {
