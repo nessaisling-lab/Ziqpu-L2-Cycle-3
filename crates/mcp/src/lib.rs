@@ -199,7 +199,7 @@ fn call_recommend(args: &Value) -> (String, bool) {
     let mut session = agents::Session::new(
         agents::EngineChartSource::default(),
         grounded(),
-        interpreter(),
+        agents::build_interpreter(),
     );
     let recs = session.recommend(&seeker, &choices);
 
@@ -263,14 +263,6 @@ fn grounded() -> Box<dyn agents::GroundedSource> {
         Box::new(agents::EdgarSource::default())
     } else {
         Box::new(agents::MockGroundedSource)
-    }
-}
-
-/// The interpreter: real Claude when `ANTHROPIC_API_KEY` is set, else the deterministic template.
-fn interpreter() -> Box<dyn agents::Interpreter> {
-    match agents::AnthropicInterpreter::from_env() {
-        Some(a) => Box::new(a),
-        None => Box::new(agents::TemplateInterpreter),
     }
 }
 
