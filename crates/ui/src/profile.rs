@@ -138,7 +138,12 @@ pub fn save_profile(profile: &SavedProfile) {
         return;
     };
     if let Ok(text) = serde_json::to_string_pretty(profile) {
-        let _ = std::fs::write(&path, text);
+        // profile.json holds birth PII — date, time, place name, and coordinates to ~11 m. Restrict
+        // it to owner-only on Unix (same protection settings.json gets) so it isn't world-readable on
+        // a shared host (SEC-002). Best-effort; a failure just leaves the file at the default umask.
+        if std::fs::write(&path, text).is_ok() {
+            crate::settings::set_owner_only(&path);
+        }
     }
 }
 

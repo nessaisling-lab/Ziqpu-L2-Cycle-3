@@ -86,14 +86,14 @@ pub fn save_settings(settings: &SettingsFile) {
 /// Restrict `path` to `0o600` (owner read/write only) on Unix. A no-op on Windows, where NTFS ACLs
 /// already scope a user's `%APPDATA%` to that user.
 #[cfg(unix)]
-fn set_owner_only(path: &std::path::Path) {
+pub(crate) fn set_owner_only(path: &std::path::Path) {
     use std::os::unix::fs::PermissionsExt;
     let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
 }
 
 /// See the Unix variant — a no-op on non-Unix targets.
 #[cfg(not(unix))]
-fn set_owner_only(_path: &std::path::Path) {}
+pub(crate) fn set_owner_only(_path: &std::path::Path) {}
 
 /// Load the persisted settings into the process environment **without clobbering** any var that is
 /// already set — so an exported `OPENROUTER_API_KEY` / `ZIQPU_MODEL` / `ZIQPU_LLM_URL` (power users,

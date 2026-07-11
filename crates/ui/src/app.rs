@@ -70,7 +70,17 @@ pub fn App() -> Element {
     // `ZIQPU_ONBOARD=1` forces the gate on even with a saved profile, so the flow can be shown in a
     // demo or QA pass without deleting the real profile. Cleared by the gate's "Enter Ziqpu" button.
     let mut onboarding = use_signal(|| {
-        std::env::var("ZIQPU_ONBOARD").is_ok() || crate::profile::load_profile().is_none()
+        // Force the gate on only for a *truthy* ZIQPU_ONBOARD ("1"/"true"/"yes"/"on") — a bare or
+        // "0"/"false" value must not silently force it (`.is_ok()` would fire on any set value).
+        let forced = std::env::var("ZIQPU_ONBOARD")
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false);
+        forced || crate::profile::load_profile().is_none()
     });
 
     // The event-loop-thread half of the off-thread fill: receive `(ticker, prose, live_model)` from
