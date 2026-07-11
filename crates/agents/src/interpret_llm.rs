@@ -504,6 +504,15 @@ fn aspects_block(measures: &Measures) -> String {
 mod tests {
     use super::*;
     use crate::types::{AspectHit, Confidence};
+    use std::sync::{Mutex, MutexGuard};
+
+    /// Serializes the tests that mutate process-global env vars. Without it, cargo's parallel test
+    /// runner lets one test clear `OPENROUTER_API_KEY` while another `expect`s it set — a real flake
+    /// that failed CI on windows-latest. `into_inner` shrugs off a poisoned lock from a prior panic.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    fn env_guard() -> MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     fn measures() -> Measures {
         let hit = AspectHit {
@@ -527,6 +536,7 @@ mod tests {
 
     #[test]
     fn openai_compat_env_precedence_and_fallback() {
+        let _env = env_guard();
         // Clean slate: no keys anywhere.
         for k in [
             "OPENROUTER_API_KEY",
@@ -566,6 +576,7 @@ mod tests {
 
     #[test]
     fn reading_for_matches_template_with_no_keys() {
+        let _env = env_guard();
         // The Send-safe UI entry point must be byte-identical to the deterministic template when
         // no live model is configured — so the background thread produces the same offline read.
         for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
@@ -585,6 +596,7 @@ mod tests {
 
     #[test]
     fn raw_mode_and_no_keys_live_are_byte_identical_template() {
+        let _env = env_guard();
         for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
             std::env::remove_var(k);
         }
@@ -620,6 +632,7 @@ mod tests {
 
     #[test]
     fn local_interpreter_uses_lmstudio_defaults_and_env() {
+        let _env = env_guard();
         for k in ["ZIQPU_LLM_URL", "ZIQPU_LOCAL_MODEL"] {
             std::env::remove_var(k);
         }
