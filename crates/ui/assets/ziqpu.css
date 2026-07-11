@@ -149,6 +149,57 @@ header{
 /* Live = lapis + gold spark; Raw = muted, quiet — mirrors the card provenance badges. */
 .mode-toggle--live{color:var(--lapis);border-color:color-mix(in srgb,var(--gold) 45%,var(--lapis))}
 .mode-toggle--raw{color:var(--ink-faint)}
+/* ---- Settings gear + modal ---- */
+.gear{
+  font:600 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);background:transparent;cursor:pointer;
+  border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
+}
+.gear:hover{color:var(--gold-deep);border-color:var(--gold)}
+.settings-backdrop{
+  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;
+  background:rgba(15,10,7,.42);backdrop-filter:blur(2px);
+}
+.settings-modal{
+  width:min(460px,100%);max-height:90vh;overflow:auto;
+  background:var(--parchment);border:1px solid var(--gold-line);border-radius:14px;
+  box-shadow:var(--shadow);padding:22px 22px 18px;
+}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.settings-title{font-family:var(--f-display);font-weight:600;font-size:20px;line-height:1}
+.settings-x{
+  font-size:20px;line-height:1;color:var(--ink-faint);background:transparent;cursor:pointer;
+  border:none;padding:2px 6px;border-radius:8px;transition:.15s;
+}
+.settings-x:hover{color:var(--carnelian)}
+.settings-lede{color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px}
+.settings-field{display:block;margin-bottom:14px}
+.settings-label{
+  display:block;font:600 10.5px/1.3 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:6px;
+}
+.settings-opt{text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:400}
+.settings-input{
+  width:100%;font:400 14px/1.4 var(--f-mono);color:var(--ink);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:9px;padding:9px 11px;transition:.15s;
+}
+.settings-input:focus{outline:none;border-color:var(--gold)}
+.settings-keyrow{display:flex;gap:8px;align-items:stretch}
+.settings-keyrow .settings-input{flex:1;min-width:0}
+.settings-reveal{
+  flex:none;font:600 10.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-faint);background:transparent;cursor:pointer;
+  border:1px solid var(--gold-line);border-radius:9px;padding:0 12px;transition:.15s;
+}
+.settings-reveal:hover{color:var(--gold-deep);border-color:var(--gold)}
+.settings-hint{color:var(--ink-faint);font-size:12px;line-height:1.5;margin:2px 0 16px}
+.settings-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.settings-active{font:600 10.5px/1.4 var(--f-mono);letter-spacing:.06em;color:var(--ink-faint)}
+.settings-active strong{color:var(--ink-soft);font-weight:600}
+.settings-actions{display:flex;align-items:center;gap:12px}
+.settings-saved{
+  font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--malachite);
+}
 .barnote{
   font:600 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
   color:var(--ink-faint);border:1px solid var(--gold-line);border-radius:999px;padding:6px 11px;

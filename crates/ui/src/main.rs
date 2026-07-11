@@ -7,12 +7,18 @@
 mod app;
 mod components;
 mod profile;
+mod settings;
 mod state;
 
 use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
 use dioxus::LaunchBuilder;
 
 fn main() {
+    // Load the downloader's saved credentials into the environment BEFORE anything reads it
+    // (`build_session` / `build_interpreter` run inside `App`). This only fills vars that are not
+    // already set, so an exported env var still overrides the file for power users and CI.
+    settings::apply_settings_to_env(&settings::load_settings());
+
     LaunchBuilder::desktop()
         .with_cfg(
             Config::new().with_window(

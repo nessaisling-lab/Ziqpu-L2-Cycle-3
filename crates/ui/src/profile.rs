@@ -75,14 +75,42 @@ impl SavedProfile {
     }
 }
 
-/// `%APPDATA%\Ziqpu\profile.json` on Windows. Returns `None` if `APPDATA` is unset. Creates the
-/// `Ziqpu` directory if it is missing (best-effort — a failure here still returns the intended
-/// path, and the later read/write simply fails softly).
-pub fn profile_path() -> Option<PathBuf> {
-    let appdata = std::env::var("APPDATA").ok()?;
-    let dir = PathBuf::from(appdata).join("Ziqpu");
+/// The OS user-data directory for Ziqpu — created best-effort, shared by every persisted file
+/// (`profile.json`, `settings.json`). Hand-rolled over `std::env` so it needs no extra crate, and
+/// branches per platform with `cfg!(target_os = …)`:
+/// - **Windows** — `%APPDATA%\Ziqpu`
+/// - **macOS** — `$HOME/Library/Application Support/Ziqpu`
+/// - **Linux/other** — `$XDG_DATA_HOME/ziqpu` if set, else `$HOME/.local/share/ziqpu`
+///
+/// Returns `None` only when the underlying base variable (`APPDATA`/`HOME`) is unset. The directory
+/// is created if missing (best-effort — a failure still returns the intended path, and the later
+/// read/write simply fails softly). Never panics.
+pub fn data_dir() -> Option<PathBuf> {
+    let dir = if cfg!(target_os = "windows") {
+        PathBuf::from(std::env::var("APPDATA").ok()?).join("Ziqpu")
+    } else if cfg!(target_os = "macos") {
+        PathBuf::from(std::env::var("HOME").ok()?)
+            .join("Library")
+            .join("Application Support")
+            .join("Ziqpu")
+    } else {
+        // Linux/other: prefer $XDG_DATA_HOME (when non-empty), else ~/.local/share.
+        match std::env::var("XDG_DATA_HOME") {
+            Ok(x) if !x.is_empty() => PathBuf::from(x).join("ziqpu"),
+            _ => PathBuf::from(std::env::var("HOME").ok()?)
+                .join(".local")
+                .join("share")
+                .join("ziqpu"),
+        }
+    };
     let _ = std::fs::create_dir_all(&dir);
-    Some(dir.join("profile.json"))
+    Some(dir)
+}
+
+/// `<data_dir>/profile.json` — the birth-input draft file, on every OS. Returns `None` when
+/// [`data_dir`] can't resolve a base directory. See [`data_dir`] for the per-OS paths.
+pub fn profile_path() -> Option<PathBuf> {
+    Some(data_dir()?.join("profile.json"))
 }
 
 /// Read + deserialize the saved draft. Returns `None` on any missing/corrupt-file error — never
