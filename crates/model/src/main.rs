@@ -8,6 +8,7 @@ fn main() {
     match cmd {
         "benchmark" | "bench" => benchmark(),
         "list" => list(),
+        "resolve" => resolve(args.get(2).map(String::as_str)),
         "-h" | "--help" | "help" => usage(),
         other => {
             eprintln!("ziqpu-model: unknown command `{other}`.\n");
@@ -41,7 +42,37 @@ fn benchmark() {
         "  recommend  {} ({}, {}, ~{:.1} GB download)",
         pick.name, pick.params, pick.quant, pick.download_gb
     );
-    println!("\n(layer 2 — the online best-for-this-agent pick — and `get`/`serve` land next.)");
+
+    // Layer 2 (online, best-effort): resolve the tier's model to a current HF GGUF repo. Degrades
+    // quietly to the static pick above when offline.
+    println!("\nlayer 2 · current GGUF on Hugging Face (online):");
+    match model::resolve_current_repo(&pick) {
+        Some(c) => {
+            println!("  best repo  {} ({} downloads)", c.repo, c.downloads);
+            println!("  fetch      llama-server -hf {}:{}", c.repo, pick.quant);
+        }
+        None => println!("  (offline or none found — the static pick above is the fallback)"),
+    }
+    println!("\n(`get`/`serve` — ensure llama.cpp, pull, and wire settings.json — land next.)");
+}
+
+fn resolve(term: Option<&str>) {
+    let Some(term) = term else {
+        eprintln!("usage: ziqpu-model resolve <search-term>   (e.g. gpt-oss-20b)");
+        std::process::exit(2);
+    };
+    let cands = model::resolve_candidates(term);
+    if cands.is_empty() {
+        println!("no GGUF repos found for `{term}` (offline, or no match).");
+        return;
+    }
+    println!("Hugging Face GGUF repos for `{term}` (most-downloaded first):");
+    for c in cands.iter().take(10) {
+        println!(
+            "  {:>10} dl · {:>5} likes · {}",
+            c.downloads, c.likes, c.repo
+        );
+    }
 }
 
 fn list() {
@@ -61,6 +92,7 @@ fn list() {
 
 fn usage() {
     eprintln!("usage: ziqpu-model <command>");
-    eprintln!("  benchmark   detect this machine and recommend a local model (default)");
-    eprintln!("  list        show the tier -> model table");
+    eprintln!("  benchmark        detect this machine and recommend a local model (default)");
+    eprintln!("  list             show the tier -> model table");
+    eprintln!("  resolve <term>   list current Hugging Face GGUF repos for a search term");
 }

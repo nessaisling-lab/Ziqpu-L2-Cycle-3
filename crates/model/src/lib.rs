@@ -159,6 +159,10 @@ pub struct ModelPick {
     pub quant: &'static str,
     pub download_gb: f64,
     pub min_ram_gb: f64,
+    /// A Hugging Face search term for layer 2 to resolve this pick to a *current* GGUF repo. Kept
+    /// hyphenated/space-free so it needs no URL encoding, and deliberately a little fuzzy — layer 2
+    /// finds whatever GGUF repos actually exist for this model family today (releases drift).
+    pub search_term: &'static str,
 }
 
 /// The Desktop-class model per tier (hierarchy §Class 3 recommendations).
@@ -170,6 +174,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         quant: "Q4_K_M",
         download_gb: 2.0,
         min_ram_gb: 8.0,
+        search_term: "Llama-3.2-3B-Instruct",
     },
     ModelPick {
         tier: Tier::Weak,
@@ -178,6 +183,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         quant: "Q4_K_M",
         download_gb: 6.6,
         min_ram_gb: 16.0,
+        search_term: "Qwen3.5-9B-Instruct",
     },
     ModelPick {
         tier: Tier::Medium,
@@ -186,6 +192,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         quant: "MXFP4",
         download_gb: 14.0,
         min_ram_gb: 16.0,
+        search_term: "gpt-oss-20b",
     },
     ModelPick {
         tier: Tier::Strong,
@@ -194,6 +201,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         quant: "Q4_K_M",
         download_gb: 24.0,
         min_ram_gb: 32.0,
+        search_term: "Qwen3.5-35B",
     },
     ModelPick {
         tier: Tier::Ultra,
@@ -202,6 +210,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         quant: "MXFP4",
         download_gb: 65.0,
         min_ram_gb: 64.0,
+        search_term: "gpt-oss-120b",
     },
 ];
 
@@ -219,6 +228,105 @@ pub fn recommend_for(spec: &DeviceSpec) -> ModelPick {
         .find(|m| m.tier == tier)
         .copied()
         .expect("every tier has a model")
+}
+
+// ---- Layer 2: resolve the tier's pick to a *current* Hugging Face GGUF repo (online) ----
+
+/// A candidate GGUF repo found on the Hugging Face Hub — its repo id and popularity signals. Layer 2
+/// exists because the static hierarchy drifts: this finds what actually exists on the Hub today.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Candidate {
+    pub repo: String,
+    pub downloads: u64,
+    pub likes: u64,
+}
+
+/// The Hub API query for GGUF repos matching `term`, most-downloaded first. `filter=gguf` limits to
+/// llama.cpp-runnable repos; the term is space-free (see [`ModelPick::search_term`]) so it needs no
+/// real encoding.
+fn hf_api_url(term: &str) -> String {
+    format!(
+        "https://huggingface.co/api/models?search={}&filter=gguf&sort=downloads&direction=-1&limit=20",
+        term.replace(' ', "%20")
+    )
+}
+
+/// Parse a Hugging Face `/api/models` response into ranked [`Candidate`]s (most-downloaded first).
+/// Pure; unit-tested against a fixture. Malformed/empty JSON yields an empty list (offline-safe —
+/// never panics).
+pub fn parse_hf_models(json: &str) -> Vec<Candidate> {
+    let arr: Vec<serde_json::Value> = serde_json::from_str(json).unwrap_or_default();
+    let mut cands: Vec<Candidate> = arr
+        .iter()
+        .filter_map(|v| {
+            let repo = v.get("id").and_then(|x| x.as_str())?.to_string();
+            Some(Candidate {
+                repo,
+                downloads: v.get("downloads").and_then(|x| x.as_u64()).unwrap_or(0),
+                likes: v.get("likes").and_then(|x| x.as_u64()).unwrap_or(0),
+            })
+        })
+        .collect();
+    cands.sort_by(|a, b| b.downloads.cmp(&a.downloads).then(b.likes.cmp(&a.likes)));
+    cands
+}
+
+/// Query the Hub for current GGUF repos matching `term` — **thin I/O, not unit-tested** (the parser
+/// is). HTTP is a `curl` subprocess (the repo's cross-platform, no-HTTP-crate convention), capped at
+/// 8 s so an offline machine degrades quietly to an empty list. Callers fall back to the static pick.
+pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
+    use std::process::Command;
+    let url = hf_api_url(term);
+    let Ok(out) = Command::new("curl")
+        .args(["-sS", "--max-time", "8", &url])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !out.status.success() {
+        return Vec::new();
+    }
+    parse_hf_models(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Repo markers that disqualify a base model for a **guarded** agent. Ungasaga must refuse advice
+/// and stay within its guardrails; an "abliterated" / "uncensored" / jailbroken quant is trained to
+/// do the opposite, so it's the wrong foundation regardless of its download count. Matched
+/// case-insensitively against the repo id. This is the "best for *our* agent" half of layer 2.
+const AGENT_DISQUALIFIERS: [&str; 9] = [
+    "abliterat",
+    "uncensored",
+    "derestrict",
+    "heretic",
+    "jailbreak",
+    "unhinged",
+    "nsfw",
+    "erotic",
+    "roleplay",
+];
+
+/// Whether a repo id carries a guardrail-hostile marker (see [`AGENT_DISQUALIFIERS`]).
+fn agent_disqualified(repo: &str) -> bool {
+    let lower = repo.to_ascii_lowercase();
+    AGENT_DISQUALIFIERS.iter().any(|m| lower.contains(m))
+}
+
+/// Choose the best **agent-appropriate** candidate from a download-ranked list: the most-downloaded
+/// repo that isn't a guardrail-hostile variant. Pure + unit-tested. If *every* candidate is
+/// disqualified (pathological), falls back to the top raw candidate rather than returning nothing.
+pub fn pick_for_agent(cands: &[Candidate]) -> Option<Candidate> {
+    cands
+        .iter()
+        .find(|c| !agent_disqualified(&c.repo))
+        .or_else(|| cands.first())
+        .cloned()
+}
+
+/// Layer 2's answer for one machine: the current best **agent-appropriate** GGUF repo for the tier's
+/// model, or `None` offline (the caller then uses the static [`ModelPick`]). "Best" = the
+/// most-downloaded match that respects the agent's guardrails.
+pub fn resolve_current_repo(pick: &ModelPick) -> Option<Candidate> {
+    pick_for_agent(&resolve_candidates(pick.search_term))
 }
 
 /// A detected GPU: name + video memory. `unified` marks Apple-Silicon-style shared memory, where the
@@ -523,5 +631,62 @@ mod tests {
         assert!(!g.unified);
         // Adapters with no size (basic display drivers) are skipped.
         assert!(parse_windows_registry_gpu("Microsoft Basic Render Driver|").is_none());
+    }
+
+    #[test]
+    fn hf_models_parse_and_rank_by_downloads() {
+        let json = r#"[
+            {"id":"bartowski/gpt-oss-20b-GGUF","downloads":45000,"likes":120},
+            {"id":"ggml-org/gpt-oss-20b-GGUF","downloads":90000,"likes":300},
+            {"id":"someone/unrelated","downloads":10,"likes":1}
+        ]"#;
+        let c = parse_hf_models(json);
+        assert_eq!(c.len(), 3);
+        assert_eq!(
+            c[0].repo, "ggml-org/gpt-oss-20b-GGUF",
+            "most-downloaded ranks first"
+        );
+        assert_eq!(c[0].downloads, 90000);
+        // Malformed / empty JSON → empty, never panics (the offline-safe contract).
+        assert!(parse_hf_models("not json").is_empty());
+        assert!(parse_hf_models("").is_empty());
+    }
+
+    #[test]
+    fn hf_api_url_targets_gguf_sorted_by_downloads() {
+        let u = hf_api_url("gpt-oss-20b");
+        assert!(u.contains("/api/models"), "{u}");
+        assert!(u.contains("search=gpt-oss-20b"), "{u}");
+        assert!(u.contains("filter=gguf"), "{u}");
+        assert!(u.contains("sort=downloads"), "{u}");
+    }
+
+    #[test]
+    fn agent_pick_skips_guardrail_hostile_variants() {
+        fn cand(repo: &str, dl: u64) -> Candidate {
+            Candidate {
+                repo: repo.to_string(),
+                downloads: dl,
+                likes: 0,
+            }
+        }
+        // Even when an abliterated/uncensored variant out-downloads the clean quant, the agent pick
+        // skips it — a guarded agent needs a guardrail-respecting base.
+        let ranked = vec![
+            cand("someone/gpt-oss-20b-abliterated-GGUF", 900_000),
+            cand("cruel/gpt-oss-20b-Uncensored-GGUF", 500_000),
+            cand("unsloth/gpt-oss-20b-GGUF", 480_000),
+            cand("bartowski/gpt-oss-20b-GGUF", 8_000),
+        ];
+        let pick = pick_for_agent(&ranked).unwrap();
+        assert_eq!(pick.repo, "unsloth/gpt-oss-20b-GGUF");
+        // Individual markers are caught case-insensitively.
+        assert!(agent_disqualified("x/Model-ABLITERATED"));
+        assert!(agent_disqualified("x/model-heretic-neo"));
+        assert!(!agent_disqualified("unsloth/gpt-oss-20b-GGUF"));
+        // Pathological all-disqualified list still yields the top raw candidate, not nothing.
+        let all_bad = vec![cand("a/uncensored", 5), cand("b/abliterated", 3)];
+        assert_eq!(pick_for_agent(&all_bad).unwrap().repo, "a/uncensored");
+        assert!(pick_for_agent(&[]).is_none());
     }
 }

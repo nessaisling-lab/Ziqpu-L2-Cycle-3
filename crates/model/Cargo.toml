@@ -21,3 +21,7 @@ path = "src/main.rs"
 [dependencies]
 # Only `detect_spec` touches this — the tier logic below is dependency-free and unit-tested.
 sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+# Parse the Hugging Face Hub API response for layer 2. The HTTP itself is a `curl` subprocess (the
+# repo's established no-HTTP-crate approach; curl ships on Win10+/macOS/Linux) — only the JSON parse
+# needs a dep, and the parser is pure + unit-tested against a fixture.
+serde_json = "1"
