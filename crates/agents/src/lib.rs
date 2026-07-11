@@ -13,6 +13,7 @@
 //! live demo is reliable; real models and the live SEC EDGAR pull are drop-in via the traits.
 
 pub mod grounded;
+pub mod identity;
 pub mod interpret;
 pub mod interpret_llm;
 mod llm_http;
@@ -24,6 +25,7 @@ pub mod score;
 pub mod types;
 
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
+pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::{
     build_interpreter, grounded_brief_for, reading_for, reading_for_mode, AnthropicInterpreter,
@@ -40,9 +42,9 @@ pub use orchestrator::{
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use types::{
-    AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, Fit, GateError,
+    AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, DayBeat, Fit, GateError,
     GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
-    Verdict,
+    Verdict, WeeklyReading,
 };
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can

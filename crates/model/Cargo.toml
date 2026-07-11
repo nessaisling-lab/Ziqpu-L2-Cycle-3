@@ -1,0 +1,30 @@
+[package]
+name = "model"
+version = "0.0.0"
+description = "Ziqpu local-model benchmark + fetch: pick and pull a local LLM sized to the machine."
+publish = false
+edition.workspace = true
+# rust-version intentionally omitted (like the ui crate): sysinfo's MSRV is above the workspace 1.80
+# pin, and gating this crate would falsely fail cargo version checks. The logic itself is 1.80-clean.
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "model"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ziqpu-model"
+path = "src/main.rs"
+
+[dependencies]
+# Only `detect_spec` touches this — the tier logic below is dependency-free and unit-tested.
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+# Parse the Hugging Face Hub API response for layer 2. The HTTP itself is a `curl` subprocess (the
+# repo's established no-HTTP-crate approach; curl ships on Win10+/macOS/Linux) — only the JSON parse
+# needs a dep, and the parser is pure + unit-tested against a fixture.
+serde_json = "1"
+# A hard timeout on the GPU-probe subprocesses (nvidia-smi can hang on a wedged driver). Tiny,
+# MIT/Apache-licensed, no transitive weight beyond libc/winapi already in the tree.
+wait-timeout = "0.2"

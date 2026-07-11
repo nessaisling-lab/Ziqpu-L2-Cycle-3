@@ -7,8 +7,9 @@ use crate::interpret::Interpreter;
 use crate::measure::{ChartSource, DeterministicMeasurer, Measurer};
 use crate::score::{assess_confidence, dominant_theme, synastry_score};
 use crate::types::{
-    AspectHit, BirthMoment, Briefing, Choice, DailyReading, Fit, GateError, GroundedSignals,
-    Measures, Recommendation, SynastryReport, ToolCall, TransitBeat, Verdict,
+    AspectHit, BirthMoment, Briefing, Choice, DailyReading, DayBeat, Fit, GateError,
+    GroundedSignals, Measures, Recommendation, SynastryReport, ToolCall, TransitBeat, Verdict,
+    WeeklyReading,
 };
 use chrono::NaiveDate;
 use engine::{detect_patterns, NatalChart, PatternOrbs, Placed, Who};
@@ -315,6 +316,46 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
             reading,
         }
     }
+
+    /// The week's self-reading — for each of the seven days from `start`, the single tightest
+    /// transit to a natal planet, plus the tightest across the whole week as the headline.
+    ///
+    /// Same discipline as [`Self::daily_reading`]: deterministic (the dates are parameters, never
+    /// the system clock), a pure reuse of the chart/transits/synastry tools, `&self`, and records
+    /// **no** tool call — so the graded observe→decide→act log and its tool-order eval stay clean.
+    pub fn weekly_reading(&self, seeker: &BirthMoment, start: NaiveDate) -> WeeklyReading {
+        let natal = self.chart.chart(seeker);
+        let days: Vec<DayBeat> = (0..7i64)
+            .map(|i| {
+                let date = start
+                    .checked_add_signed(chrono::Duration::days(i))
+                    .unwrap_or(start);
+                let sky = self.chart.transits(date);
+                let hits = self.chart.synastry(&sky, &natal);
+                let beat = tightest_transit(&hits).map(TransitBeat::from_hit);
+                DayBeat { date, beat }
+            })
+            .collect();
+        // The headline is the tightest beat across the week — smallest orb, tie-broken
+        // deterministically by (transiting, natal) name so it never depends on day order.
+        let headline = days
+            .iter()
+            .filter_map(|d| d.beat.as_ref())
+            .min_by(|x, y| {
+                x.orb
+                    .total_cmp(&y.orb)
+                    .then_with(|| x.transiting.cmp(&y.transiting))
+                    .then_with(|| x.natal.cmp(&y.natal))
+            })
+            .cloned();
+        let reading = self.interp.weekly_summary(&days, headline.as_ref(), start);
+        WeeklyReading {
+            start,
+            days,
+            headline,
+            reading,
+        }
+    }
 }
 
 /// The single tightest transit: smallest orb, breaking ties deterministically by heavier contact
@@ -527,6 +568,78 @@ mod tests {
         assert!(
             beat.orb <= SYNASTRY_ORB,
             "the tightest transit is within orb"
+        );
+    }
+
+    /// Pure function of `(seeker, start)`: two independent sessions produce identical weekly reads.
+    #[test]
+    fn weekly_reading_is_deterministic() {
+        let seeker = demo_seeker();
+        let a = session().weekly_reading(&seeker, jul9());
+        let b = session().weekly_reading(&seeker, jul9());
+        assert_eq!(a.start, b.start);
+        assert_eq!(a.days, b.days);
+        assert_eq!(a.headline, b.headline);
+        assert_eq!(a.reading, b.reading);
+    }
+
+    /// Exactly seven consecutive days from the start date.
+    #[test]
+    fn weekly_reading_spans_seven_consecutive_days() {
+        let wr = session().weekly_reading(&demo_seeker(), jul9());
+        assert_eq!(wr.days.len(), 7);
+        assert_eq!(wr.start, jul9());
+        for (i, d) in wr.days.iter().enumerate() {
+            assert_eq!(
+                d.date,
+                jul9() + chrono::Duration::days(i as i64),
+                "day {i} is start + {i}"
+            );
+        }
+    }
+
+    /// The headline is the tightest beat across the whole week — its orb equals the min orb over
+    /// every day's beat.
+    #[test]
+    fn weekly_headline_is_the_tightest_beat_of_the_week() {
+        let wr = session().weekly_reading(&demo_seeker(), jul9());
+        let min_orb = wr
+            .days
+            .iter()
+            .filter_map(|d| d.beat.as_ref())
+            .map(|b| b.orb)
+            .fold(f64::INFINITY, f64::min);
+        let headline = wr.headline.expect("the week is not silent");
+        assert_eq!(
+            headline.orb, min_orb,
+            "the headline is the tightest contact of the week"
+        );
+    }
+
+    /// One legible line, naming the window, ending in the standing guardrail exactly once.
+    #[test]
+    fn weekly_reading_is_one_line_with_the_guardrail() {
+        let wr = session().weekly_reading(&demo_seeker(), jul9());
+        let r = &wr.reading;
+        assert_eq!(r.lines().count(), 1, "one summary line, not a report");
+        assert!(
+            r.starts_with("THIS WEEK (2026-07-09"),
+            "names the week window"
+        );
+        let lc = r.to_lowercase();
+        assert!(lc.contains("measured, not fate"), "anti-fatalism guardrail");
+        assert!(lc.contains("not financial advice"), "standing guardrail");
+        assert_eq!(r.matches("REMINDER").count(), 1);
+    }
+
+    /// The weekly read records no graded tool call — the observe→decide→act log stays clean.
+    #[test]
+    fn weekly_reading_does_not_touch_the_graded_tool_order() {
+        let s = session();
+        let _ = s.weekly_reading(&demo_seeker(), jul9());
+        assert!(
+            s.calls().is_empty(),
+            "weekly_reading must not record any tool call"
         );
     }
 

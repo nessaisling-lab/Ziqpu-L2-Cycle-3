@@ -9,7 +9,9 @@ use agents::{demo_choices, demo_seeker, GroundedSignals, ReadMode, Recommendatio
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
-use crate::components::{Briefing, Checkpoint, Guardrail, Legend, Ranked, SettingsButton, Setup};
+use crate::components::{
+    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, Setup,
+};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
 
 /// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
@@ -62,6 +64,25 @@ pub fn App() -> Element {
     let mut briefing = use_signal(|| None::<agents::Briefing>);
     let mut grounding = use_signal(|| false);
 
+    // The first-run onboarding gate: a brand-new seeker (no saved profile) is walked through
+    // welcome → birth chart → handle reveal before the main app. A returning seeker (any saved
+    // profile) skips it — `load_profile()` reads `None` only when no profile.json exists yet.
+    // `ZIQPU_ONBOARD=1` forces the gate on even with a saved profile, so the flow can be shown in a
+    // demo or QA pass without deleting the real profile. Cleared by the gate's "Enter Ziqpu" button.
+    let mut onboarding = use_signal(|| {
+        // Force the gate on only for a *truthy* ZIQPU_ONBOARD ("1"/"true"/"yes"/"on") — a bare or
+        // "0"/"false" value must not silently force it (`.is_ok()` would fire on any set value).
+        let forced = std::env::var("ZIQPU_ONBOARD")
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false);
+        forced || crate::profile::load_profile().is_none()
+    });
+
     // The event-loop-thread half of the off-thread fill: receive `(ticker, prose, live_model)` from
     // the worker thread and splice each reading back into `recs`, record its provenance in `sources`
     // (Some(model) = live API, None = template), and clear that ticker from `pending`.
@@ -77,38 +98,40 @@ pub fn App() -> Element {
         },
     );
 
-    // The Ask box's off-thread reader: receive `(ticker, prose)` from the guardrail's worker thread
-    // and splice the prose into the in-flight measured reading — but only if the current answer is
-    // still that same pending reading (a newer question may have replaced it in the meantime).
-    let ask_reader = use_coroutine(
-        move |mut rx: UnboundedReceiver<(String, String)>| async move {
-            while let Some((ticker, prose)) = rx.next().await {
-                let current = answer.read().clone();
-                if let Some(crate::state::AnswerView::Reading {
-                    name,
-                    ticker: t,
-                    label,
-                    pending: true,
-                    redirect,
-                    note,
-                    ..
-                }) = current
-                {
-                    if t == ticker {
-                        answer.set(Some(crate::state::AnswerView::Reading {
-                            name,
-                            ticker: t,
-                            label,
-                            pending: false,
-                            text: prose,
-                            redirect,
-                            note,
-                        }));
-                    }
+    // The Ask box's off-thread reader: receive `(req_id, prose)` from the guardrail's worker thread
+    // and splice the prose into the in-flight measured reading whose `req_id` matches — so a stale
+    // reply for a superseded (same-ticker) question is dropped, not painted into the newer one.
+    let ask_reader = use_coroutine(move |mut rx: UnboundedReceiver<(u64, String)>| async move {
+        while let Some((req_id, prose)) = rx.next().await {
+            let current = answer.read().clone();
+            if let Some(crate::state::AnswerView::Reading {
+                name,
+                ticker,
+                label,
+                pending: true,
+                redirect,
+                note,
+                req_id: rid,
+                ..
+            }) = current
+            {
+                // Fill only if this reply is for the *current* ask — a slower earlier reply for a
+                // superseded (same-ticker) ask has a stale id and is dropped.
+                if rid == req_id {
+                    answer.set(Some(crate::state::AnswerView::Reading {
+                        name,
+                        ticker,
+                        label,
+                        pending: false,
+                        text: prose,
+                        redirect,
+                        note,
+                        req_id: rid,
+                    }));
                 }
             }
-        },
-    );
+        }
+    });
 
     // The grounded pull's off-thread half: receive `(signals, briefing)` from the worker thread and
     // commit them — set `signals`+`briefing`, drop the "grounding…" loading state, and advance to
@@ -183,6 +206,7 @@ pub fn App() -> Element {
     };
     use_context_provider(|| ctx.clone());
 
+    let onboarding_active = *onboarding.read();
     let phase = *ctx.phase.read();
     let step = match phase {
         Phase::Setup => 0,
@@ -260,6 +284,10 @@ pub fn App() -> Element {
         // wheat plots to the whole surface. See ziqpu.css `.wheat-horizon`.
         div { class: "wheat-horizon", "aria-hidden": "true" }
 
+        if onboarding_active {
+            // First-run gate: no chrome, just the wizard over the starfield. Clears itself on "Enter".
+            Onboarding { on_done: move |_| onboarding.set(false) }
+        } else {
         div { class: "wrap",
             header {
                 div { class: "brand",
@@ -397,6 +425,7 @@ pub fn App() -> Element {
             // The dictionary — a self-contained, always-available collapsible glossary of the
             // planets, aspects, flowing/friction, and the fit bands the engine speaks in.
             Legend {}
+        }
         }
     }
 }

@@ -7,9 +7,9 @@
 
 use agents::Choice;
 use dioxus::prelude::*;
-use tickers::TickerRow;
+use tickers::{TickerRow, Universe};
 
-use crate::components::BirthInputForm;
+use crate::components::{BirthInputForm, Identity, YourSky};
 use crate::state::{run_recommend, AppCtx};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -25,6 +25,12 @@ pub fn Setup() -> Element {
     let current = *mode.read();
 
     rsx! {
+        // The anonymous identity — the first thing the seeker sees, their cosmic handle (no login).
+        Identity {}
+
+        // The seeker's own sky — today's beat + this week's summary (the "you" half of the product).
+        YourSky {}
+
         div { class: "setup-modes",
             button {
                 class: if current == Mode::Seeded { "mode-tab current" } else { "mode-tab" },
@@ -114,50 +120,116 @@ fn SeededPanel() -> Element {
     }
 }
 
-/// Search the market — the full-universe entry point. The offline `tickers` index resolves a query
-/// synchronously (no async, no network); the seeker drops several symbols into a basket, and
-/// "Read the fits" ranks the whole basket against the current chart via the same graded path. Each
-/// picked symbol becomes an `agents::Choice` dated by its IPO (`tickers::choice`).
+/// The three searchable universes, in picker order. Stocks first (the original default), then the
+/// two industries the product owner wants weighed alongside them — airlines and insurers.
+const UNIVERSES: [Universe; 3] = [Universe::Stocks, Universe::Airlines, Universe::Insurance];
+
+/// The namespaced persistence token for a basket entry — `"<slug>:<id>"` (e.g. `"stocks:AAPL"`,
+/// `"airlines:AAL"`). Namespacing is what lets a mixed basket hold an airline "AAL" *and* a stock
+/// "AAL" without the two colliding on disk or when deduping.
+fn basket_token(u: Universe, id: &str) -> String {
+    format!("{}:{}", u.slug(), id)
+}
+
+/// Rebuild one basket entry from a persisted token. Splits on the first `:` into `<slug>:<id>`;
+/// a legacy bare token with no `:` (written before universes existed) is read as a stock. Returns
+/// `None` for an unknown slug or an id no longer present in that universe's table.
+fn choice_from_token(token: &str) -> Option<(Universe, Choice)> {
+    let (slug, id) = match token.split_once(':') {
+        Some((slug, id)) => (slug, id),
+        None => ("stocks", token), // back-compat: bare token → stocks
+    };
+    let u = Universe::from_slug(slug)?;
+    tickers::choice_in(u, id).map(|c| (u, c))
+}
+
+/// Snapshot the whole basket as namespaced tokens, in pick order, and persist it. Called on every
+/// add and remove so the mixed basket survives a relaunch exactly as built.
+fn persist_basket(basket: &[(Universe, Choice)]) {
+    let tokens: Vec<String> = basket
+        .iter()
+        .map(|(u, c)| basket_token(*u, &c.ticker))
+        .collect();
+    crate::profile::save_basket(&tokens);
+}
+
+/// Search a universe — the full-universe entry point across **Stocks · Airlines · Insurers**. A
+/// picker selects the universe; the offline `tickers` index resolves the query synchronously (no
+/// async, no network) via `search_in`. The seeker drops several entities — possibly from different
+/// universes — into one mixed basket, and "Read the fits" ranks the whole basket against the current
+/// chart via the same graded path. Each pick becomes an `agents::Choice` dated by its founding/IPO
+/// moment (`tickers::choice_in`). The basket persists as namespaced `"<slug>:<id>"` tokens so a
+/// stock "AAL" and an airline "AAL" never collide.
 #[component]
 fn MarketPanel() -> Element {
     let ctx = use_context::<AppCtx>();
 
+    // The selected universe. Drives search, add, and each new entry's namespace.
+    let mut universe = use_signal(|| Universe::Stocks);
+
     let mut query = use_signal(String::new);
     let mut results = use_signal(Vec::<TickerRow>::new);
-    // The chosen-choices basket. `Choice` isn't `PartialEq`, so we dedupe by ticker. Seeded once
-    // from the saved basket (persisted across launches) so the seeker's picks survive a relaunch.
+    // The chosen basket — universe-tagged so each entry knows how to persist and dedupe. `Choice`
+    // isn't `PartialEq`, so we dedupe by the full namespaced token. Seeded once from the saved
+    // basket (rebuilt via `choice_from_token`) so the seeker's mixed picks survive a relaunch.
     let mut basket = use_signal(|| {
         crate::profile::load_basket()
             .iter()
-            .filter_map(|t| tickers::choice(t))
-            .collect::<Vec<Choice>>()
+            .filter_map(|t| choice_from_token(t))
+            .collect::<Vec<(Universe, Choice)>>()
     });
-    // A rare-path note: `choice()` is now total over the listed table, so a click virtually always
-    // adds. If it somehow returns `None` (a symbol not in the table), we surface a tiny inline
-    // "couldn't add {ticker}" note instead of silently no-opping.
+    // A rare-path note: `choice_in()` is total over each table, so a click virtually always adds.
+    // If it somehow returns `None`, we surface a tiny inline "couldn't add {id}" note.
     let mut add_error = use_signal(|| None::<String>);
 
+    let current_universe = *universe.read();
     let basket_now = basket.read().clone();
     let can_read = !basket_now.is_empty();
 
     rsx! {
         section { class: "setup market",
-            p { class: "eyebrow", "Begin · search the whole market" }
-            h2 { class: "setup-title", "Search the market" }
+            p { class: "eyebrow", "Begin · search a universe" }
+            h2 { class: "setup-title", "Search a universe" }
             p { class: "muted",
-                "Search the full listed universe by ticker or company name — resolved offline from a "
-                "committed table (no keys, no network). Add as many as you like to the basket, then "
-                "weigh them together. Each is dated by its IPO."
+                "Search a universe — Stocks, Airlines, or Insurers — by ticker, id, or company name, "
+                "resolved offline from committed tables (no keys, no network). Mix as many as you like "
+                "into one basket, then weigh them together. Each is dated by its founding or IPO moment."
+            }
+
+            div { class: "universe-picker", role: "tablist", "aria-label": "Choose a universe",
+                {UNIVERSES.iter().map(|u| {
+                    let u = *u;
+                    let is_current = current_universe == u;
+                    rsx! {
+                        button {
+                            key: "{u.slug()}",
+                            class: if is_current { "universe-pill current" } else { "universe-pill" },
+                            r#type: "button",
+                            role: "tab",
+                            "aria-selected": if is_current { "true" } else { "false" },
+                            onclick: move |_| {
+                                // Switching universes: adopt it and clear the stale query/results so
+                                // the seeker never adds from the universe they just left.
+                                universe.set(u);
+                                query.set(String::new());
+                                results.set(Vec::new());
+                                add_error.set(None);
+                            },
+                            "{u.label()}"
+                        }
+                    }
+                })}
             }
 
             div { class: "ticker-search",
                 input {
-                    "aria-label": "Search a ticker or company",
-                    placeholder: "Search a ticker or company — e.g. AAPL or Tesla",
+                    "aria-label": "Search the {current_universe.label()} universe",
+                    placeholder: "Search {current_universe.label()} — e.g. a ticker, id, or company",
                     value: "{query}",
                     oninput: move |e| {
                         let q = e.value();
-                        results.set(tickers::search(&q));
+                        let u = *universe.read();
+                        results.set(tickers::search_in(u, &q));
                         query.set(q);
                     },
                 }
@@ -165,37 +237,41 @@ fn MarketPanel() -> Element {
 
             if !query.read().trim().is_empty() {
                 if results.read().is_empty() {
-                    p { class: "ticker-empty", "No symbols match that search." }
+                    p { class: "ticker-empty", "No {current_universe.label()} match that search." }
                 } else {
                     div { class: "ticker-results",
                         {results.read().iter().map(|row| {
-                            let ticker = row.ticker.clone();
+                            let id = row.ticker.clone();
                             rsx! {
                                 button {
                                     key: "{row.ticker}",
                                     class: "ticker-result",
                                     r#type: "button",
                                     onclick: move |_| {
-                                        // Resolve to a datable Choice and add it once (dedupe by ticker).
-                                        if let Some(choice) = tickers::choice(&ticker) {
-                                            let already = basket.read().iter().any(|c| c.ticker == choice.ticker);
+                                        let u = *universe.read();
+                                        // Resolve to a datable Choice and add it once (dedupe by the
+                                        // full namespaced token, so cross-universe id collisions stay
+                                        // distinct — airline "AAL" and stock "AAL" are two entries).
+                                        if let Some(choice) = tickers::choice_in(u, &id) {
+                                            let token = basket_token(u, &choice.ticker);
+                                            let already = basket
+                                                .read()
+                                                .iter()
+                                                .any(|(bu, c)| basket_token(*bu, &c.ticker) == token);
                                             if !already {
-                                                basket.write().push(choice);
-                                                // Persist the basket so the picks survive a relaunch.
-                                                let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
-                                                crate::profile::save_basket(&picks);
+                                                basket.write().push((u, choice));
+                                                persist_basket(&basket.read());
                                             }
                                             add_error.set(None);
                                         } else {
-                                            // Should be unreachable now that `choice()` is total, but never
-                                            // no-op silently: tell the seeker the add didn't take.
-                                            add_error.set(Some(ticker.clone()));
+                                            add_error.set(Some(id.clone()));
                                         }
                                         query.set(String::new());
                                         results.set(Vec::new());
                                     },
                                     span { class: "sym", "{row.ticker}" }
                                     span { class: "co", "{row.name}" }
+                                    span { class: "univ", "{current_universe.label()}" }
                                 }
                             }
                         })}
@@ -204,7 +280,7 @@ fn MarketPanel() -> Element {
             }
 
             if let Some(t) = add_error.read().clone() {
-                p { class: "ticker-empty", "Couldn't add {t} — that symbol isn't in the table. Try another." }
+                p { class: "ticker-empty", "Couldn't add {t} — that id isn't in the table. Try another." }
             }
 
             div { class: "basket",
@@ -213,23 +289,26 @@ fn MarketPanel() -> Element {
                     p { class: "basket-empty", "Nothing chosen yet — search above and add a few." }
                 } else {
                     div { class: "basket-chips",
-                        {basket_now.iter().map(|c| {
+                        {basket_now.iter().map(|(u, c)| {
+                            let u = *u;
                             let ticker = c.ticker.clone();
                             let name = c.name.clone();
-                            let remove = ticker.clone();
+                            let token = basket_token(u, &ticker);
+                            let remove = token.clone();
                             rsx! {
-                                span { key: "{ticker}", class: "basket-chip",
+                                span { key: "{token}", class: "basket-chip",
                                     strong { "{ticker}" }
                                     " · {name}"
+                                    span { class: "chip-univ", "{u.label()}" }
                                     button {
                                         class: "chip-x",
                                         r#type: "button",
                                         "aria-label": "Remove {ticker}",
                                         onclick: move |_| {
-                                            basket.write().retain(|c| c.ticker != remove);
-                                            // Persist the trimmed basket too.
-                                            let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
-                                            crate::profile::save_basket(&picks);
+                                            basket
+                                                .write()
+                                                .retain(|(bu, c)| basket_token(*bu, &c.ticker) != remove);
+                                            persist_basket(&basket.read());
                                         },
                                         "×"
                                     }
@@ -248,7 +327,9 @@ fn MarketPanel() -> Element {
                     onclick: {
                         let mut ctx = ctx.clone();
                         move |_| {
-                            let chosen = basket.read().clone();
+                            // The ranker is universe-agnostic — hand it the bare Choices, mixed.
+                            let chosen: Vec<Choice> =
+                                basket.read().iter().map(|(_, c)| c.clone()).collect();
                             if chosen.is_empty() {
                                 return;
                             }
