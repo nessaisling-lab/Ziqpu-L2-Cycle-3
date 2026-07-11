@@ -53,6 +53,10 @@ pub enum AnswerView {
         text: String,
         redirect: Option<String>,
         note: Option<String>,
+        /// A monotonic id for this ask. The off-thread reply carries it back and fills only the
+        /// reading with the *matching* id — so a slower earlier ask for the same ticker can't land
+        /// in a newer ask's slot (the double-submit race). Set from a process-wide counter.
+        req_id: u64,
     },
     /// A helpful nudge — the question named no measurable choice.
     Nudge(String),
@@ -149,11 +153,12 @@ pub struct AppCtx {
     /// and its `tx()` yields a `Send` sender the worker thread can hold (Signals are `!Send`, so they
     /// never cross the thread boundary — only this channel does).
     pub reader: Coroutine<(String, String, Option<String>)>,
-    /// The event-loop-thread coroutine that receives `(ticker, prose)` from the Ask box's worker
-    /// thread and fills the in-flight [`AnswerView::Reading`] with the returned prose — so a live
-    /// interpreter call from the guardrail never blocks (freezes) the window. Same `!Send` discipline
-    /// as [`Self::reader`]: only this channel crosses the thread boundary, never a `Signal`.
-    pub ask_reader: Coroutine<(String, String)>,
+    /// The event-loop-thread coroutine that receives `(req_id, prose)` from the Ask box's worker
+    /// thread and fills the in-flight [`AnswerView::Reading`] whose `req_id` matches — so a live
+    /// interpreter call from the guardrail never blocks (freezes) the window, and a stale reply for
+    /// a superseded ask is dropped. Same `!Send` discipline as [`Self::reader`]: only this channel
+    /// crosses the thread boundary, never a `Signal`.
+    pub ask_reader: Coroutine<(u64, String)>,
     /// The event-loop-thread coroutine that receives `(GroundedSignals, Briefing)` from the grounded
     /// pull's worker thread and commits them: sets `signals` + `briefing`, clears `grounding`, and
     /// advances to [`Phase::Briefing`]. Same `!Send` discipline as [`Self::reader`] — only owned,

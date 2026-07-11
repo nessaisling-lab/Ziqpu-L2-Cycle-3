@@ -19,22 +19,28 @@ use crate::state::{measures_for, AnswerView, AppCtx};
 /// human checkpoint where the real record can be added, without ever calling a trade.
 const CHECKPOINT_NOTE: &str = "approve grounding at the checkpoint to add the real record";
 
+/// A process-wide monotonic counter for ask requests. Each submit mints the next id and stamps it on
+/// the in-flight [`AnswerView::Reading`]; the off-thread reply carries it back so it fills only that
+/// reading. This defeats the double-submit race: two asks for the *same* company get distinct ids, so
+/// a slower earlier reply can no longer land in the newer ask's slot (it would match by ticker alone
+/// otherwise). A `static` rather than a component signal, so it never resets on a Guardrail remount.
+static ASK_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The next unique ask id.
+fn next_ask_id() -> u64 {
+    ASK_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Fetch a company's reading off the event-loop thread (a live model call blocks), threading the
 /// current [`ReadMode`] through [`agents::reading_for_mode`]; the prose returns via `ctx.ask_reader`
 /// and fills the in-flight [`AnswerView::Reading`]. The closure moves only owned, `Send` values —
 /// never a `Signal` or the `!Send` session.
-fn spawn_reading(
-    ctx: &AppCtx,
-    m: Measures,
-    fit: Fit,
-    name: String,
-    ticker: String,
-    mode: ReadMode,
-) {
+fn spawn_reading(ctx: &AppCtx, m: Measures, fit: Fit, name: String, req_id: u64, mode: ReadMode) {
     let tx = ctx.ask_reader.tx();
     std::thread::spawn(move || {
         let (prose, _model) = agents::reading_for_mode(&m, fit, &name, mode);
-        let _ = tx.unbounded_send((ticker, prose));
+        // Send back the request id (not the ticker) so `ask_reader` fills only the matching reading.
+        let _ = tx.unbounded_send((req_id, prose));
     });
 }
 
@@ -98,6 +104,7 @@ pub fn Guardrail() -> Element {
                 };
                 if let Some((row, m, fit)) = measured {
                     // Honest answer + the data: the redirect above, the measured reading below.
+                    let req_id = next_ask_id();
                     ctx.answer.set(Some(AnswerView::Reading {
                         name: row.name.clone(),
                         ticker: row.ticker.clone(),
@@ -106,8 +113,9 @@ pub fn Guardrail() -> Element {
                         text: String::new(),
                         redirect: Some(redirect),
                         note: Some(CHECKPOINT_NOTE.to_string()),
+                        req_id,
                     }));
-                    spawn_reading(&ctx, m, fit, row.name, row.ticker, mode);
+                    spawn_reading(&ctx, m, fit, row.name, req_id, mode);
                 } else {
                     // Advice with no measurable company → the redirect alone.
                     ctx.answer.set(Some(AnswerView::Refusal(redirect)));
@@ -117,6 +125,7 @@ pub fn Guardrail() -> Element {
 
             if let Some((row, m, fit)) = measured {
                 // A named company, non-advice: paint the "measuring…" state, fill the prose off-thread.
+                let req_id = next_ask_id();
                 ctx.answer.set(Some(AnswerView::Reading {
                     name: row.name.clone(),
                     ticker: row.ticker.clone(),
@@ -125,8 +134,9 @@ pub fn Guardrail() -> Element {
                     text: String::new(),
                     redirect: None,
                     note: None,
+                    req_id,
                 }));
-                spawn_reading(&ctx, m, fit, row.name, row.ticker, mode);
+                spawn_reading(&ctx, m, fit, row.name, req_id, mode);
                 return;
             }
 
@@ -176,7 +186,7 @@ pub fn Guardrail() -> Element {
                     None => rsx! {},
                     Some(AnswerView::Refusal(msg)) => rsx! { p { class: "refusal", "{msg}" } },
                     Some(AnswerView::Nudge(msg)) => rsx! { p { class: "nudge", "{msg}" } },
-                    Some(AnswerView::Reading { name, ticker, label, pending, text, redirect, note }) => {
+                    Some(AnswerView::Reading { name, ticker, label, pending, text, redirect, note, .. }) => {
                         let body = if pending { String::new() } else { strip_fit_header(text) };
                         rsx! {
                             // The enforced-in-code redirect (bold no-advice voice), when this reading

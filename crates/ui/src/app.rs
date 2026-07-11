@@ -98,38 +98,40 @@ pub fn App() -> Element {
         },
     );
 
-    // The Ask box's off-thread reader: receive `(ticker, prose)` from the guardrail's worker thread
-    // and splice the prose into the in-flight measured reading — but only if the current answer is
-    // still that same pending reading (a newer question may have replaced it in the meantime).
-    let ask_reader = use_coroutine(
-        move |mut rx: UnboundedReceiver<(String, String)>| async move {
-            while let Some((ticker, prose)) = rx.next().await {
-                let current = answer.read().clone();
-                if let Some(crate::state::AnswerView::Reading {
-                    name,
-                    ticker: t,
-                    label,
-                    pending: true,
-                    redirect,
-                    note,
-                    ..
-                }) = current
-                {
-                    if t == ticker {
-                        answer.set(Some(crate::state::AnswerView::Reading {
-                            name,
-                            ticker: t,
-                            label,
-                            pending: false,
-                            text: prose,
-                            redirect,
-                            note,
-                        }));
-                    }
+    // The Ask box's off-thread reader: receive `(req_id, prose)` from the guardrail's worker thread
+    // and splice the prose into the in-flight measured reading whose `req_id` matches — so a stale
+    // reply for a superseded (same-ticker) question is dropped, not painted into the newer one.
+    let ask_reader = use_coroutine(move |mut rx: UnboundedReceiver<(u64, String)>| async move {
+        while let Some((req_id, prose)) = rx.next().await {
+            let current = answer.read().clone();
+            if let Some(crate::state::AnswerView::Reading {
+                name,
+                ticker,
+                label,
+                pending: true,
+                redirect,
+                note,
+                req_id: rid,
+                ..
+            }) = current
+            {
+                // Fill only if this reply is for the *current* ask — a slower earlier reply for a
+                // superseded (same-ticker) ask has a stale id and is dropped.
+                if rid == req_id {
+                    answer.set(Some(crate::state::AnswerView::Reading {
+                        name,
+                        ticker,
+                        label,
+                        pending: false,
+                        text: prose,
+                        redirect,
+                        note,
+                        req_id: rid,
+                    }));
                 }
             }
-        },
-    );
+        }
+    });
 
     // The grounded pull's off-thread half: receive `(signals, briefing)` from the worker thread and
     // commit them — set `signals`+`briefing`, drop the "grounding…" loading state, and advance to
