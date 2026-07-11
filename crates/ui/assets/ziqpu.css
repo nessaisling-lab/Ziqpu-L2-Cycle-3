@@ -485,6 +485,25 @@ td.b{color:var(--ink)}
 .identity-actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn--ghost{padding:9px 14px;font-size:12px;background:transparent}
 
+/* ---- first-run onboarding gate ---- */
+.onboarding{position:relative;z-index:1;min-height:80vh;display:grid;place-items:center;padding:36px 18px}
+.onboarding-card{
+  width:100%;max-width:560px;background:var(--parchment);border:1px solid var(--gold-line);
+  border-radius:22px;box-shadow:var(--shadow);padding:32px 30px;text-align:center;
+}
+.onboarding-title{font:700 44px/1 var(--f-display);color:var(--gold-deep);margin:6px 0 14px}
+.onboarding-lede{font:400 15px/1.62 var(--f-body);color:var(--ink-soft);margin:0 auto 10px;max-width:46ch}
+.onboarding-lede--muted{color:var(--ink-faint);font-size:13.5px}
+.onboarding-sub{font:500 12px/1 var(--f-mono);letter-spacing:.06em;color:var(--gold-deep);margin:6px 0 0}
+.onboarding-step{
+  font:600 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold-deep);margin:0 0 16px;
+}
+.onboarding-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+/* The reused birth form + identity card read left-aligned inside the centered card. */
+.onboarding-card .setup{text-align:left}
+.onboarding-card .identity{text-align:left;margin-bottom:0}
+
 /* ---- birth-input form ---- */
 .birth-title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 /* The "chart saved" / "Saved ✓" affirmation — a small gold pill, never shouting. */

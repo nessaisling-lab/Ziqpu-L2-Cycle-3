@@ -115,8 +115,15 @@ pub fn draft_to_moment(
     }
 }
 
+/// The birth form, in two modes. Default (Setup's "enter my own details") submits straight to the
+/// graded loop. In **`reveal_mode`** (the first-run onboarding gate) it instead saves the chart, sets
+/// the seeker, and fires [`on_continue`] so the wizard can advance to the handle reveal — the loop is
+/// not run, and the standalone "Save chart" affordance is hidden to keep onboarding a single path.
 #[component]
-pub fn BirthInputForm() -> Element {
+pub fn BirthInputForm(
+    #[props(default)] reveal_mode: bool,
+    #[props(default)] on_continue: EventHandler<()>,
+) -> Element {
     let ctx = use_context::<AppCtx>();
 
     // Repopulate the form from the last saved draft (best-effort; loaded once on mount). A missing or
@@ -297,27 +304,29 @@ pub fn BirthInputForm() -> Element {
                 }
 
                 div { class: "actions", style: "justify-content:flex-start;align-items:center",
-                    button {
-                        class: "btn",
-                        r#type: "button",
-                        title: "Save this chart so it repopulates next time",
-                        onclick: move |_| {
-                            // Persist the current draft verbatim — even a partly-filled one — so it
-                            // pins and round-trips on relaunch. Best-effort; never panics (see
-                            // crate::profile). Does NOT require a valid moment.
-                            let selected = selected.read().clone();
-                            crate::profile::save_draft(
-                                date_str.read().clone(),
-                                time_str.read().clone(),
-                                *time_unknown.read(),
-                                selected.as_ref().map(crate::profile::SavedPlace::from_place),
-                            );
-                            saved_confirm.set(true);
-                        },
-                        "Save chart"
-                    }
-                    if *saved_confirm.read() {
-                        span { class: "chart-saved-badge", "Saved ✓" }
+                    if !reveal_mode {
+                        button {
+                            class: "btn",
+                            r#type: "button",
+                            title: "Save this chart so it repopulates next time",
+                            onclick: move |_| {
+                                // Persist the current draft verbatim — even a partly-filled one — so it
+                                // pins and round-trips on relaunch. Best-effort; never panics (see
+                                // crate::profile). Does NOT require a valid moment.
+                                let selected = selected.read().clone();
+                                crate::profile::save_draft(
+                                    date_str.read().clone(),
+                                    time_str.read().clone(),
+                                    *time_unknown.read(),
+                                    selected.as_ref().map(crate::profile::SavedPlace::from_place),
+                                );
+                                saved_confirm.set(true);
+                            },
+                            "Save chart"
+                        }
+                        if *saved_confirm.read() {
+                            span { class: "chart-saved-badge", "Saved ✓" }
+                        }
                     }
                     button {
                         class: "btn btn--go",
@@ -337,7 +346,7 @@ pub fn BirthInputForm() -> Element {
                                 ) {
                                     // Persist the full draft (not just the moment) so the form
                                     // repopulates exactly as entered after a relaunch (best-effort,
-                                    // never panics — see crate::profile), then drive the graded loop.
+                                    // never panics — see crate::profile).
                                     crate::profile::save_draft(
                                         date_str.clone(),
                                         time_str.clone(),
@@ -345,11 +354,17 @@ pub fn BirthInputForm() -> Element {
                                         selected.as_ref().map(crate::profile::SavedPlace::from_place),
                                     );
                                     ctx.seeker.set(moment);
-                                    run_recommend(ctx.clone());
+                                    // Onboarding reveal mode advances to the handle reveal; Setup's
+                                    // custom mode drives the graded loop straight to the ranked fits.
+                                    if reveal_mode {
+                                        on_continue.call(());
+                                    } else {
+                                        run_recommend(ctx.clone());
+                                    }
                                 }
                             }
                         },
-                        "Read the fits →"
+                        if reveal_mode { "Continue →" } else { "Read the fits →" }
                     }
                 }
             }

@@ -9,7 +9,9 @@ use agents::{demo_choices, demo_seeker, GroundedSignals, ReadMode, Recommendatio
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
-use crate::components::{Briefing, Checkpoint, Guardrail, Legend, Ranked, SettingsButton, Setup};
+use crate::components::{
+    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, Setup,
+};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
 
 /// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
@@ -61,6 +63,15 @@ pub fn App() -> Element {
     let mut signals = use_signal(|| None::<GroundedSignals>);
     let mut briefing = use_signal(|| None::<agents::Briefing>);
     let mut grounding = use_signal(|| false);
+
+    // The first-run onboarding gate: a brand-new seeker (no saved profile) is walked through
+    // welcome → birth chart → handle reveal before the main app. A returning seeker (any saved
+    // profile) skips it — `load_profile()` reads `None` only when no profile.json exists yet.
+    // `ZIQPU_ONBOARD=1` forces the gate on even with a saved profile, so the flow can be shown in a
+    // demo or QA pass without deleting the real profile. Cleared by the gate's "Enter Ziqpu" button.
+    let mut onboarding = use_signal(|| {
+        std::env::var("ZIQPU_ONBOARD").is_ok() || crate::profile::load_profile().is_none()
+    });
 
     // The event-loop-thread half of the off-thread fill: receive `(ticker, prose, live_model)` from
     // the worker thread and splice each reading back into `recs`, record its provenance in `sources`
@@ -183,6 +194,7 @@ pub fn App() -> Element {
     };
     use_context_provider(|| ctx.clone());
 
+    let onboarding_active = *onboarding.read();
     let phase = *ctx.phase.read();
     let step = match phase {
         Phase::Setup => 0,
@@ -260,6 +272,10 @@ pub fn App() -> Element {
         // wheat plots to the whole surface. See ziqpu.css `.wheat-horizon`.
         div { class: "wheat-horizon", "aria-hidden": "true" }
 
+        if onboarding_active {
+            // First-run gate: no chrome, just the wizard over the starfield. Clears itself on "Enter".
+            Onboarding { on_done: move |_| onboarding.set(false) }
+        } else {
         div { class: "wrap",
             header {
                 div { class: "brand",
@@ -397,6 +413,7 @@ pub fn App() -> Element {
             // The dictionary — a self-contained, always-available collapsible glossary of the
             // planets, aspects, flowing/friction, and the fit bands the engine speaks in.
             Legend {}
+        }
         }
     }
 }
