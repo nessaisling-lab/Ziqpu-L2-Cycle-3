@@ -9,6 +9,7 @@ members = [
     "crates/geo",
     "crates/tickers",
     "crates/mcp",
+    "crates/model",
     "crates/ui",
 ]
 
