@@ -9,7 +9,7 @@ use agents::{demo_choices, demo_seeker, GroundedSignals, ReadMode, Recommendatio
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
-use crate::components::{Briefing, Checkpoint, Guardrail, Legend, Ranked, Setup};
+use crate::components::{Briefing, Checkpoint, Guardrail, Legend, Ranked, SettingsButton, Setup};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
 
 /// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
@@ -313,6 +313,9 @@ pub fn App() -> Element {
                         "{mode_glyph} {mode_word}"
                         span { class: "mode-toggle__hint", "· {model_hint}" }
                     }
+                    // In-app credentials: paste an OpenRouter key (stored locally) for live readings
+                    // without touching env vars. Opens a masked settings modal.
+                    SettingsButton {}
                     button {
                         class: "theme",
                         r#type: "button",

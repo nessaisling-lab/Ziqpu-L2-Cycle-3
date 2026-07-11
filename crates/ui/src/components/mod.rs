@@ -8,6 +8,7 @@ mod fit_card;
 mod guardrail;
 mod legend;
 mod ranked;
+mod settings;
 mod setup;
 
 pub use backstage::Backstage;
@@ -18,4 +19,5 @@ pub use fit_card::FitCard;
 pub use guardrail::Guardrail;
 pub use legend::Legend;
 pub use ranked::Ranked;
+pub use settings::SettingsButton;
 pub use setup::Setup;
