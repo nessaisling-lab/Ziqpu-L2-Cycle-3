@@ -9,7 +9,7 @@ use agents::Choice;
 use dioxus::prelude::*;
 use tickers::{TickerRow, Universe};
 
-use crate::components::{BirthInputForm, Identity};
+use crate::components::{BirthInputForm, Identity, YourSky};
 use crate::state::{run_recommend, AppCtx};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -27,6 +27,9 @@ pub fn Setup() -> Element {
     rsx! {
         // The anonymous identity — the first thing the seeker sees, their cosmic handle (no login).
         Identity {}
+
+        // The seeker's own sky — today's beat + this week's summary (the "you" half of the product).
+        YourSky {}
 
         div { class: "setup-modes",
             button {
