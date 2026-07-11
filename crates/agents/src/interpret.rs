@@ -122,6 +122,90 @@ fn confidence_beat(confidence: Confidence) -> String {
     format!("confidence {}", confidence.label())
 }
 
+/// One warm, plain-English sentence per fit band, carrying a **staked** verdict on the fit — the
+/// conviction of the old `verdict:` line, in language a normal person gets, with no jargon. This is
+/// the body of the reading a seeker actually reads; the raw aspects live in the Backstage panel.
+fn warm_prose(fit: Fit) -> &'static str {
+    match fit {
+        Fit::StronglyAligned => {
+            "This one sings — an easy, unmistakable pull, the kind of fit you feel before you can \
+             explain it. I'd stake the read right here: you two move together."
+        }
+        Fit::Aligned => {
+            "This one flows — more ease than friction, a fit that carries its own weight. I'd \
+             stake the read on it: the current runs with you, not against you."
+        }
+        Fit::Mixed => {
+            "This one is genuinely split — real ease braided through real strain, and neither side \
+             wins outright. I'd stake the read on exactly that: it pulls both ways at once."
+        }
+        Fit::Misaligned => {
+            "There's a real grind here — more friction than flow, effort without much ease. I'd \
+             stake the read on it: this one asks more of you than it gives back."
+        }
+    }
+}
+
+/// Translate one raw contact into a plain-English *dynamic* — human words for the two bodies, and
+/// whether they meet with ease or friction. No aspect names, no orbs, no degrees ever leave this
+/// helper; that technical detail belongs only in the Backstage panel.
+fn plain_dynamic(body_a: &str, body_b: &str, harmonious: bool) -> String {
+    let a = body_word(body_a);
+    let b = body_word(body_b);
+    if harmonious {
+        format!("an easy flow between {a} and {b}")
+    } else {
+        format!("a tension between {a} and {b}")
+    }
+}
+
+/// Map a chart body to the human thing it stands for — plain words a normal person gets. Unknown
+/// bodies fall back to their own name, so nothing is ever invented.
+fn body_word(body: &str) -> String {
+    match body {
+        "Sun" => "who you are",
+        "Moon" => "how you feel",
+        "Mars" => "your drive",
+        "Venus" => "what you value",
+        "Saturn" => "caution and limits",
+        "Jupiter" => "an appetite for more",
+        "Mercury" => "how you think",
+        "Pluto" => "pressure and intensity",
+        other => return other.to_string(),
+    }
+    .to_string()
+}
+
+/// The one plain "why:" line — the single tightest contact (`top[0]`) translated into a human
+/// dynamic. Names the dominant thread without a single aspect name, orb, or degree.
+fn why_line(measures: &Measures) -> String {
+    match measures.top.first() {
+        Some(a) => format!(
+            "why: the strongest thread is {}, {}",
+            if a.harmonious {
+                "an easy one"
+            } else {
+                "a tense one"
+            },
+            plain_dynamic(&a.body_a, &a.body_b, a.harmonious),
+        ),
+        None => "why: the two charts barely touch — no single thread stands out".to_string(),
+    }
+}
+
+/// One neutral, hedged "this is what reality says:" sentence for the grounded beat. The deterministic
+/// template cannot read the *content* of the filings, so it must never characterize them (no "lean
+/// steady", no direction, no price) — that would be an invented claim that could contradict the real
+/// `GROUNDED (...)` items printed right above it. Instead it points at the actual record as the thing
+/// to weigh. (The live model, which does read the signal text, writes a substantive reality sentence.)
+fn reality_sentence(grounded: &GroundedSignals) -> &'static str {
+    if grounded.items.is_empty() {
+        "this is what reality says: the record is quiet right now — nothing on file to set beside the chart"
+    } else {
+        "this is what reality says: the filings above are the actual record — weigh those, not the sky, for the numbers"
+    }
+}
+
 /// Deterministic templated interpreter — the default.
 #[derive(Default)]
 pub struct TemplateInterpreter;
@@ -163,13 +247,14 @@ impl TemplateInterpreter {
 
 impl Interpreter for TemplateInterpreter {
     fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+        // Warm, plain prose a normal person gets — a staked verdict on the fit, plus one plain
+        // "why:" line. The raw aspects/orbs/degrees stay out of the reading (they live in Backstage).
         format!(
-            "FIT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  verdict: the ledger stakes this at {}.\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  {REMINDER}",
             fit.label(),
             measures.score,
-            self.measured(measures),
-            self.meaning(fit),
-            fit.label(),
+            warm_prose(fit),
+            why_line(measures),
         )
     }
 
@@ -186,13 +271,14 @@ impl Interpreter for TemplateInterpreter {
             grounded.items.join("; ")
         };
         format!(
-            "FIT: {} ({} / 100) — {name}\n  measured: {}\n  meaning: tradition reads {}.\n  GROUNDED ({}): {}\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}\n  {REMINDER}",
             fit.label(),
             measures.score,
-            self.measured(measures),
-            self.meaning(fit),
+            warm_prose(fit),
+            why_line(measures),
             grounded.source,
             signals,
+            reality_sentence(grounded),
         )
     }
 
@@ -291,6 +377,63 @@ mod tests {
         }
         // The verdict must end on the guardrail.
         assert!(verdict.trim_end().ends_with("Not financial advice."));
+    }
+
+    #[test]
+    fn grounded_brief_states_reality_beside_the_read() {
+        let interp = TemplateInterpreter;
+        let m = measures();
+
+        // With signals present → a neutral reality sentence that points at the real record WITHOUT
+        // characterizing the filings (the template can't read them, so it must not invent "steady"
+        // etc. — that could contradict the GROUNDED items above). Guardrail + GROUNDED intact.
+        let with_signals = interp.grounded_brief(
+            &m,
+            Fit::Aligned,
+            "Apple",
+            &GroundedSignals {
+                choice: "AAPL".into(),
+                source: "SEC EDGAR".into(),
+                items: vec!["10-Q filed 2024-05-02".into()],
+            },
+        );
+        assert!(
+            with_signals.contains("this is what reality says:"),
+            "missing reality framing: {with_signals}"
+        );
+        assert!(
+            with_signals.contains("the actual record"),
+            "reality sentence should point at the record, not characterize it: {with_signals}"
+        );
+        // It must NOT invent an un-grounded characterization of the numbers.
+        assert!(
+            !with_signals.contains("lean steady") && !with_signals.contains("nothing dramatic"),
+            "template must not invent a filings characterization: {with_signals}"
+        );
+        assert!(
+            with_signals.contains("GROUNDED (SEC EDGAR)"),
+            "{with_signals}"
+        );
+        assert!(
+            with_signals.to_lowercase().contains("not financial advice"),
+            "missing guardrail: {with_signals}"
+        );
+
+        // With no signals → the quiet-record reality sentence.
+        let empty = interp.grounded_brief(
+            &m,
+            Fit::Aligned,
+            "Apple",
+            &GroundedSignals {
+                choice: "AAPL".into(),
+                source: "SEC EDGAR".into(),
+                items: vec![],
+            },
+        );
+        assert!(
+            empty.contains("this is what reality says: the record is quiet right now"),
+            "missing quiet-record reality sentence: {empty}"
+        );
     }
 
     /// A distinctive interpreter whose overrides return sentinels absent from the default bodies.

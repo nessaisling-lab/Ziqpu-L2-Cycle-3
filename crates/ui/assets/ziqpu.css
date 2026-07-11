@@ -133,6 +133,22 @@ header{
   border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
 }
 .theme:hover{color:var(--gold-deep);border-color:var(--gold)}
+/* header button cluster — keeps the Raw⇄Live toggle beside the theme button on the right */
+.header-actions{display:flex;align-items:center;gap:8px}
+/* ---- Raw ⇄ Live display toggle ---- */
+.mode-toggle{
+  display:inline-flex;align-items:baseline;gap:8px;
+  font:600 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  background:transparent;cursor:pointer;
+  border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
+}
+.mode-toggle .mode-toggle__hint{
+  font-size:9px;letter-spacing:.08em;color:var(--ink-faint);text-transform:none;
+}
+.mode-toggle:hover{border-color:var(--gold)}
+/* Live = lapis + gold spark; Raw = muted, quiet — mirrors the card provenance badges. */
+.mode-toggle--live{color:var(--lapis);border-color:color-mix(in srgb,var(--gold) 45%,var(--lapis))}
+.mode-toggle--raw{color:var(--ink-faint)}
 .barnote{
   font:600 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
   color:var(--ink-faint);border:1px solid var(--gold-line);border-radius:999px;padding:6px 11px;
@@ -151,6 +167,10 @@ header{
 .step.done .n{color:var(--malachite)}
 .step[aria-current="true"]{color:var(--lapis);border-color:var(--gold-line);background:var(--parchment)}
 .step[aria-current="true"] .n{color:var(--gold-deep)}
+/* Reachable steps (at or before the current beat) are clickable back-nav; future steps are not. */
+.step.clickable{cursor:pointer}
+.step.clickable:hover{border-color:var(--gold-line);background:var(--parchment)}
+.step:not(.clickable){cursor:default;opacity:.5}
 
 /* ---- phase entrance ---- */
 .phase{display:block;animation:rise .34s ease both}
@@ -193,24 +213,74 @@ header{
 .score{font:600 13px/1 var(--f-mono);color:var(--ink-faint);padding:9px 22px 0}
 .score b{font-size:17px;color:var(--ink)}
 .reading{font-size:16.5px;color:var(--ink);padding:12px 22px 4px;max-width:62ch}
-/* reading still loading — a gold sweep in the Sunlit-Clay palette. Static, legible fallback by
-   default (italic gold text); the shimmer sweep only runs when motion is welcome. */
-.reading-loading{font-style:italic;color:var(--gold-deep)}
-@media(prefers-reduced-motion:no-preference){
-  .reading-loading{
-    background:linear-gradient(100deg,
-      var(--gold-deep) 0%,
-      var(--gold) 30%,
-      color-mix(in srgb,var(--gold) 45%,#fff3d6) 50%,
-      var(--gold) 70%,
-      var(--gold-deep) 100%);
-    background-size:220% 100%;
-    -webkit-background-clip:text;background-clip:text;
-    -webkit-text-fill-color:transparent;color:transparent;
-    animation:reading-shimmer 1.6s linear infinite;
-  }
+
+/* ---- live-model provenance badge ---- */
+/* Sits under the reading. --live: the OpenRouter API produced the prose (lapis text, gold spark,
+   gold-into-lapis border). --tmpl: deterministic template fallback (muted, quiet). */
+.src-badge{
+  display:inline-flex;align-items:center;gap:6px;margin:4px 22px 6px;
+  font:600 10.5px/1 var(--f-mono);letter-spacing:.05em;
+  border-radius:999px;padding:5px 11px;white-space:nowrap;
 }
-@keyframes reading-shimmer{from{background-position:180% 0}to{background-position:-80% 0}}
+.src-badge--live{
+  color:var(--lapis);
+  background:color-mix(in srgb,var(--lapis) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--gold) 45%,var(--lapis));
+}
+.src-badge--live .spark{color:var(--gold);font-size:12px}
+.src-badge--tmpl{
+  color:var(--ink-faint);
+  background:color-mix(in srgb,var(--ink-faint) 8%,transparent);
+  border:1px solid var(--gold-line);
+}
+
+/* ---- living wheat plot — the card's persistent health indicator (Nisaba, goddess of grain). A
+   small stand of stalks fills the card's spare rightward space beside the reading; its COLOR
+   (--wheat-color stem → --wheat-tip grain) and FORM (stalk count, height, droop, head fullness) both
+   track the fit band, so a glance reads healthy-vs-dying: a dry, sparse, drooping rust-brown wilt for
+   a Misaligned fit through to a tall, full, upright radiant-gold harvest for a Strongly Aligned one.
+   It is ALWAYS visible — not just a loader — and its continuous sway doubles as the pending/loading
+   state, with the "Consulting the viziers…" caption beside it. ---- */
+.card__mid{display:flex;align-items:stretch;gap:12px;padding:10px 22px 12px;min-height:112px}
+.card__read{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.card__mid .reading{padding:0;max-width:none}
+.card__mid .src-badge{margin:0}
+.wheat-field{
+  flex:0 0 auto;width:clamp(92px,30%,172px);display:flex;align-items:flex-end;
+  pointer-events:none;user-select:none;
+  -webkit-mask:linear-gradient(90deg,transparent 0,#000 44%);
+  mask:linear-gradient(90deg,transparent 0,#000 44%);
+}
+.wheat{width:100%;height:100%;overflow:visible}
+.wheat-caption{font-style:italic;color:var(--gold-deep);font-size:15px}
+/* Dark theme: keep the same health hues, gently lifted so the plot still glows on the bitumen ground. */
+:root[data-theme="dark"] .wheat-field{filter:saturate(1.12) brightness(1.14)}
+/* Each stalk pivots about its own stem base (fill-box origin at the base) at a staggered offset, so
+   the whole plot reads as grain leaning in a breeze. */
+.wheat .stalk{transform-box:fill-box;transform-origin:bottom center}
+.wheat .stalk--a{animation:sway 3.6s ease-in-out infinite alternate}
+.wheat .stalk--b{animation:sway 4.3s ease-in-out -1.2s infinite alternate}
+.wheat .stalk--c{animation:sway 3.9s ease-in-out -2.4s infinite alternate}
+/* A gentle ±4° oscillation about each stem base — a slow, ambient field sway (the per-stalk static
+   wilt lean is baked into the SVG on top of this). */
+@keyframes sway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+/* DELIBERATE PRODUCT CHOICE: the wheat sway is ambient/brand decorative motion, core to the
+   experience, so it animates at full amplitude REGARDLESS of the OS "reduce motion" setting — it is
+   NOT disabled under prefers-reduced-motion:reduce. (Product owner kept seeing no motion because
+   their OS reduce-motion was on.) The gentle sway is not vestibular-triggering; the accessible
+   follow-up is a future in-app motion toggle rather than deferring to the OS flag. */
+
+/* ---- ambient wheat horizon — a faint stand of grain along the very bottom of the page, behind
+   .wrap (like .sky), purely atmospheric. A tiled stalk silhouette, low opacity, with a slow ambient
+   drift. Decorative only; pointer-inert. ---- */
+.wheat-horizon{
+  position:fixed;left:0;right:0;bottom:0;height:64px;z-index:-2;pointer-events:none;user-select:none;
+  background-repeat:repeat-x;background-position:center bottom;background-size:132px 64px;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='132' height='64' viewBox='0 0 132 64'%3E%3Cg fill='none' stroke='%23b07d12' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M14 64V24'/%3E%3Cpath d='M32 64V16'/%3E%3Cpath d='M50 64V28'/%3E%3Cpath d='M70 64V14'/%3E%3Cpath d='M90 64V26'/%3E%3Cpath d='M108 64V20'/%3E%3Cpath d='M124 64V30'/%3E%3C/g%3E%3Cg fill='%23b07d12'%3E%3Cellipse cx='14' cy='22' rx='2' ry='4'/%3E%3Cellipse cx='32' cy='14' rx='2.2' ry='4.4'/%3E%3Cellipse cx='50' cy='26' rx='2' ry='4'/%3E%3Cellipse cx='70' cy='12' rx='2.3' ry='4.6'/%3E%3Cellipse cx='90' cy='24' rx='2' ry='4'/%3E%3Cellipse cx='108' cy='18' rx='2.1' ry='4.2'/%3E%3Cellipse cx='124' cy='28' rx='1.9' ry='3.8'/%3E%3C/g%3E%3C/svg%3E");
+  transform-origin:center bottom;animation:hsway 9s ease-in-out infinite alternate;
+}
+:root[data-theme="dark"] .wheat-horizon{opacity:.1}
+@keyframes hsway{from{transform:skewX(-1.4deg)}to{transform:skewX(1.4deg)}}
 .measured{font:500 12.5px/1.75 var(--f-mono);color:var(--ink-soft);padding:6px 22px 18px;overflow-x:auto}
 .measured .flow,td .flow,.measured.grounded-line{color:var(--lapis)}
 .measured .fric,td .fric{color:var(--carnelian)}
@@ -280,6 +350,9 @@ td.b{color:var(--ink)}
   border:1px dashed color-mix(in srgb,var(--carnelian) 45%,transparent);
   border-radius:10px;padding:9px 13px;display:inline-block;
 }
+/* The off-thread "grounding…" hold — the window stays live while the real pull + brief run. */
+.gate--grounding{text-align:left}
+.gate--grounding .ask-reading--pending{margin-top:0}
 
 /* ---- guardrail rail ---- */
 .rail{background:var(--parchment);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-top:8px}
@@ -297,14 +370,28 @@ td.b{color:var(--ink)}
   background:var(--parchment-2);border-radius:0 10px 10px 0;color:var(--ink-soft);
   font-size:15.5px;max-width:62ch;
 }
-.reflection{
+.reflection,.nudge{
   margin-top:14px;padding:14px 16px;border-left:3px solid var(--lapis);
   background:var(--parchment-2);border-radius:0 10px 10px 0;color:var(--ink-soft);
   font-size:15.5px;max-width:62ch;
 }
+/* ---- ask-box measured reading ---- */
+.ask-reading{
+  margin-top:14px;padding:14px 16px;border-left:3px solid var(--gold);
+  background:var(--parchment-2);border-radius:0 10px 10px 0;max-width:62ch;
+}
+.ask-reading--pending{border-left-color:var(--gold-line)}
+.ask-reading__head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+.ask-reading__name{font-family:var(--f-display);font-size:18px;color:var(--ink)}
+.ask-reading .reading{padding:6px 0 0;max-width:none}
 .reminder{
   font:600 11px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
   text-align:center;margin:36px 0 8px;display:flex;gap:9px;align-items:center;justify-content:center;
+}
+/* One clear liability line under the guardrail — muted but legible, never hidden. */
+.liability{
+  text-align:center;margin:0 auto 10px;max-width:60ch;
+  color:var(--ink-faint);font-size:12.5px;line-height:1.5;
 }
 
 /* ---- setup: mode tabs + seeded panel ---- */
@@ -331,6 +418,13 @@ td.b{color:var(--ink)}
 .chip strong{color:var(--ink);font-weight:600}
 
 /* ---- birth-input form ---- */
+.birth-title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+/* The "chart saved" / "Saved ✓" affirmation — a small gold pill, never shouting. */
+.chart-saved-badge{
+  font:600 10.5px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gold-deep);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:999px;padding:5px 10px;white-space:nowrap;
+}
 .birth-form{display:flex;flex-direction:column;gap:16px;margin-top:8px}
 .field{display:flex;flex-direction:column;gap:7px;position:relative}
 .field-label{font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep)}
@@ -391,3 +485,93 @@ td.b{color:var(--ink)}
 }
 .chip-x:hover{background:color-mix(in srgb,var(--carnelian) 14%,transparent);color:var(--carnelian)}
 .basket-empty{font:500 12.5px/1.6 var(--f-mono);color:var(--ink-faint)}
+
+/* ========================================================================
+   Star field — a fixed, seeded "searching the stars" sky behind everything.
+   Pure CSS/SVG, no libraries. The star coordinates are generated once from a
+   fixed seed (see state.rs::seeded_stars), so the sky is identical every
+   launch. Each star twinkles (opacity + scale only) on its own staggered
+   cycle; the grounded pull intensifies the whole field.
+   ======================================================================== */
+.sky{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;user-select:none}
+.star{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,var(--gold) 0%,color-mix(in srgb,var(--gold) 55%,transparent) 45%,transparent 72%);
+  opacity:.3;transform:scale(.6);
+  animation-name:twinkle;animation-iteration-count:infinite;
+  animation-timing-function:ease-in-out;animation-direction:alternate;
+}
+@keyframes twinkle{
+  from{opacity:.10;transform:scale(.5)}
+  to{opacity:.85;transform:scale(1.15)}
+}
+/* light default: a quiet gold shimmer. dark: brighter, white-hot stars — but dim the whole layer
+   so the night sky reads as depth, not glare. */
+:root:not([data-theme="dark"]) .sky{opacity:.55}
+:root[data-theme="dark"] .sky{opacity:.72}
+:root[data-theme="dark"] .star{
+  background:radial-gradient(circle,#fff 0%,color-mix(in srgb,var(--gold) 65%,transparent) 45%,transparent 72%);
+}
+/* the intensified state, held while the grounded pull runs off-thread — faster, brighter, a clear
+   "the viziers are searching the stars" affordance. */
+.sky--searching{opacity:.9!important}
+.sky--searching .star{
+  animation-duration:1.05s!important;animation-delay:0s!important;opacity:.6;
+  filter:drop-shadow(0 0 3px color-mix(in srgb,var(--gold) 70%,transparent));
+}
+:root[data-theme="dark"] .sky--searching .star{
+  filter:drop-shadow(0 0 4px color-mix(in srgb,#fff 70%,transparent));
+}
+/* DELIBERATE PRODUCT CHOICE: the star twinkle is ambient/brand decorative motion, core to the
+   experience, so it animates at full REGARDLESS of the OS "reduce motion" setting — it is NOT
+   disabled or calmed under prefers-reduced-motion:reduce. (Product owner kept seeing a frozen sky
+   because their OS reduce-motion was on.) Twinkle is opacity+scale only — gentle, no translation —
+   so it is not vestibular-triggering; the accessible follow-up is a future in-app motion toggle
+   rather than deferring to the OS flag. */
+
+/* Local reading mode — the malachite/green sibling of the lapis Live and muted Raw toggle chips. */
+.mode-toggle--local{color:var(--malachite);border-color:color-mix(in srgb,var(--gold) 45%,var(--malachite))}
+
+/* ========================================================================
+   Legend / dictionary — a self-contained collapsible glossary card. On-brand
+   parchment; opens on demand so it never competes with the reading.
+   ======================================================================== */
+.legend{
+  margin:34px 0 10px;background:var(--parchment);border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+}
+.legend-summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+  font:600 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);
+  padding:16px 20px;transition:.15s;
+}
+.legend-summary::-webkit-details-marker{display:none}
+.legend-summary__mark{color:var(--gold);font-size:14px}
+.legend-summary__caret{margin-left:auto;font-size:18px;color:var(--ink-faint);transition:transform .18s}
+.legend[open] .legend-summary__caret{transform:rotate(90deg)}
+.legend-summary:hover{color:var(--gold)}
+.legend-summary:focus-visible{outline:2px solid var(--lapis);outline-offset:2px}
+.legend-body{padding:2px 20px 22px;border-top:1px solid var(--line-soft)}
+.legend-intro{font-size:15.5px;color:var(--ink-soft);max-width:64ch;margin:14px 0 2px}
+.legend-intro em{font-style:italic;color:var(--lapis);font-weight:600}
+.legend-section{margin-top:20px}
+.legend-heading{
+  font:600 10.5px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);
+  margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid var(--gold-line);
+}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:11px 24px}
+.legend-row{display:flex;gap:12px;align-items:baseline}
+.legend-glyph{flex:none;width:24px;text-align:center;color:var(--gold-deep);font-size:16px;line-height:1.35}
+.legend-glyph--flow{color:var(--lapis)}
+.legend-glyph--fric{color:var(--carnelian)}
+.legend-band{
+  flex:none;width:14px;height:14px;border-radius:4px;
+  background:var(--b);border:1px solid var(--gold-line);position:relative;top:2px;
+}
+.legend-def{display:flex;flex-direction:column;gap:2px}
+.legend-term{font-family:var(--f-body);font-weight:600;font-size:15px;color:var(--ink)}
+.legend-meaning{font-size:13.5px;line-height:1.5;color:var(--ink-soft);max-width:54ch}
+.legend-foot{
+  margin-top:22px;font:600 11px/1.5 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);
+}

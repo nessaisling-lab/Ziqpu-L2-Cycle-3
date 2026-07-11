@@ -124,8 +124,18 @@ fn MarketPanel() -> Element {
 
     let mut query = use_signal(String::new);
     let mut results = use_signal(Vec::<TickerRow>::new);
-    // The chosen-choices basket. `Choice` isn't `PartialEq`, so we dedupe by ticker.
-    let mut basket = use_signal(Vec::<Choice>::new);
+    // The chosen-choices basket. `Choice` isn't `PartialEq`, so we dedupe by ticker. Seeded once
+    // from the saved basket (persisted across launches) so the seeker's picks survive a relaunch.
+    let mut basket = use_signal(|| {
+        crate::profile::load_basket()
+            .iter()
+            .filter_map(|t| tickers::choice(t))
+            .collect::<Vec<Choice>>()
+    });
+    // A rare-path note: `choice()` is now total over the listed table, so a click virtually always
+    // adds. If it somehow returns `None` (a symbol not in the table), we surface a tiny inline
+    // "couldn't add {ticker}" note instead of silently no-opping.
+    let mut add_error = use_signal(|| None::<String>);
 
     let basket_now = basket.read().clone();
     let can_read = !basket_now.is_empty();
@@ -171,7 +181,15 @@ fn MarketPanel() -> Element {
                                             let already = basket.read().iter().any(|c| c.ticker == choice.ticker);
                                             if !already {
                                                 basket.write().push(choice);
+                                                // Persist the basket so the picks survive a relaunch.
+                                                let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
+                                                crate::profile::save_basket(&picks);
                                             }
+                                            add_error.set(None);
+                                        } else {
+                                            // Should be unreachable now that `choice()` is total, but never
+                                            // no-op silently: tell the seeker the add didn't take.
+                                            add_error.set(Some(ticker.clone()));
                                         }
                                         query.set(String::new());
                                         results.set(Vec::new());
@@ -183,6 +201,10 @@ fn MarketPanel() -> Element {
                         })}
                     }
                 }
+            }
+
+            if let Some(t) = add_error.read().clone() {
+                p { class: "ticker-empty", "Couldn't add {t} — that symbol isn't in the table. Try another." }
             }
 
             div { class: "basket",
@@ -205,6 +227,9 @@ fn MarketPanel() -> Element {
                                         "aria-label": "Remove {ticker}",
                                         onclick: move |_| {
                                             basket.write().retain(|c| c.ticker != remove);
+                                            // Persist the trimmed basket too.
+                                            let picks: Vec<String> = basket.read().iter().map(|c| c.ticker.clone()).collect();
+                                            crate::profile::save_basket(&picks);
                                         },
                                         "×"
                                     }
