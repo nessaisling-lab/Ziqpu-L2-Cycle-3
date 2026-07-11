@@ -3313,6 +3313,7 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "sysinfo",
+ "wait-timeout",
 ]
 
 [[package]]
@@ -6161,6 +6162,15 @@ name = "vsop87"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37cde47f1fc639613a2a48a6a8685db063693c55ea6b09260b78f95c9e775575"
+
+[[package]]
+name = "wait-timeout"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "walkdir"

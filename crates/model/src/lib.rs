@@ -271,14 +271,81 @@ pub fn parse_hf_models(json: &str) -> Vec<Candidate> {
     cands
 }
 
+/// A descriptive User-Agent for the Hugging Face API call — good API citizenship, and it keeps the
+/// request out of the rate-limit ambiguity that unspecified anonymous clients can hit.
+const HF_USER_AGENT: &str =
+    "ziqpu-model/0.1 (+https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3)";
+
+/// A system tool's spawn target, pinned to an absolute path on Windows and left as the Unix name
+/// elsewhere. On Windows, `CreateProcess` searches the current directory before System32, so a bare
+/// executable name lets a planted exe in the run directory hijack the call (CWE-427); Unix does not
+/// put the CWD on the search path, so the bare name is safe there. `win_rel` is the path under
+/// `%SystemRoot%\System32`; `unix` is the Unix command (bare name or absolute path).
+fn system_cmd(win_rel: &str, unix: &str) -> String {
+    #[cfg(windows)]
+    {
+        let _ = unix;
+        let root = std::env::var("SystemRoot").unwrap_or_else(|_| String::from(r"C:\Windows"));
+        format!(r"{root}\System32\{win_rel}")
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = win_rel;
+        unix.to_string()
+    }
+}
+
+/// Run a small system probe with a hard timeout, returning its stdout on exit-within-timeout. `None`
+/// only on spawn error or timeout — a wedged `nvidia-smi` (a real failure mode when the driver is
+/// stuck) is killed rather than hanging the benchmark. Note: stdout is returned regardless of exit
+/// *code* — the Windows registry query exits non-zero on a benign non-terminating error while still
+/// emitting valid lines, and each caller's parser rejects garbage/empty output on its own. Safe only
+/// for small outputs (well under the OS pipe buffer, so the wait-then-read can't deadlock) — exactly
+/// the GPU probes; the larger `curl` fetch keeps its own `--max-time`/`--max-filesize` instead.
+fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    use std::time::Duration;
+    use wait_timeout::ChildExt;
+    let mut child = Command::new(cmd)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    match child.wait_timeout(Duration::from_secs(secs)) {
+        Ok(Some(_status)) => {
+            let mut buf = String::new();
+            child.stdout.take()?.read_to_string(&mut buf).ok()?;
+            Some(buf)
+        }
+        _ => {
+            let _ = child.kill();
+            let _ = child.wait();
+            None
+        }
+    }
+}
+
 /// Query the Hub for current GGUF repos matching `term` — **thin I/O, not unit-tested** (the parser
-/// is). HTTP is a `curl` subprocess (the repo's cross-platform, no-HTTP-crate convention), capped at
-/// 8 s so an offline machine degrades quietly to an empty list. Callers fall back to the static pick.
+/// is). HTTP is a `curl` subprocess (the repo's cross-platform, no-HTTP-crate convention), pinned to
+/// System32 on Windows (SEC-001), bounded by both `--max-time` and `--max-filesize` (SEC-004), and
+/// sent with a descriptive User-Agent. Degrades quietly to an empty list; callers fall back to the
+/// static pick. `.output()` reads stdout concurrently, so a large body can't deadlock the call.
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
     use std::process::Command;
     let url = hf_api_url(term);
-    let Ok(out) = Command::new("curl")
-        .args(["-sS", "--max-time", "8", &url])
+    let Ok(out) = Command::new(system_cmd("curl.exe", "curl"))
+        .args([
+            "-sS",
+            "--max-time",
+            "8",
+            "--max-filesize",
+            "5000000",
+            "-A",
+            HF_USER_AGENT,
+            url.as_str(),
+        ])
         .output()
     else {
         return Vec::new();
@@ -419,47 +486,63 @@ fn parse_windows_registry_gpu(out: &str) -> Option<GpuInfo> {
 /// Returns `None` when no probe succeeds — the tier logic then treats VRAM as unknown and stays on a
 /// CPU-runnable pick.
 pub fn detect_gpu() -> Option<GpuInfo> {
-    use std::process::Command;
-    if let Ok(out) = Command::new("nvidia-smi")
-        .args([
+    // nvidia-smi: absolute on Windows (System32) to defeat CWD binary-planting; bare on Unix. Under a
+    // hard timeout — a wedged driver can hang nvidia-smi indefinitely (SEC-003).
+    if let Some(out) = run_capped(
+        &system_cmd("nvidia-smi.exe", "nvidia-smi"),
+        &[
             "--query-gpu=name,memory.total",
             "--format=csv,noheader,nounits",
-        ])
-        .output()
-    {
-        if out.status.success() {
-            if let Some(g) = parse_nvidia_smi(&String::from_utf8_lossy(&out.stdout)) {
-                return Some(g);
-            }
+        ],
+        5,
+    ) {
+        if let Some(g) = parse_nvidia_smi(&out) {
+            return Some(g);
         }
     }
     if cfg!(target_os = "windows") {
-        // The video-adapter class key; `qwMemorySize` is the real VRAM in bytes.
+        // The video-adapter class key; `qwMemorySize` is the real VRAM in bytes. powershell.exe is
+        // pinned to its System32 location (SEC-001) and run under a timeout (SEC-003). The query
+        // exits non-zero on a benign non-terminating error while still emitting valid lines —
+        // run_capped returns stdout regardless of exit code, and the parser rejects garbage.
         let script = r#"Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*' -ErrorAction SilentlyContinue | ForEach-Object { "$($_.DriverDesc)|$($_.'HardwareInformation.qwMemorySize')" }"#;
-        if let Ok(out) = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .output()
-        {
-            // PowerShell can exit non-zero on a non-terminating property error while still emitting
-            // valid lines, so parse stdout regardless of the exit code.
-            if let Some(g) = parse_windows_registry_gpu(&String::from_utf8_lossy(&out.stdout)) {
+        if let Some(out) = run_capped(
+            &system_cmd(r"WindowsPowerShell\v1.0\powershell.exe", "powershell"),
+            &["-NoProfile", "-NonInteractive", "-Command", script],
+            6,
+        ) {
+            if let Some(g) = parse_windows_registry_gpu(&out) {
                 return Some(g);
             }
         }
     }
     if cfg!(target_os = "macos") {
-        if let Ok(out) = Command::new("system_profiler")
-            .arg("SPDisplaysDataType")
-            .output()
-        {
-            if out.status.success() {
-                if let Some(g) = parse_macos_gpu(&String::from_utf8_lossy(&out.stdout)) {
-                    return Some(g);
-                }
+        // system_profiler by absolute path (this branch is macOS-only), under a timeout.
+        if let Some(out) = run_capped("/usr/sbin/system_profiler", &["SPDisplaysDataType"], 6) {
+            if let Some(g) = parse_macos_gpu(&out) {
+                return Some(g);
             }
         }
     }
     None
+}
+
+/// The fraction of unified (Apple-Silicon) system memory usable as a VRAM budget for tier gating —
+/// the OS and other apps need the rest, so the model isn't handed the entire pool.
+const UNIFIED_VRAM_FRACTION: f64 = 0.7;
+
+/// The VRAM budget used for tier gating, given a detected GPU and the machine's RAM. A discrete GPU
+/// contributes its own VRAM; a unified-memory GPU (Apple Silicon) contributes a fraction of system
+/// RAM (leaving OS headroom rather than the whole pool); no GPU yields `None` (unknown → the pick
+/// stays on a CPU-runnable tier). Pure + unit-tested.
+pub fn vram_budget(gpu: Option<&GpuInfo>, ram_gb: f64) -> Option<f64> {
+    gpu.map(|g| {
+        if g.unified {
+            ram_gb * UNIFIED_VRAM_FRACTION
+        } else {
+            g.vram_gb
+        }
+    })
 }
 
 /// Detect the real machine's capability. **Thin I/O, not unit-tested** — RAM via `sysinfo`, cores via
@@ -469,8 +552,8 @@ pub fn detect_spec() -> DeviceSpec {
 }
 
 /// Build a [`DeviceSpec`] from an already-detected GPU, so a caller that also wants the GPU's *name*
-/// can detect once and reuse it (the CLI does). A unified-memory GPU (Apple Silicon) uses RAM as its
-/// VRAM budget; a discrete GPU uses its own VRAM; no GPU leaves VRAM `None` (caps at a CPU tier).
+/// can detect once and reuse it (the CLI does). The VRAM budget comes from [`vram_budget`] (discrete
+/// VRAM, or a fraction of RAM for unified memory); no GPU leaves VRAM `None` (caps at a CPU tier).
 pub fn detect_spec_with(gpu: Option<&GpuInfo>) -> DeviceSpec {
     use sysinfo::System;
     let mut sys = System::new();
@@ -480,7 +563,7 @@ pub fn detect_spec_with(gpu: Option<&GpuInfo>) -> DeviceSpec {
     let cores = std::thread::available_parallelism()
         .map(|n| n.get() as u32)
         .unwrap_or(1);
-    let vram_gb = gpu.map(|g| if g.unified { ram_gb } else { g.vram_gb });
+    let vram_gb = vram_budget(gpu, ram_gb);
     DeviceSpec {
         ram_gb,
         cores,
@@ -688,5 +771,24 @@ mod tests {
         let all_bad = vec![cand("a/uncensored", 5), cand("b/abliterated", 3)];
         assert_eq!(pick_for_agent(&all_bad).unwrap().repo, "a/uncensored");
         assert!(pick_for_agent(&[]).is_none());
+    }
+
+    #[test]
+    fn vram_budget_discrete_unified_and_none() {
+        let discrete = GpuInfo {
+            name: "RTX".into(),
+            vram_gb: 16.0,
+            unified: false,
+        };
+        assert_eq!(vram_budget(Some(&discrete), 32.0), Some(16.0));
+        // Unified (Apple Silicon) uses a fraction of RAM, not the whole pool — OS headroom.
+        let unified = GpuInfo {
+            name: "Apple M3".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        assert_eq!(vram_budget(Some(&unified), 32.0), Some(32.0 * 0.7));
+        // No GPU → unknown budget.
+        assert_eq!(vram_budget(None, 32.0), None);
     }
 }

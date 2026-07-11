@@ -25,3 +25,6 @@ sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 # repo's established no-HTTP-crate approach; curl ships on Win10+/macOS/Linux) — only the JSON parse
 # needs a dep, and the parser is pure + unit-tested against a fixture.
 serde_json = "1"
+# A hard timeout on the GPU-probe subprocesses (nvidia-smi can hang on a wedged driver). Tiny,
+# MIT/Apache-licensed, no transitive weight beyond libc/winapi already in the tree.
+wait-timeout = "0.2"
