@@ -13,6 +13,7 @@
 //! live demo is reliable; real models and the live SEC EDGAR pull are drop-in via the traits.
 
 pub mod grounded;
+pub mod identity;
 pub mod interpret;
 pub mod interpret_llm;
 mod llm_http;
@@ -24,6 +25,7 @@ pub mod score;
 pub mod types;
 
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
+pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::{
     build_interpreter, grounded_brief_for, reading_for, reading_for_mode, AnthropicInterpreter,
