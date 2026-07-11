@@ -56,6 +56,12 @@ struct Threshold {
     gpu_required: bool,
 }
 
+/// Reported RAM runs a few percent under nameplate (firmware / OS reserve): a 32 GB machine reads
+/// ~31.3 GB, a 16 GB one ~15.7. Comparing against a hard nameplate minimum would drop such a machine
+/// a whole tier, so RAM gates are met at `min * RAM_TOLERANCE`. VRAM and disk are reported accurately
+/// and are not tolerated.
+const RAM_TOLERANCE: f64 = 0.94;
+
 /// Desktop-class thresholds, ported verbatim from `Ziqpu_Local_LLM_Hierarchy.md` (§Class 3). Ordered
 /// strongest→weakest so [`tier_for`] can return the first (highest) tier a machine satisfies.
 const DESKTOP_THRESHOLDS: [Threshold; 5] = [
@@ -106,7 +112,7 @@ impl Threshold {
     /// known (an unknown disk never blocks a pick); VRAM is a hard gate only for `gpu_required`
     /// tiers, and an unknown VRAM there means "no confirmed GPU" → the tier is refused.
     fn satisfied_by(&self, spec: &DeviceSpec) -> bool {
-        let ram_ok = spec.ram_gb >= self.min_ram_gb;
+        let ram_ok = spec.ram_gb >= self.min_ram_gb * RAM_TOLERANCE;
         let cores_ok = spec.cores >= self.min_cores;
         let disk_ok = spec
             .disk_free_gb
@@ -215,11 +221,149 @@ pub fn recommend_for(spec: &DeviceSpec) -> ModelPick {
         .expect("every tier has a model")
 }
 
-/// Detect the real machine's capability. **Thin I/O, not unit-tested** — RAM via `sysinfo`, cores
-/// via the std runtime hint. Disk-free and VRAM are left `None` for now (a later increment adds a
-/// cross-platform GPU/disk probe); an unknown VRAM conservatively caps the pick at a CPU-runnable
-/// tier, and an unknown disk never blocks a pick.
+/// A detected GPU: name + video memory. `unified` marks Apple-Silicon-style shared memory, where the
+/// GPU draws from system RAM rather than a dedicated pool — the caller then uses RAM as the VRAM
+/// budget instead of a (nonexistent) discrete figure.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GpuInfo {
+    pub name: String,
+    pub vram_gb: f64,
+    pub unified: bool,
+}
+
+/// Parse `nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits` — one GPU per line
+/// as `name, <MiB>`. Returns the highest-VRAM GPU (the discrete one on a hybrid laptop). Pure;
+/// unit-tested. A GPU name has spaces but no commas, so we split on the **last** comma.
+fn parse_nvidia_smi(out: &str) -> Option<GpuInfo> {
+    out.lines()
+        .filter_map(|line| {
+            let (name, mem) = line.rsplit_once(',')?;
+            let mib: f64 = mem.trim().parse().ok()?;
+            Some(GpuInfo {
+                name: name.trim().to_string(),
+                vram_gb: mib / 1024.0,
+                unified: false,
+            })
+        })
+        .max_by(|a, b| a.vram_gb.total_cmp(&b.vram_gb))
+}
+
+/// Parse `system_profiler SPDisplaysDataType` (macOS). Apple Silicon (`Chipset Model: Apple M…`)
+/// reports no discrete VRAM — it shares system memory, so we flag `unified` and leave the figure for
+/// the caller to fill from RAM. Intel / discrete Macs carry a `VRAM (Total): N GB|MB` line. Pure;
+/// unit-tested; best-effort (the Mac partner validates on real hardware).
+fn parse_macos_gpu(out: &str) -> Option<GpuInfo> {
+    let chipset = out
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("Chipset Model:"))
+        .map(str::trim);
+    let name = chipset.unwrap_or("GPU").to_string();
+    if chipset.map(|c| c.starts_with("Apple M")).unwrap_or(false) {
+        return Some(GpuInfo {
+            name,
+            vram_gb: 0.0,
+            unified: true,
+        });
+    }
+    // Discrete / Intel: read "VRAM (Total): N GB" (or MB).
+    let vram_gb = out.lines().find_map(|l| {
+        let v = l.trim().strip_prefix("VRAM (Total):")?.trim();
+        let (num, unit) = v.split_once(' ')?;
+        let n: f64 = num.trim().parse().ok()?;
+        Some(if unit.trim().eq_ignore_ascii_case("MB") {
+            n / 1024.0
+        } else {
+            n
+        })
+    })?;
+    Some(GpuInfo {
+        name,
+        vram_gb,
+        unified: false,
+    })
+}
+
+/// Parse the Windows video-adapter registry dump — one `DriverDesc|qwMemorySize` line per adapter,
+/// VRAM in bytes. This is the **no-admin** path for when `nvidia-smi` is locked down (common on
+/// hybrid laptops). Returns the highest-VRAM adapter (the discrete GPU over the iGPU); lines with no
+/// size are skipped. Pure; unit-tested. `qwMemorySize` is the true 64-bit VRAM, unlike WMI's
+/// `AdapterRAM`, which is a 32-bit field that caps at ~4 GB.
+fn parse_windows_registry_gpu(out: &str) -> Option<GpuInfo> {
+    out.lines()
+        .filter_map(|line| {
+            let (name, bytes) = line.rsplit_once('|')?;
+            let b: f64 = bytes.trim().parse().ok()?;
+            if b <= 0.0 {
+                return None;
+            }
+            Some(GpuInfo {
+                name: name.trim().to_string(),
+                vram_gb: b / (1024.0 * 1024.0 * 1024.0),
+                unified: false,
+            })
+        })
+        .max_by(|a, b| a.vram_gb.total_cmp(&b.vram_gb))
+}
+
+/// Detect the machine's GPU — **thin I/O, not unit-tested** (the parsers above are). Order: try
+/// `nvidia-smi` (most accurate, but locked to admin on some laptops); on Windows fall back to the
+/// driver registry (no admin); on macOS fall back to `system_profiler` (Apple Silicon / discrete).
+/// Returns `None` when no probe succeeds — the tier logic then treats VRAM as unknown and stays on a
+/// CPU-runnable pick.
+pub fn detect_gpu() -> Option<GpuInfo> {
+    use std::process::Command;
+    if let Ok(out) = Command::new("nvidia-smi")
+        .args([
+            "--query-gpu=name,memory.total",
+            "--format=csv,noheader,nounits",
+        ])
+        .output()
+    {
+        if out.status.success() {
+            if let Some(g) = parse_nvidia_smi(&String::from_utf8_lossy(&out.stdout)) {
+                return Some(g);
+            }
+        }
+    }
+    if cfg!(target_os = "windows") {
+        // The video-adapter class key; `qwMemorySize` is the real VRAM in bytes.
+        let script = r#"Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*' -ErrorAction SilentlyContinue | ForEach-Object { "$($_.DriverDesc)|$($_.'HardwareInformation.qwMemorySize')" }"#;
+        if let Ok(out) = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output()
+        {
+            // PowerShell can exit non-zero on a non-terminating property error while still emitting
+            // valid lines, so parse stdout regardless of the exit code.
+            if let Some(g) = parse_windows_registry_gpu(&String::from_utf8_lossy(&out.stdout)) {
+                return Some(g);
+            }
+        }
+    }
+    if cfg!(target_os = "macos") {
+        if let Ok(out) = Command::new("system_profiler")
+            .arg("SPDisplaysDataType")
+            .output()
+        {
+            if out.status.success() {
+                if let Some(g) = parse_macos_gpu(&String::from_utf8_lossy(&out.stdout)) {
+                    return Some(g);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Detect the real machine's capability. **Thin I/O, not unit-tested** — RAM via `sysinfo`, cores via
+/// the std runtime hint, GPU via [`detect_gpu`]. Disk-free stays `None` for now (never blocks a pick).
 pub fn detect_spec() -> DeviceSpec {
+    detect_spec_with(detect_gpu().as_ref())
+}
+
+/// Build a [`DeviceSpec`] from an already-detected GPU, so a caller that also wants the GPU's *name*
+/// can detect once and reuse it (the CLI does). A unified-memory GPU (Apple Silicon) uses RAM as its
+/// VRAM budget; a discrete GPU uses its own VRAM; no GPU leaves VRAM `None` (caps at a CPU tier).
+pub fn detect_spec_with(gpu: Option<&GpuInfo>) -> DeviceSpec {
     use sysinfo::System;
     let mut sys = System::new();
     sys.refresh_memory();
@@ -228,11 +372,12 @@ pub fn detect_spec() -> DeviceSpec {
     let cores = std::thread::available_parallelism()
         .map(|n| n.get() as u32)
         .unwrap_or(1);
+    let vram_gb = gpu.map(|g| if g.unified { ram_gb } else { g.vram_gb });
     DeviceSpec {
         ram_gb,
         cores,
         disk_free_gb: None,
-        vram_gb: None,
+        vram_gb,
     }
 }
 
@@ -321,5 +466,62 @@ mod tests {
             let n = all_models().iter().filter(|m| m.tier == tier).count();
             assert_eq!(n, 1, "tier {tier:?} should have exactly one model");
         }
+    }
+
+    #[test]
+    fn reported_ram_just_under_nameplate_keeps_its_tier() {
+        // A 32 GB box reads ~31.3 GB and a 16 GB one ~15.7: the tolerance must not drop a rung.
+        assert_eq!(
+            tier_for(&spec(31.3, 8, Some(80.0), Some(24.0))),
+            Tier::Strong
+        );
+        assert_eq!(
+            tier_for(&spec(15.7, 6, Some(60.0), Some(16.0))),
+            Tier::Medium
+        );
+        // But a genuinely-smaller machine still falls: 12 GB is not a tolerated 16.
+        assert_ne!(
+            tier_for(&spec(12.0, 6, Some(60.0), Some(16.0))),
+            Tier::Medium
+        );
+    }
+
+    #[test]
+    fn nvidia_smi_parses_name_and_vram_and_picks_the_biggest() {
+        let one = parse_nvidia_smi("NVIDIA GeForce RTX 5080 Laptop GPU, 16384").unwrap();
+        assert_eq!(one.name, "NVIDIA GeForce RTX 5080 Laptop GPU");
+        assert_eq!(one.vram_gb, 16.0);
+        assert!(!one.unified);
+        // Two GPUs → the higher-VRAM one wins.
+        let two = parse_nvidia_smi("NVIDIA A, 8192\nNVIDIA B, 24576").unwrap();
+        assert_eq!(two.vram_gb, 24.0);
+        assert!(parse_nvidia_smi("garbage without a comma").is_none());
+    }
+
+    #[test]
+    fn macos_gpu_parses_apple_silicon_and_discrete() {
+        let apple = parse_macos_gpu("      Chipset Model: Apple M3 Max\n      Type: GPU").unwrap();
+        assert_eq!(apple.name, "Apple M3 Max");
+        assert!(apple.unified, "Apple Silicon shares system memory");
+        let discrete =
+            parse_macos_gpu("Chipset Model: AMD Radeon Pro 5500M\nVRAM (Total): 8 GB").unwrap();
+        assert_eq!(discrete.vram_gb, 8.0);
+        assert!(!discrete.unified);
+        // MB units convert to GB.
+        let mb = parse_macos_gpu("Chipset Model: Intel Iris\nVRAM (Total): 1536 MB").unwrap();
+        assert_eq!(mb.vram_gb, 1.5);
+    }
+
+    #[test]
+    fn windows_registry_picks_the_discrete_gpu_over_the_igpu() {
+        // A real hybrid-laptop dump: AMD iGPU (0.5 GB) + NVIDIA discrete (~16 GB) → the NVIDIA wins.
+        let out =
+            "AMD Radeon(TM) 890M Graphics|536870912\nNVIDIA GeForce RTX 5080 Laptop GPU|17094934528";
+        let g = parse_windows_registry_gpu(out).unwrap();
+        assert_eq!(g.name, "NVIDIA GeForce RTX 5080 Laptop GPU");
+        assert!((g.vram_gb - 15.92).abs() < 0.05, "vram was {}", g.vram_gb);
+        assert!(!g.unified);
+        // Adapters with no size (basic display drivers) are skipped.
+        assert!(parse_windows_registry_gpu("Microsoft Basic Render Driver|").is_none());
     }
 }

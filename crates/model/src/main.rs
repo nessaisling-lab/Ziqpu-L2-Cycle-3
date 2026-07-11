@@ -18,18 +18,21 @@ fn main() {
 }
 
 fn benchmark() {
-    let spec = model::detect_spec();
+    // Detect the GPU once; reuse it for both the spec (VRAM budget) and the display (its name).
+    let gpu = model::detect_gpu();
+    let spec = model::detect_spec_with(gpu.as_ref());
     let tier = model::tier_for(&spec);
     let pick = model::recommend_for(&spec);
-    let vram = spec
-        .vram_gb
-        .map(|v| format!("{v:.0} GB"))
-        .unwrap_or_else(|| "unknown".to_string());
+    let gpu_line = match &gpu {
+        Some(g) if g.unified => format!("{} · unified memory", g.name),
+        Some(g) => format!("{} · {:.0} GB VRAM", g.name, g.vram_gb),
+        None => "none detected (CPU path)".to_string(),
+    };
 
     println!("Ziqpu · local-model benchmark (layer 1: device capability)");
     println!("  RAM        {:.1} GB", spec.ram_gb);
     println!("  CPU cores  {}", spec.cores);
-    println!("  GPU VRAM   {vram}");
+    println!("  GPU        {gpu_line}");
     println!("  tier       {}", tier.label());
     if !model::meets_floor(&spec) {
         println!("  note       below the recommended 8 GB floor — the pick will run, but slowly");
