@@ -2,7 +2,7 @@
 //! The default interpreter is deterministic (CI-safe, demo-safe). The trait is the seam a
 //! real-model interpreter (Claude via the Anthropic API) implements later, unchanged above it.
 
-use crate::types::{Confidence, Fit, GroundedSignals, Measures, TransitBeat};
+use crate::types::{Confidence, DayBeat, Fit, GroundedSignals, Measures, TransitBeat};
 use chrono::NaiveDate;
 
 const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
@@ -51,6 +51,18 @@ pub trait Interpreter {
     fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
         daily_beat_template(beat, date)
     }
+
+    /// The weekly self-reading: the week's tightest contact as a headline plus the balance of
+    /// flowing/friction days, ending in the guardrail. Defaulted (template) so real-model
+    /// interpreters compile unchanged — the daily/weekly self-reads stay light and offline.
+    fn weekly_summary(
+        &self,
+        days: &[DayBeat],
+        headline: Option<&TransitBeat>,
+        start: NaiveDate,
+    ) -> String {
+        weekly_summary_template(days, headline, start)
+    }
 }
 
 /// Lets a boxed interpreter be used wherever an `Interpreter` is expected (runtime selection).
@@ -78,6 +90,15 @@ impl Interpreter for Box<dyn Interpreter> {
     fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
         // Explicit forward — or a boxed override is silently shadowed by the trait default.
         (**self).daily_beat(beat, date)
+    }
+    fn weekly_summary(
+        &self,
+        days: &[DayBeat],
+        headline: Option<&TransitBeat>,
+        start: NaiveDate,
+    ) -> String {
+        // Explicit forward — or a boxed override is silently shadowed by the trait default.
+        (**self).weekly_summary(days, headline, start)
     }
 }
 
@@ -307,6 +328,15 @@ impl Interpreter for TemplateInterpreter {
     fn daily_beat(&self, beat: Option<&TransitBeat>, date: NaiveDate) -> String {
         daily_beat_template(beat, date)
     }
+
+    fn weekly_summary(
+        &self,
+        days: &[DayBeat],
+        headline: Option<&TransitBeat>,
+        start: NaiveDate,
+    ) -> String {
+        weekly_summary_template(days, headline, start)
+    }
 }
 
 /// One beat: the measured transit + a short traditional tone + the guardrail. Never advises. A
@@ -328,6 +358,49 @@ fn daily_beat_template(beat: Option<&TransitBeat>, date: NaiveDate) -> String {
         ),
         None => format!(
             "TODAY ({date}): no close transit to your natal chart — a quiet sky to steer yourself. {REMINDER}"
+        ),
+    }
+}
+
+/// The weekly self-read: one headline (the week's tightest contact) + the balance of the seven
+/// days, ending in the guardrail. Never advises. A quiet week (no beat any day → `headline` None)
+/// renders the quiet-week line. One line, like the daily beat.
+fn weekly_summary_template(
+    days: &[DayBeat],
+    headline: Option<&TransitBeat>,
+    start: NaiveDate,
+) -> String {
+    let end = days.last().map(|d| d.date).unwrap_or(start);
+    let flowing = days
+        .iter()
+        .filter_map(|d| d.beat.as_ref())
+        .filter(|b| b.harmonious)
+        .count();
+    let friction = days
+        .iter()
+        .filter_map(|d| d.beat.as_ref())
+        .filter(|b| !b.harmonious)
+        .count();
+    let shape = if flowing > friction {
+        "leans flowing"
+    } else if friction > flowing {
+        "leans friction"
+    } else {
+        "runs balanced"
+    };
+    match headline {
+        Some(b) => format!(
+            "THIS WEEK ({start} – {end}): your tightest contact is transiting {} {} your natal {} \
+             (orb {:.1}°, {}). Across the seven days the sky {shape} — {flowing} flowing, \
+             {friction} friction. {REMINDER}",
+            b.transiting,
+            b.aspect.to_lowercase(),
+            b.natal,
+            b.orb,
+            if b.harmonious { "flowing" } else { "friction" },
+        ),
+        None => format!(
+            "THIS WEEK ({start} – {end}): no close transit to your natal chart all week — a quiet stretch to steer yourself. {REMINDER}"
         ),
     }
 }

@@ -99,6 +99,24 @@ pub struct DailyReading {
     pub reading: String,
 }
 
+/// One day's tightest beat within a weekly window — `beat` is `None` on a quiet day.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DayBeat {
+    pub date: NaiveDate,
+    pub beat: Option<TransitBeat>,
+}
+
+/// A week's reading: the seven days from `start`, each with its single tightest transit; the
+/// tightest across the whole week as the `headline`; and the rendered prose. Deterministic given
+/// `(seeker, start)` — the dates are parameters, never the system clock.
+#[derive(Debug, Clone)]
+pub struct WeeklyReading {
+    pub start: NaiveDate,
+    pub days: Vec<DayBeat>,
+    pub headline: Option<TransitBeat>,
+    pub reading: String,
+}
+
 /// Whether a set of contacts reads as net-flowing, net-friction, or balanced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {
