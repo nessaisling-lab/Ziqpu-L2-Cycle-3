@@ -1,13 +1,22 @@
 //! Ziqpu local-model **benchmark + pick** — layer 1 of the two-layer selection (PRD nightfall N2,
-//! feature 3). Given the machine's specs, choose the strongest local model that runs *pleasantly*
-//! on it, using a committed port of `Ziqpu_Local_LLM_Hierarchy.md` (Desktop class).
+//! feature 3). Given the machine's specs, either recommend the strongest local model that runs
+//! *pleasantly* on it, or — below the minimum-viable floor — return [`Recommendation::NoLocal`], which
+//! routes the app to Raw (offline engine template) or Live (hosted API). Based on a committed port of
+//! `Ziqpu_Local_LLM_Hierarchy.md` (Desktop class; laptops run the same table — llama.cpp is OS-agnostic).
 //!
-//! The tier logic here is **pure and dependency-free** — it takes a [`DeviceSpec`] and returns a
-//! [`Tier`] / [`ModelPick`], so it is fully unit-tested against fixed specs. Only [`detect_spec`]
-//! reads the real machine (via `sysinfo`); it is thin I/O, deliberately kept out of the tested core.
+//! The **capability envelope** is explicit. The *floor* ([`tier_for`] → `None`) is the true minimum to
+//! run any useful local model (≥ 8 GB RAM, ≥ 4 cores, AVX2 on x86); below it there is no local model.
+//! The *ceiling* ([`Tier::Ultra`]) is workstation-class (RTX 5090 32 GB + 128 GB+ RAM). A machine that
+//! *gates* a tier but can't *hold* that tier's model in RAM drops to the largest that fits (see
+//! [`recommend_for`]) — so a big unified-memory laptop is never capped, and a 64 GB Mac that clears
+//! Ultra's gates but can't fit the 65 GB 120B correctly lands on Strong. Mobile (~16 GB unified) is a
+//! future N4 class, out of this Desktop crate.
 //!
-//! Layer 2 (the online "best current GGUF for this agent on this silicon" check) and the fetch/serve
-//! step build on top of this — this module answers only "what size fits, and what's the default pick".
+//! The tier logic is **pure and dependency-free** — it takes a [`DeviceSpec`] and returns a
+//! [`Recommendation`], fully unit-tested against fixed specs (using *reported*, not nominal, values —
+//! RAM/VRAM read a few percent under nameplate, so both gates carry a tolerance). Only [`detect_spec`]
+//! / [`detect_gpu`] read the real machine; that thin I/O is kept out of the tested core. Layer 2 (the
+//! online best-GGUF check) and the fetch/serve step build on top.
 
 /// The five capability tiers, weakest→strongest. The *same* tier name maps to different models
 /// across device classes in the hierarchy; this crate implements the **Desktop** class (the desktop
@@ -42,6 +51,10 @@ pub struct DeviceSpec {
     pub cores: u32,
     pub disk_free_gb: Option<f64>,
     pub vram_gb: Option<f64>,
+    /// Whether the CPU has AVX2. `Some(false)` = an x86 CPU without AVX2 → llama.cpp runs unbearably
+    /// slowly → **below the floor**. `None` = non-x86 (Apple Silicon / ARM don't need AVX2) or
+    /// undetected → never gates. Only `Some(false)` blocks.
+    pub avx2: Option<bool>,
 }
 
 /// One tier's hardware gate — a committed row of the hierarchy's Desktop threshold table.
@@ -62,15 +75,26 @@ struct Threshold {
 /// and are not tolerated.
 const RAM_TOLERANCE: f64 = 0.94;
 
+/// VRAM is reported slightly under nameplate too (a 24 GB card reads ~23.99 GB, a 32 GB one ~31.75),
+/// so the VRAM gate gets the same tolerance — otherwise the Ultra gate would reject the very RTX 5090
+/// (32 GB) it targets, and Strong would reject a 24 GB 4090.
+const VRAM_TOLERANCE: f64 = 0.94;
+
+/// The fraction of RAM a model may occupy and still leave room for the OS + KV cache. A model whose
+/// download size exceeds `ram_gb * FIT_FRACTION` can't be held in memory (weights live in RAM even on
+/// the GPU-offload hybrid path), so the pick drops to the largest model that does fit.
+const FIT_FRACTION: f64 = 0.8;
+
 /// Desktop-class thresholds, ported verbatim from `Ziqpu_Local_LLM_Hierarchy.md` (§Class 3). Ordered
 /// strongest→weakest so [`tier_for`] can return the first (highest) tier a machine satisfies.
 const DESKTOP_THRESHOLDS: [Threshold; 5] = [
+    // Ultra = the workstation ceiling: RTX 5090 (32 GB GDDR7) + 128-256 GB DDR5. Not a routine rung.
     Threshold {
         tier: Tier::Ultra,
         min_ram_gb: 64.0,
         min_cores: 12,
         min_disk_gb: 130.0,
-        min_vram_gb: 24.0,
+        min_vram_gb: 32.0,
         gpu_required: true,
     },
     Threshold {
@@ -119,7 +143,9 @@ impl Threshold {
             .map(|d| d >= self.min_disk_gb)
             .unwrap_or(true);
         let vram_ok = if self.gpu_required {
-            spec.vram_gb.map(|v| v >= self.min_vram_gb).unwrap_or(false)
+            spec.vram_gb
+                .map(|v| v >= self.min_vram_gb * VRAM_TOLERANCE)
+                .unwrap_or(false)
         } else {
             true
         };
@@ -127,25 +153,25 @@ impl Threshold {
     }
 }
 
-/// The highest tier the machine can run pleasantly. If the machine is below even the Low floor
-/// (< 8 GB), we still return [`Tier::Low`] — the smallest model is the honest best-effort — rather
-/// than refuse outright. Callers can compare `spec.ram_gb` against the Low minimum to warn.
-pub fn tier_for(spec: &DeviceSpec) -> Tier {
+/// The highest tier whose gates the machine clears, or **`None` when it is below the floor** — no
+/// tier's minimum is met, or the CPU is x86-without-AVX2 (llama.cpp can't run at a tolerable speed).
+/// A `None` means "no local model": the caller routes to Raw (offline template) or Live (hosted API).
+pub fn tier_for(spec: &DeviceSpec) -> Option<Tier> {
+    // An x86 CPU without AVX2 is below the floor regardless of RAM. This gate lives *here*, in the
+    // tier decision (not only in the reason-reporter), so exclusion and reporting agree. Apple
+    // Silicon / ARM report `avx2 == None` and are never blocked.
+    if spec.avx2 == Some(false) {
+        return None;
+    }
     DESKTOP_THRESHOLDS
         .iter()
         .find(|t| t.satisfied_by(spec))
         .map(|t| t.tier)
-        .unwrap_or(Tier::Low)
 }
 
-/// Whether the machine clears the Low floor (the weakest tier's hard gate). `false` means the pick
-/// is a below-spec best effort and readings may be slow.
+/// Whether the machine can run *any* local model (clears the floor). `false` → no local; use Raw/Live.
 pub fn meets_floor(spec: &DeviceSpec) -> bool {
-    DESKTOP_THRESHOLDS
-        .iter()
-        .find(|t| t.tier == Tier::Low)
-        .map(|t| t.satisfied_by(spec))
-        .unwrap_or(false)
+    tier_for(spec).is_some()
 }
 
 /// The default model for a tier — a static pick from the hierarchy's Desktop table. Layer 2 may
@@ -169,12 +195,12 @@ pub struct ModelPick {
 const DESKTOP_MODELS: [ModelPick; 5] = [
     ModelPick {
         tier: Tier::Low,
-        name: "Llama 3.2 3B Instruct",
-        params: "3B",
+        name: "Gemma 3 4B Instruct",
+        params: "4B",
         quant: "Q4_K_M",
-        download_gb: 2.0,
+        download_gb: 3.0,
         min_ram_gb: 8.0,
-        search_term: "Llama-3.2-3B-Instruct",
+        search_term: "gemma-3-4b-it",
     },
     ModelPick {
         tier: Tier::Weak,
@@ -214,20 +240,136 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
     },
 ];
 
+/// The sub-floor fallback — a tiny 3B for a below-floor machine whose user *forces* local anyway
+/// (`--force-local`). Smaller and rougher than the Low pick; **never returned by [`recommend_for`]**
+/// (a below-floor machine gets [`Recommendation::NoLocal`] by default). Ziqpu's no-advice guardrail
+/// is enforced in code regardless of model, so this is safe — just slower and lower quality.
+pub const SUBFLOOR_PICK: ModelPick = ModelPick {
+    tier: Tier::Low,
+    name: "Llama 3.2 3B Instruct",
+    params: "3B",
+    quant: "Q4_K_M",
+    download_gb: 2.0,
+    min_ram_gb: 4.0,
+    search_term: "Llama-3.2-3B-Instruct",
+};
+
 /// The whole tier→model table, weakest→strongest — for a `list` view and for callers offering the
 /// "download a different model" affordance.
 pub fn all_models() -> &'static [ModelPick] {
     &DESKTOP_MODELS
 }
 
-/// The default model pick for a machine — its detected tier's model.
-pub fn recommend_for(spec: &DeviceSpec) -> ModelPick {
-    let tier = tier_for(spec);
-    DESKTOP_MODELS
+/// Which non-local path a below-floor machine should use instead. Mirrors the app's
+/// `ReadMode { Raw, Local, Live }`: [`Recommendation::NoLocal`] means "skip the Local rung".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fallback {
+    /// The always-available offline deterministic engine template (no model, no network).
+    Raw,
+    /// A hosted API (OpenRouter) — best prose, needs a key + network.
+    Live,
+    /// Either works; the app's Raw/Live toggle lets the seeker choose. The default for a below-floor
+    /// machine — the crate can't detect connectivity to prefer one.
+    RawOrLive,
+}
+
+impl Fallback {
+    pub fn label(self) -> &'static str {
+        match self {
+            Fallback::Raw => "Raw (offline engine template)",
+            Fallback::Live => "Live (hosted API)",
+            Fallback::RawOrLive => "Raw (offline) or Live (hosted API)",
+        }
+    }
+}
+
+/// Why a machine gets no local recommendation — the floor gate it fails first.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NoLocalReason {
+    /// Below the 8 GB RAM floor (after the tolerance).
+    BelowRam { have_gb: f64, need_gb: f64 },
+    /// Fewer than the 4-core floor.
+    TooFewCores { have: u32, need: u32 },
+    /// An x86 CPU without AVX2 — llama.cpp can't run at a tolerable speed.
+    NoAvx2,
+}
+
+impl NoLocalReason {
+    /// A one-line human explanation for the CLI.
+    pub fn human(self) -> String {
+        match self {
+            NoLocalReason::BelowRam { have_gb, need_gb } => {
+                format!("{have_gb:.1} GB RAM is below the {need_gb:.0} GB floor")
+            }
+            NoLocalReason::TooFewCores { have, need } => {
+                format!("{have} CPU cores is below the {need}-core floor")
+            }
+            NoLocalReason::NoAvx2 => "the CPU lacks AVX2 (required by llama.cpp)".to_string(),
+        }
+    }
+}
+
+/// The benchmark's answer for a machine: a concrete local pick, or — below the minimum viable floor —
+/// no local model, with the reason and the Raw/Live alternative.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Recommendation {
+    Local(ModelPick),
+    NoLocal {
+        reason: NoLocalReason,
+        fallback: Fallback,
+    },
+}
+
+/// Whether `model` can be held in memory on `spec` — its download size plus OS/KV headroom must fit
+/// within `ram_gb * FIT_FRACTION`. This is what makes a machine that *clears a tier's gates* but
+/// *can't hold that tier's model* (e.g. a 64 GB unified laptop clearing Ultra but not fitting the
+/// ~65 GB 120B) drop to the largest model it can actually run — weights live in RAM even on the
+/// GPU-offload hybrid path, so RAM (not VRAM) is the binding fit constraint.
+fn model_fits(spec: &DeviceSpec, model: &ModelPick) -> bool {
+    model.download_gb <= spec.ram_gb * FIT_FRACTION
+}
+
+/// The floor gate a below-floor machine fails first — in the same order [`tier_for`] gates: AVX2,
+/// then the Low row's RAM, then cores.
+fn first_failed_floor_gate(spec: &DeviceSpec) -> NoLocalReason {
+    const FLOOR_RAM: f64 = 8.0;
+    const FLOOR_CORES: u32 = 4;
+    if spec.avx2 == Some(false) {
+        return NoLocalReason::NoAvx2;
+    }
+    if spec.ram_gb < FLOOR_RAM * RAM_TOLERANCE {
+        return NoLocalReason::BelowRam {
+            have_gb: spec.ram_gb,
+            need_gb: FLOOR_RAM,
+        };
+    }
+    NoLocalReason::TooFewCores {
+        have: spec.cores,
+        need: FLOOR_CORES,
+    }
+}
+
+/// The benchmark's recommendation for a machine. Below the floor → [`Recommendation::NoLocal`] (use
+/// Raw/Live). Otherwise the **largest model that actually fits**: from the machine's gated tier down,
+/// the highest whose model clears [`model_fits`] — so a machine that gates a tier it can't hold the
+/// model for gets the biggest model it *can* run, not one that would swap to disk.
+pub fn recommend_for(spec: &DeviceSpec) -> Recommendation {
+    let Some(gated) = tier_for(spec) else {
+        return Recommendation::NoLocal {
+            reason: first_failed_floor_gate(spec),
+            fallback: Fallback::RawOrLive,
+        };
+    };
+    // DESKTOP_MODELS is Low→Ultra; walk it Ultra→Low and take the first at-or-below the gated tier
+    // whose model fits. The floor guarantees the Low model (3 GB) fits 8 GB, so a pick always exists.
+    let pick = DESKTOP_MODELS
         .iter()
-        .find(|m| m.tier == tier)
+        .rev()
+        .filter(|m| m.tier <= gated)
+        .find(|m| model_fits(spec, m))
         .copied()
-        .expect("every tier has a model")
+        .unwrap_or(DESKTOP_MODELS[0]);
+    Recommendation::Local(pick)
 }
 
 // ---- Layer 2: resolve the tier's pick to a *current* Hugging Face GGUF repo (online) ----
@@ -569,6 +711,20 @@ pub fn detect_spec_with(gpu: Option<&GpuInfo>) -> DeviceSpec {
         cores,
         disk_free_gb: None,
         vram_gb,
+        avx2: detect_avx2(),
+    }
+}
+
+/// Detect AVX2 on x86 (the running CPU); `None` on non-x86 (ARM / Apple Silicon don't need it and
+/// are never gated on it). No new dependency — `is_x86_feature_detected!` is in `std`.
+fn detect_avx2() -> Option<bool> {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        Some(std::arch::is_x86_feature_detected!("avx2"))
+    }
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    {
+        None
     }
 }
 
@@ -576,72 +732,143 @@ pub fn detect_spec_with(gpu: Option<&GpuInfo>) -> DeviceSpec {
 mod tests {
     use super::*;
 
+    /// Common test machine — AVX2 present (the usual x86 case). Use `spec_avx2` for the no-AVX2 case.
     fn spec(ram: f64, cores: u32, disk: Option<f64>, vram: Option<f64>) -> DeviceSpec {
         DeviceSpec {
             ram_gb: ram,
             cores,
             disk_free_gb: disk,
             vram_gb: vram,
+            avx2: Some(true),
+        }
+    }
+
+    fn spec_avx2(ram: f64, cores: u32, vram: Option<f64>, avx2: Option<bool>) -> DeviceSpec {
+        DeviceSpec {
+            ram_gb: ram,
+            cores,
+            disk_free_gb: None,
+            vram_gb: vram,
+            avx2,
         }
     }
 
     #[test]
-    fn a_basic_office_box_lands_on_low() {
-        // 8 GB / 4 cores, no GPU → Low (Llama 3.2 3B).
+    fn a_basic_office_box_is_the_floor_with_a_guarded_pick() {
+        // 8 GB / 4 cores, no GPU → Low tier; the Low pick is the guardable 4B, and it fits 8 GB.
         let s = spec(8.0, 4, Some(50.0), None);
-        assert_eq!(tier_for(&s), Tier::Low);
-        assert_eq!(recommend_for(&s).name, "Llama 3.2 3B Instruct");
+        assert_eq!(tier_for(&s), Some(Tier::Low));
         assert!(meets_floor(&s));
+        match recommend_for(&s) {
+            Recommendation::Local(m) => {
+                assert_eq!(m.name, "Gemma 3 4B Instruct");
+                assert!(model_fits(&s, &m), "the 4B fits the 8 GB floor");
+            }
+            other => panic!("expected Local, got {other:?}"),
+        }
     }
 
     #[test]
     fn sixteen_gigs_no_gpu_reaches_medium_not_strong() {
-        // 16 GB / 6 cores, no confirmed GPU → Medium (CPU-runnable GPT-OSS 20B), never Strong.
         let s = spec(16.0, 6, Some(60.0), None);
-        assert_eq!(tier_for(&s), Tier::Medium);
+        assert_eq!(tier_for(&s), Some(Tier::Medium));
     }
 
     #[test]
     fn strong_requires_a_confirmed_gpu() {
-        // 32 GB / 8 cores but VRAM unknown → capped at Medium (Strong is gpu_required).
-        assert_eq!(tier_for(&spec(32.0, 8, Some(80.0), None)), Tier::Medium);
-        // Same box with a 24 GB GPU → Strong.
+        assert_eq!(
+            tier_for(&spec(32.0, 8, Some(80.0), None)),
+            Some(Tier::Medium)
+        );
         assert_eq!(
             tier_for(&spec(32.0, 8, Some(80.0), Some(24.0))),
-            Tier::Strong
+            Some(Tier::Strong)
         );
     }
 
     #[test]
-    fn an_enthusiast_build_reaches_ultra() {
-        let s = spec(128.0, 16, Some(400.0), Some(32.0));
-        assert_eq!(tier_for(&s), Tier::Ultra);
-        assert_eq!(recommend_for(&s).name, "GPT-OSS 120B");
+    fn a_24gb_gpu_is_strong_and_ultra_needs_a_32gb_card() {
+        // Same big-RAM box: a 24 GB card is Strong; a 32 GB card (RTX 5090) is Ultra. This is the
+        // corrected ceiling — 24 GB is no longer Ultra.
+        let s24 = spec(128.0, 16, Some(400.0), Some(24.0));
+        let s32 = spec(128.0, 16, Some(400.0), Some(32.0));
+        assert_eq!(tier_for(&s24), Some(Tier::Strong));
+        assert_eq!(tier_for(&s32), Some(Tier::Ultra));
+        // And the workstation actually fits the 120B (65 GB <= 128 * 0.8).
+        assert!(
+            matches!(recommend_for(&s32), Recommendation::Local(m) if m.name == "GPT-OSS 120B")
+        );
     }
 
     #[test]
-    fn below_floor_still_returns_low_but_flags_it() {
-        // A 4 GB / 2-core machine is below even Low; we still recommend the smallest model, honestly
-        // flagged as below the floor.
+    fn below_floor_returns_no_local_not_a_slow_model() {
+        // 4 GB / 2 cores is below the floor → no local model; route to Raw/Live (the reframe).
         let s = spec(4.0, 2, Some(20.0), None);
-        assert_eq!(tier_for(&s), Tier::Low);
+        assert_eq!(tier_for(&s), None);
         assert!(!meets_floor(&s));
+        match recommend_for(&s) {
+            Recommendation::NoLocal { reason, fallback } => {
+                assert!(matches!(reason, NoLocalReason::BelowRam { .. }));
+                assert_eq!(fallback, Fallback::RawOrLive);
+            }
+            other => panic!("expected NoLocal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn no_avx2_is_below_floor_regardless_of_ram() {
+        // A capable-on-paper 16 GB / 8-core x86 box without AVX2 still can't run llama.cpp → NoLocal.
+        let s = spec_avx2(16.0, 8, Some(16.0), Some(false));
+        assert_eq!(tier_for(&s), None);
+        assert!(matches!(
+            recommend_for(&s),
+            Recommendation::NoLocal {
+                reason: NoLocalReason::NoAvx2,
+                ..
+            }
+        ));
+        // avx2 == None (Apple Silicon / ARM) never blocks.
+        assert!(tier_for(&spec_avx2(16.0, 8, Some(16.0), None)).is_some());
     }
 
     #[test]
     fn an_unknown_disk_never_blocks_a_pick() {
-        // Disk None must not gate — a 32 GB GPU box with unknown disk still reaches Strong.
-        assert_eq!(tier_for(&spec(32.0, 8, None, Some(24.0))), Tier::Strong);
+        assert_eq!(
+            tier_for(&spec(32.0, 8, None, Some(24.0))),
+            Some(Tier::Strong)
+        );
     }
 
     #[test]
     fn more_ram_never_lowers_the_tier() {
         // Monotonicity: sweeping RAM up (GPU fixed generous) never demotes the tier.
-        let mut last = Tier::Low;
+        let mut last: Option<Tier> = None;
         for ram in [8.0, 12.0, 16.0, 24.0, 32.0, 48.0, 64.0, 96.0, 128.0] {
             let t = tier_for(&spec(ram, 16, Some(400.0), Some(32.0)));
             assert!(t >= last, "tier dropped at {ram} GB: {last:?} -> {t:?}");
             last = t;
+        }
+    }
+
+    #[test]
+    fn unified_laptop_fits_the_pick_to_ram_not_just_the_tier() {
+        // 128 GB unified Mac: budget 0.7*128 = 89.6 (>= 32 Ultra gate); the 120B (65 GB) fits
+        // 128*0.8 = 102.4 → Ultra pick. Reframe #3: a big laptop is not capped.
+        let big = spec(128.0, 12, Some(400.0), Some(128.0 * UNIFIED_VRAM_FRACTION));
+        assert_eq!(tier_for(&big), Some(Tier::Ultra));
+        assert!(
+            matches!(recommend_for(&big), Recommendation::Local(m) if m.name == "GPT-OSS 120B")
+        );
+        // 64 GB unified Mac: budget 44.8 gates Ultra, BUT the 120B (65 GB) does NOT fit 64*0.8 = 51.2
+        // → fit-the-pick drops to the largest that fits, Strong's 35B (24 GB <= 51.2).
+        let mid = spec(64.0, 12, Some(200.0), Some(64.0 * UNIFIED_VRAM_FRACTION));
+        assert_eq!(tier_for(&mid), Some(Tier::Ultra), "gates Ultra");
+        match recommend_for(&mid) {
+            Recommendation::Local(m) => {
+                assert_ne!(m.name, "GPT-OSS 120B", "the 120B can't fit a 64 GB machine");
+                assert_eq!(m.name, "Qwen3.5 35B-A3B", "drops to the largest that fits");
+            }
+            other => panic!("expected Local, got {other:?}"),
         }
     }
 
@@ -660,20 +887,47 @@ mod tests {
     }
 
     #[test]
-    fn reported_ram_just_under_nameplate_keeps_its_tier() {
-        // A 32 GB box reads ~31.3 GB and a 16 GB one ~15.7: the tolerance must not drop a rung.
+    fn every_advertised_pick_is_guardable_4b_plus_and_subfloor_is_3b() {
+        for m in all_models() {
+            let b: u32 = m.params.trim_end_matches('B').parse().unwrap_or(0);
+            assert!(
+                b >= 4,
+                "advertised pick {} is {} — below the 4B guardable floor",
+                m.name,
+                m.params
+            );
+        }
+        assert_eq!(
+            SUBFLOOR_PICK.params, "3B",
+            "the forced-local fallback is the tiny 3B"
+        );
+    }
+
+    #[test]
+    fn reported_ram_and_vram_just_under_nameplate_keep_their_tier() {
+        // RAM tolerance: a 32 GB box reads ~31.3, a 16 GB one ~15.7 — must not drop a rung.
         assert_eq!(
             tier_for(&spec(31.3, 8, Some(80.0), Some(24.0))),
-            Tier::Strong
+            Some(Tier::Strong)
         );
         assert_eq!(
             tier_for(&spec(15.7, 6, Some(60.0), Some(16.0))),
-            Tier::Medium
+            Some(Tier::Medium)
         );
-        // But a genuinely-smaller machine still falls: 12 GB is not a tolerated 16.
+        // 12 GB is genuinely below a tolerated 16 → not Medium.
         assert_ne!(
             tier_for(&spec(12.0, 6, Some(60.0), Some(16.0))),
-            Tier::Medium
+            Some(Tier::Medium)
+        );
+        // VRAM tolerance (the blocker fix): a 24 GB 4090 reports ~23.99 and must still clear Strong;
+        // a 32 GB 5090 reports ~31.75 and must still clear Ultra. Without VRAM_TOLERANCE both fail.
+        assert_eq!(
+            tier_for(&spec(64.0, 12, Some(200.0), Some(23.99))),
+            Some(Tier::Strong)
+        );
+        assert_eq!(
+            tier_for(&spec(128.0, 16, Some(400.0), Some(31.75))),
+            Some(Tier::Ultra)
         );
     }
 
