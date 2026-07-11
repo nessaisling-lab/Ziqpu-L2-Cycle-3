@@ -509,8 +509,25 @@ td.b{color:var(--ink)}
   padding:9px 13px;border-left:3px solid var(--carnelian);background:var(--parchment-2);border-radius:0 10px 10px 0;
 }
 
-/* ---- ticker "search the market" ---- */
+/* ---- ticker "search a universe" ---- */
 .market{display:flex;flex-direction:column;gap:14px;margin-top:8px}
+/* Universe picker — Stocks · Airlines · Insurers. Smaller siblings of the mode tabs. */
+.universe-picker{display:flex;gap:6px;flex-wrap:wrap}
+.universe-pill{
+  font:600 11px/1 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-soft);background:transparent;cursor:pointer;
+  border:1px solid var(--gold-line);border-radius:999px;padding:7px 13px;transition:.15s;
+}
+.universe-pill:hover{color:var(--lapis);border-color:var(--gold)}
+.universe-pill.current{color:var(--lapis);background:var(--parchment);border-color:var(--gold);box-shadow:var(--shadow)}
+/* The small universe tag on a result row / basket chip — quiet, so ticker + name still lead. */
+.ticker-result .univ,.chip-univ{
+  font:600 9.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--gold-deep);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:999px;padding:3px 7px;white-space:nowrap;
+}
+.ticker-result .univ{margin-left:auto}
+.chip-univ{margin-left:2px}
 .ticker-search{display:flex;gap:9px}
 .ticker-search input{
   flex:1;background:var(--alabaster);border:1px solid var(--gold-line);border-radius:10px;

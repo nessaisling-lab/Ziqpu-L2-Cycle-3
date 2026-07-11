@@ -62,8 +62,11 @@ pub struct SavedProfile {
     pub time_unknown: bool,
     #[serde(default)]
     pub place: Option<SavedPlace>,
-    /// The market basket the seeker built — ticker symbols, in pick order. `#[serde(default)]`
-    /// so a profile written before baskets were saved still loads (empty basket).
+    /// The mixed market basket the seeker built — **namespaced `"<slug>:<id>"` tokens** (e.g.
+    /// `"stocks:AAPL"`, `"airlines:AAL"`), in pick order. The namespace is what lets the basket span
+    /// universes and keeps a stock "AAL" distinct from an airline "AAL". `#[serde(default)]` so a
+    /// profile written before baskets were saved still loads (empty basket); a legacy bare token
+    /// with no `:` is read back as a stock by the UI. The type stays `Vec<String>`.
     #[serde(default)]
     pub basket: Vec<String>,
 }
@@ -149,14 +152,15 @@ pub fn save_draft(
     save_profile(&p);
 }
 
-/// Save just the market basket (ticker symbols), **preserving** the birth draft.
-pub fn save_basket(tickers: &[String]) {
+/// Save just the market basket (namespaced `"<slug>:<id>"` tokens), **preserving** the birth draft.
+pub fn save_basket(tokens: &[String]) {
     let mut p = load_profile().unwrap_or_default();
-    p.basket = tickers.to_vec();
+    p.basket = tokens.to_vec();
     save_profile(&p);
 }
 
-/// The saved basket's ticker symbols (empty if none saved).
+/// The saved basket's namespaced tokens (empty if none saved). The UI rebuilds each `Choice` via
+/// `tickers::choice_in(Universe::from_slug(slug), id)`, treating a legacy bare token as a stock.
 pub fn load_basket() -> Vec<String> {
     load_profile().map(|p| p.basket).unwrap_or_default()
 }
