@@ -9,7 +9,7 @@ use agents::Choice;
 use dioxus::prelude::*;
 use tickers::{TickerRow, Universe};
 
-use crate::components::BirthInputForm;
+use crate::components::{BirthInputForm, Identity};
 use crate::state::{run_recommend, AppCtx};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -25,6 +25,9 @@ pub fn Setup() -> Element {
     let current = *mode.read();
 
     rsx! {
+        // The anonymous identity — the first thing the seeker sees, their cosmic handle (no login).
+        Identity {}
+
         div { class: "setup-modes",
             button {
                 class: if current == Mode::Seeded { "mode-tab current" } else { "mode-tab" },

@@ -69,6 +69,13 @@ pub struct SavedProfile {
     /// with no `:` is read back as a stock by the UI. The type stays `Vec<String>`.
     #[serde(default)]
     pub basket: Vec<String>,
+    /// The seeker's **anonymous handle** — the two-word cosmic name (e.g. `"Lapis Scribe"`), no
+    /// email, no login. Empty means "never set": the UI then derives the chart-default via
+    /// [`agents::anon_handle_for`]. A non-empty value is a handle the seeker **re-rolled** and chose
+    /// to keep, which is why it must persist rather than always be recomputed. `#[serde(default)]`
+    /// so profiles written before identities existed still load (empty → derive).
+    #[serde(default)]
+    pub handle: String,
 }
 
 impl SavedProfile {
@@ -163,4 +170,57 @@ pub fn save_basket(tokens: &[String]) {
 /// `tickers::choice_in(Universe::from_slug(slug), id)`, treating a legacy bare token as a stock.
 pub fn load_basket() -> Vec<String> {
     load_profile().map(|p| p.basket).unwrap_or_default()
+}
+
+/// Save just the anonymous handle, **preserving** the birth draft and basket. Called when the
+/// seeker accepts a re-rolled name in the setup wizard.
+pub fn save_handle(handle: &str) {
+    let mut p = load_profile().unwrap_or_default();
+    p.handle = handle.to_string();
+    save_profile(&p);
+}
+
+/// The saved handle (empty if never set). Prefer [`handle_or_default`] for display — it fills the
+/// chart-derived default when nothing was saved.
+pub fn load_handle() -> String {
+    load_profile().map(|p| p.handle).unwrap_or_default()
+}
+
+/// The handle to **show** the seeker: their saved (possibly re-rolled) handle if they kept one,
+/// otherwise the stable chart-derived default. This is the single call the wizard and header use,
+/// so display logic never has to special-case the empty back-compat value.
+pub fn handle_or_default(birth: &agents::BirthMoment) -> String {
+    let saved = load_handle();
+    if saved.is_empty() {
+        agents::anon_handle_for(birth)
+    } else {
+        saved
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A profile JSON written **before** handles existed (no `handle` key) still deserializes, with
+    /// `handle` defaulting to empty — the back-compat contract that keeps old installs loading.
+    #[test]
+    fn legacy_profile_without_handle_loads_empty() {
+        let legacy = r#"{"date_str":"1990-05-15","time_str":"14:30","time_unknown":false,"place":null,"basket":["stocks:AAPL"]}"#;
+        let p: SavedProfile = serde_json::from_str(legacy).expect("legacy profile deserializes");
+        assert_eq!(p.handle, "");
+        assert_eq!(p.basket, vec!["stocks:AAPL".to_string()]);
+    }
+
+    /// The handle round-trips through serde alongside the rest of the profile.
+    #[test]
+    fn handle_round_trips() {
+        let p = SavedProfile {
+            handle: "Lapis Scribe".into(),
+            ..Default::default()
+        };
+        let restored: SavedProfile =
+            serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
+        assert_eq!(restored.handle, "Lapis Scribe");
+    }
 }
