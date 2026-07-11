@@ -3,10 +3,12 @@
 //! company* is measured against the seeker's chart on a throwaway session and answered with a warm
 //! reading; anything else gets a helpful nudge. The refusal is never a signal.
 //!
-//! The Ask box submits on both the button and the Enter key (one shared `submit` closure). The
-//! reading's live-interpreter call runs on a worker thread, so a live model never freezes the
-//! window — the answer area shows a brief "Consulting the viziers…" state until the prose arrives
-//! back through `ctx.ask_reader`.
+//! The Ask box is a real `form`: its `onsubmit` fires for both the Ask button and the Enter key
+//! (one shared `submit` closure), which is the webview-reliable way to submit on Enter. The ask
+//! always pulls a *real* model — Raw upgrades to Live, Local/Live pass through — never the offline
+//! template. The reading's live-interpreter call runs on a worker thread, so a live model never
+//! freezes the window — the answer area shows a brief "Consulting the viziers…" state until the
+//! prose arrives back through `ctx.ask_reader`.
 
 use agents::{is_advice_seeking, Answer, Fit, Measures, ReadMode};
 use dioxus::prelude::*;
@@ -68,7 +70,13 @@ pub fn Guardrail() -> Element {
                 return;
             }
             let mut ctx = ctx.clone();
-            let mode = *ctx.mode.read();
+            // The Ask box always pulls a REAL model: if the current display mode is the deterministic
+            // Raw template, upgrade the ask to Live; Local stays Local, Live stays Live. (Product owner:
+            // "the ask should always do a live or local pull.")
+            let mode = match *ctx.mode.read() {
+                ReadMode::Raw => ReadMode::Live,
+                other => other,
+            };
 
             // Resolve a named company to a datable choice + its measured band on a THROWAWAY session
             // (never recorded on the graded log). `None` when no measurable company was named.
@@ -131,36 +139,34 @@ pub fn Guardrail() -> Element {
     rsx! {
         p { class: "eyebrow", "Enforced in code, not in a prompt" }
         p { class: "lead",
-            "Ask how you "
+            "Name a company or ticker and I'll measure how you "
             em { "fit" }
-            " a choice and I'll measure it. Ask whether to "
+            " it. Ask whether to "
             em { "buy" }
             " it and I won't."
         }
 
         div { class: "rail",
-            div { class: "ask",
+            // A real `form`, so Enter submits reliably in WebView2 (the old onkeydown handler was
+            // unreliable). `onsubmit` fires for BOTH the Enter key and the submit button; we
+            // `prevent_default()` to stop the webview's default page-reload, then run the shared closure.
+            form { class: "ask",
+                onsubmit: {
+                    let submit = submit.clone();
+                    move |e: FormEvent| {
+                        e.prevent_default();
+                        submit(question.read().clone());
+                    }
+                },
                 input {
                     value: "{question}",
-                    "aria-label": "Ask about a choice",
+                    "aria-label": "Ask about a company or ticker",
+                    placeholder: "Ask about a company — e.g. 'how do I fit with AMD?'",
                     oninput: move |e| question.set(e.value()),
-                    onkeydown: {
-                        let submit = submit.clone();
-                        move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter {
-                                e.prevent_default();
-                                submit(question.read().clone());
-                            }
-                        }
-                    },
                 }
                 button {
                     class: "btn btn--go",
-                    r#type: "button",
-                    onclick: {
-                        let submit = submit.clone();
-                        move |_| submit(question.read().clone())
-                    },
+                    r#type: "submit",
                     "Ask"
                 }
             }

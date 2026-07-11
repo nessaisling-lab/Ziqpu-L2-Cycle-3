@@ -234,27 +234,53 @@ header{
   border:1px solid var(--gold-line);
 }
 
-/* ---- wheat-stalk loader — a stalk of green grain swaying in the wind while the reading is
-   fetched (Nisaba, goddess of grain). Sized a touch large so "something's happening" is
-   unmistakable; each stalk pivots about its stem base at a staggered offset so it reads as grain
-   bending in a breeze. ---- */
-.wheat-loader{display:flex;align-items:center;gap:14px;padding:12px 22px 8px}
-.wheat{width:82px;height:70px;flex:none;overflow:visible}
-.wheat-caption{font-style:italic;color:var(--gold-deep);font-size:15px}
-/* Each stalk rotates about its own stem base (fill-box origin at the base) at a staggered offset, so
-   the loader always reads as grain leaning in a breeze. This is a *loading affordance* — it must show
-   activity — so it sways unconditionally rather than only under no-preference. */
-.wheat .stalk{transform-box:fill-box;transform-origin:bottom center}
-.wheat .stalk--a{animation:sway 1.7s ease-in-out infinite alternate}
-.wheat .stalk--b{animation:sway 2.0s ease-in-out -0.55s infinite alternate}
-.wheat .stalk--c{animation:sway 1.85s ease-in-out -1.15s infinite alternate}
-/* A clearly visible ±11° oscillation about the stem base — grain leaning in the wind. */
-@keyframes sway{from{transform:rotate(-11deg)}to{transform:rotate(11deg)}}
-/* Reduced-motion: don't kill the loading feedback — calm the amplitude to a gentle ±3.5° and slow it. */
-@keyframes sway-calm{from{transform:rotate(-3.5deg)}to{transform:rotate(3.5deg)}}
-@media(prefers-reduced-motion:reduce){
-  .wheat .stalk--a,.wheat .stalk--b,.wheat .stalk--c{animation-name:sway-calm;animation-duration:3.4s}
+/* ---- living wheat plot — the card's persistent health indicator (Nisaba, goddess of grain). A
+   small stand of stalks fills the card's spare rightward space beside the reading; its COLOR
+   (--wheat-color stem → --wheat-tip grain) and FORM (stalk count, height, droop, head fullness) both
+   track the fit band, so a glance reads healthy-vs-dying: a dry, sparse, drooping rust-brown wilt for
+   a Misaligned fit through to a tall, full, upright radiant-gold harvest for a Strongly Aligned one.
+   It is ALWAYS visible — not just a loader — and its continuous sway doubles as the pending/loading
+   state, with the "Consulting the viziers…" caption beside it. ---- */
+.card__mid{display:flex;align-items:stretch;gap:12px;padding:10px 22px 12px;min-height:112px}
+.card__read{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.card__mid .reading{padding:0;max-width:none}
+.card__mid .src-badge{margin:0}
+.wheat-field{
+  flex:0 0 auto;width:clamp(92px,30%,172px);display:flex;align-items:flex-end;
+  pointer-events:none;user-select:none;
+  -webkit-mask:linear-gradient(90deg,transparent 0,#000 44%);
+  mask:linear-gradient(90deg,transparent 0,#000 44%);
 }
+.wheat{width:100%;height:100%;overflow:visible}
+.wheat-caption{font-style:italic;color:var(--gold-deep);font-size:15px}
+/* Dark theme: keep the same health hues, gently lifted so the plot still glows on the bitumen ground. */
+:root[data-theme="dark"] .wheat-field{filter:saturate(1.12) brightness(1.14)}
+/* Each stalk pivots about its own stem base (fill-box origin at the base) at a staggered offset, so
+   the whole plot reads as grain leaning in a breeze. */
+.wheat .stalk{transform-box:fill-box;transform-origin:bottom center}
+.wheat .stalk--a{animation:sway 3.6s ease-in-out infinite alternate}
+.wheat .stalk--b{animation:sway 4.3s ease-in-out -1.2s infinite alternate}
+.wheat .stalk--c{animation:sway 3.9s ease-in-out -2.4s infinite alternate}
+/* A gentle ±4° oscillation about each stem base — a slow, ambient field sway (the per-stalk static
+   wilt lean is baked into the SVG on top of this). */
+@keyframes sway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+/* DELIBERATE PRODUCT CHOICE: the wheat sway is ambient/brand decorative motion, core to the
+   experience, so it animates at full amplitude REGARDLESS of the OS "reduce motion" setting — it is
+   NOT disabled under prefers-reduced-motion:reduce. (Product owner kept seeing no motion because
+   their OS reduce-motion was on.) The gentle sway is not vestibular-triggering; the accessible
+   follow-up is a future in-app motion toggle rather than deferring to the OS flag. */
+
+/* ---- ambient wheat horizon — a faint stand of grain along the very bottom of the page, behind
+   .wrap (like .sky), purely atmospheric. A tiled stalk silhouette, low opacity, with a slow ambient
+   drift. Decorative only; pointer-inert. ---- */
+.wheat-horizon{
+  position:fixed;left:0;right:0;bottom:0;height:64px;z-index:-2;pointer-events:none;user-select:none;
+  background-repeat:repeat-x;background-position:center bottom;background-size:132px 64px;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='132' height='64' viewBox='0 0 132 64'%3E%3Cg fill='none' stroke='%23b07d12' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M14 64V24'/%3E%3Cpath d='M32 64V16'/%3E%3Cpath d='M50 64V28'/%3E%3Cpath d='M70 64V14'/%3E%3Cpath d='M90 64V26'/%3E%3Cpath d='M108 64V20'/%3E%3Cpath d='M124 64V30'/%3E%3C/g%3E%3Cg fill='%23b07d12'%3E%3Cellipse cx='14' cy='22' rx='2' ry='4'/%3E%3Cellipse cx='32' cy='14' rx='2.2' ry='4.4'/%3E%3Cellipse cx='50' cy='26' rx='2' ry='4'/%3E%3Cellipse cx='70' cy='12' rx='2.3' ry='4.6'/%3E%3Cellipse cx='90' cy='24' rx='2' ry='4'/%3E%3Cellipse cx='108' cy='18' rx='2.1' ry='4.2'/%3E%3Cellipse cx='124' cy='28' rx='1.9' ry='3.8'/%3E%3C/g%3E%3C/svg%3E");
+  transform-origin:center bottom;animation:hsway 9s ease-in-out infinite alternate;
+}
+:root[data-theme="dark"] .wheat-horizon{opacity:.1}
+@keyframes hsway{from{transform:skewX(-1.4deg)}to{transform:skewX(1.4deg)}}
 .measured{font:500 12.5px/1.75 var(--f-mono);color:var(--ink-soft);padding:6px 22px 18px;overflow-x:auto}
 .measured .flow,td .flow,.measured.grounded-line{color:var(--lapis)}
 .measured .fric,td .fric{color:var(--carnelian)}
@@ -496,13 +522,12 @@ td.b{color:var(--ink)}
 :root[data-theme="dark"] .sky--searching .star{
   filter:drop-shadow(0 0 4px color-mix(in srgb,#fff 70%,transparent));
 }
-/* Reduced-motion: keep the sky alive with an opacity-only pulse (no scale/translation, the parts that
-   trouble vestibular sensitivity) rather than freezing it — the "searching the stars" feel remains. */
-@keyframes twinkle-calm{from{opacity:.16}to{opacity:.5}}
-@media(prefers-reduced-motion:reduce){
-  .star{animation-name:twinkle-calm;transform:none}
-  .sky--searching .star{opacity:.55;filter:none}
-}
+/* DELIBERATE PRODUCT CHOICE: the star twinkle is ambient/brand decorative motion, core to the
+   experience, so it animates at full REGARDLESS of the OS "reduce motion" setting — it is NOT
+   disabled or calmed under prefers-reduced-motion:reduce. (Product owner kept seeing a frozen sky
+   because their OS reduce-motion was on.) Twinkle is opacity+scale only — gentle, no translation —
+   so it is not vestibular-triggering; the accessible follow-up is a future in-app motion toggle
+   rather than deferring to the OS flag. */
 
 /* Local reading mode — the malachite/green sibling of the lapis Live and muted Raw toggle chips. */
 .mode-toggle--local{color:var(--malachite);border-color:color-mix(in srgb,var(--gold) 45%,var(--malachite))}

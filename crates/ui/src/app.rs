@@ -243,8 +243,8 @@ pub fn App() -> Element {
         // The star field — a fixed, pointer-inert layer behind the whole app. The coordinates are a
         // seeded, deterministic list (identical every launch); each star twinkles (opacity/scale) on
         // its own staggered cycle. During the grounded pull the `.sky--searching` class intensifies
-        // it into the "searching the stars" affordance. Dimmed in dark theme; still under reduced-
-        // motion (see ziqpu.css).
+        // it into the "searching the stars" affordance. Dimmed in dark theme; twinkles at full
+        // regardless of the OS reduce-motion flag (deliberate product choice — see ziqpu.css).
         div { class: "{sky_class}", "aria-hidden": "true",
             {stars.iter().enumerate().map(|(i, &(left, top, size, delay, dur))| {
                 let style = format!(
@@ -254,6 +254,11 @@ pub fn App() -> Element {
                 rsx! { span { key: "{i}", class: "star", style: "{style}" } }
             })}
         }
+
+        // A faint stand of wheat along the very bottom of the page — atmospheric only, behind
+        // everything (like `.sky`). Purely decorative, pointer-inert, swaying slowly. Ties the card
+        // wheat plots to the whole surface. See ziqpu.css `.wheat-horizon`.
+        div { class: "wheat-horizon", "aria-hidden": "true" }
 
         div { class: "wrap",
             header {
