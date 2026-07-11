@@ -47,6 +47,7 @@ dependencies = [
  "chrono-tz",
  "engine",
  "ephemeris",
+ "serde",
  "serde_json",
 ]
 
@@ -556,6 +557,7 @@ checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
  "num-traits",
+ "serde",
  "windows-link",
 ]
 
@@ -567,6 +569,7 @@ checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
 dependencies = [
  "chrono",
  "phf 0.12.1",
+ "serde",
 ]
 
 [[package]]
@@ -5618,6 +5621,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tickers"
+version = "0.0.0"
+dependencies = [
+ "agents",
+ "chrono",
+ "chrono-tz",
+]
+
+[[package]]
 name = "tinystr"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5951,7 +5963,11 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "dioxus",
+ "futures-util",
  "geo",
+ "serde",
+ "serde_json",
+ "tickers",
 ]
 
 [[package]]

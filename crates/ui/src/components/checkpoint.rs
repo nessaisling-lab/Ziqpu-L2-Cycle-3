@@ -1,13 +1,30 @@
-//! Checkpoint — the graded human-in-the-loop gate. It shows the proposal, *proves* the gate blocks
-//! without approval, and only on Approve mints a token, pulls grounded signals, and briefs.
+//! Checkpoint — the graded human-in-the-loop gate, rendered as a held "seal" moment. It shows the
+//! proposal, *proves* the gate blocks without approval, and only on Approve mints a token, pulls
+//! grounded signals, and briefs.
 
 use dioxus::prelude::*;
 
-use crate::state::{AppCtx, Phase};
+use crate::state::{run_grounding, AppCtx, Phase};
 
 #[component]
 pub fn Checkpoint() -> Element {
     let ctx = use_context::<AppCtx>();
+
+    // While the approved pull runs off-thread, hold the checkpoint on a "grounding…" loading view so
+    // the window stays responsive (the fetch + brief no longer run on the event loop). The `grounder`
+    // coroutine flips this off and advances to Briefing when the worker lands.
+    if *ctx.grounding.read() {
+        return rsx! {
+            p { class: "eyebrow", "Human-in-the-loop · grounding the read" }
+            div { class: "gate gate--grounding",
+                div { class: "ask-reading ask-reading--pending",
+                    span { class: "wheat-caption",
+                        "Pulling the real record (SEC EDGAR) and writing the grounded briefing… the window stays live."
+                    }
+                }
+            }
+        };
+    }
 
     let prompt = ctx
         .request
@@ -17,19 +34,54 @@ pub fn Checkpoint() -> Element {
         .unwrap_or_default();
     let proof = ctx.gate_proof.read().clone().unwrap_or_default();
 
-    rsx! {
-        section { class: "card checkpoint",
-            h2 { "Checkpoint" }
-            p { class: "prompt", "{prompt}" }
+    // The prompt is one sentence ("Ground this read for TSLA? I'll pull …"); split it into the
+    // seal's question (heading) and its costed-call explanation (body).
+    let (question, explanation) = match prompt.split_once('?') {
+        Some((q, rest)) => (format!("{q}?"), rest.trim().to_string()),
+        None => (prompt.clone(), String::new()),
+    };
 
-            div { class: "gate-proof",
-                span { class: "gate-label", "Gate check — pull attempted with no approval:" }
-                code { "blocked: {proof}" }
+    rsx! {
+        p { class: "eyebrow", "Human-in-the-loop · the costed step" }
+        div { class: "gate",
+            svg {
+                class: "seal",
+                view_box: "0 0 54 54",
+                "aria-hidden": "true",
+                circle {
+                    cx: "27",
+                    cy: "27",
+                    r: "24",
+                    fill: "none",
+                    stroke: "var(--gold)",
+                    "stroke-width": "1.2",
+                }
+                circle {
+                    cx: "27",
+                    cy: "27",
+                    r: "17",
+                    fill: "none",
+                    stroke: "var(--line)",
+                    "stroke-width": "1",
+                }
+                path {
+                    d: "M27 12v9m0 12v9m-15-15h9m12 0h9",
+                    fill: "none",
+                    stroke: "var(--gold)",
+                    "stroke-width": "1.4",
+                }
+                circle { cx: "27", cy: "27", r: "3.4", fill: "var(--gold)" }
             }
+            h3 { "{question}" }
+            if !explanation.is_empty() {
+                p { "{explanation}" }
+            }
+            div { class: "blocked", "↳ attempt without approval → blocked: {proof}" }
 
             div { class: "actions",
                 button {
-                    class: "ghost",
+                    class: "btn",
+                    r#type: "button",
                     onclick: {
                         let mut ctx = ctx.clone();
                         move |_| {
@@ -38,46 +90,19 @@ pub fn Checkpoint() -> Element {
                             ctx.phase.set(Phase::Ranked);
                         }
                     },
-                    "Decline — keep the symbolic read"
+                    "Keep the symbolic read"
                 }
                 button {
-                    class: "primary",
+                    class: "btn btn--go",
+                    r#type: "button",
                     onclick: {
-                        let mut ctx = ctx.clone();
-                        move |_| {
-                            // Move the non-Copy request out of the signal.
-                            let request = ctx.request.write().take();
-                            let Some(request) = request else { return };
-                            let ticker = request.choice.clone();
-                            let choice = ctx
-                                .choices
-                                .read()
-                                .iter()
-                                .find(|c| c.ticker == ticker)
-                                .cloned();
-                            let Some(choice) = choice else { return };
-
-                            // Approve mints the token; the costed pull is now reachable.
-                            let token = ctx.session.borrow().approve(request);
-                            let seeker = ctx.seeker.read().clone();
-                            let pulled = {
-                                let mut session = ctx.session.borrow_mut();
-                                session.pull_grounded(&choice, Some(&token))
-                            };
-                            let Ok(signals) = pulled else { return };
-                            let briefing = ctx.session.borrow().brief(&seeker, &choice, &signals);
-                            let calls: Vec<String> = {
-                                let session = ctx.session.borrow();
-                                session.calls().iter().map(|c| format!("{c:?}")).collect()
-                            };
-
-                            ctx.signals.set(Some(signals));
-                            ctx.briefing.set(Some(briefing));
-                            ctx.calls.set(calls);
-                            ctx.phase.set(Phase::Briefing);
-                        }
+                        let ctx = ctx.clone();
+                        // Approve mints the token and records the gated PullGrounded on the real
+                        // session synchronously (tool-order log + gate preserved); the blocking fetch
+                        // + grounded-brief then run off-thread, so the window never freezes here.
+                        move |_| run_grounding(ctx.clone())
                     },
-                    "Approve — pull grounded signals"
+                    "Approve & ground"
                 }
             }
         }

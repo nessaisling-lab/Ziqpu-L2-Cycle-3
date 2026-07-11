@@ -1,5 +1,6 @@
 //! Ranked — the DECIDE output. Recommendations are already best-fit first; each renders as a
-//! FitCard. Selecting one and grounding it proposes the checkpoint (and proves the gate blocks).
+//! FitCard ledger entry. Selecting one and grounding it proposes the checkpoint (and proves the
+//! gate blocks the costed pull without a human's approval).
 
 use dioxus::prelude::*;
 
@@ -12,49 +13,49 @@ pub fn Ranked() -> Element {
     let count = ctx.recs.read().len();
 
     rsx! {
-        section { class: "card ranked",
-            h2 { "Ranked fits" }
-            p { class: "muted", "Best-fit first. Pick one to ground against real signals." }
+        p { class: "eyebrow", "Hamun-ana measured · Ungasaga read" }
+        p { class: "lead",
+            "{count} choices, weighed against your chart and ranked best-fit first. "
+            em { "Pick one to ground against real signals." }
+        }
 
-            div { class: "cards",
-                {(0..count).map(|i| rsx! { FitCard { key: "{i}", index: i } })}
-            }
+        {(0..count).map(|i| rsx! { FitCard { key: "{i}", index: i } })}
 
-            div { class: "actions",
-                button {
-                    class: "primary",
-                    onclick: {
-                        let mut ctx = ctx.clone();
-                        move |_| {
-                            let selected = *ctx.selected.read();
-                            let ticker = ctx.recs.read().get(selected).map(|r| r.choice.clone());
-                            let Some(ticker) = ticker else { return };
-                            let choice = ctx
-                                .choices
-                                .read()
-                                .iter()
-                                .find(|c| c.ticker == ticker)
-                                .cloned();
-                            let Some(choice) = choice else { return };
+        div { class: "actions", style: "justify-content:flex-start;margin-top:4px",
+            button {
+                class: "btn btn--go",
+                r#type: "button",
+                onclick: {
+                    let mut ctx = ctx.clone();
+                    move |_| {
+                        let selected = *ctx.selected.read();
+                        let ticker = ctx.recs.read().get(selected).map(|r| r.choice.clone());
+                        let Some(ticker) = ticker else { return };
+                        let choice = ctx
+                            .choices
+                            .read()
+                            .iter()
+                            .find(|c| c.ticker == ticker)
+                            .cloned();
+                        let Some(choice) = choice else { return };
 
-                            let request = ctx.session.borrow().propose_grounding(&choice);
-                            // Prove the gate: without a token, the costed pull is refused *before*
-                            // any external call — and this early-return never touches the calls log.
-                            let proof = {
-                                let mut session = ctx.session.borrow_mut();
-                                match session.pull_grounded(&choice, None) {
-                                    Err(e) => e.to_string(),
-                                    Ok(_) => "BUG: pulled without approval".to_string(),
-                                }
-                            };
+                        let request = ctx.session.borrow().propose_grounding(&choice);
+                        // Prove the gate: without a token, the costed pull is refused *before*
+                        // any external call — and this early-return never touches the calls log.
+                        let proof = {
+                            let mut session = ctx.session.borrow_mut();
+                            match session.pull_grounded(&choice, None) {
+                                Err(e) => e.to_string(),
+                                Ok(_) => "BUG: pulled without approval".to_string(),
+                            }
+                        };
 
-                            ctx.request.set(Some(request));
-                            ctx.gate_proof.set(Some(proof));
-                            ctx.phase.set(Phase::Checkpoint);
-                        }
-                    },
-                    "Ground this read →"
-                }
+                        ctx.request.set(Some(request));
+                        ctx.gate_proof.set(Some(proof));
+                        ctx.phase.set(Phase::Checkpoint);
+                    }
+                },
+                "Ground this read →"
             }
         }
     }

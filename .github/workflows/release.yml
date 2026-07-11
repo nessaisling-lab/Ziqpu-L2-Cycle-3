@@ -1,0 +1,179 @@
+name: Release
+
+# Build, package, and publish the Ziqpu desktop app for macOS, Windows, and Linux.
+#
+# Trigger model:
+#   * Tag push  (git tag v1.1.0 && git push --tags)  -> builds github.ref_name (the pushed tag).
+#   * workflow_dispatch with an input `tag`           -> builds + attaches to that tag on demand.
+# The tag is resolved once into env.RELEASE_TAG below and reused by every job.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and attach the bundles to (e.g. v1.1.0). Must already exist as a git tag.'
+        required: true
+
+# The token needs write access to upload assets to (and, if missing, create) the Release.
+permissions:
+  contents: write
+
+concurrency:
+  # One release run per tag; do NOT cancel an in-flight publish.
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Pushed tag for tag-triggered runs, else the workflow_dispatch input.
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  # ---- security gate (verbatim from ci.yml): advisories + license/ban policy + secret scan ----
+  # Bundle jobs `needs: security`, so a policy or secret failure blocks the release from publishing.
+  security:
+    name: security (audit + deny + secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+      - name: License + ban policy (no AGPL/GPL in tree)
+        run: cargo deny check licenses bans sources
+      - name: Advisory audit
+        # RUSTSEC-2023-0071 (`rsa` "Marvin" timing attack) is pulled transitively by sqlx-postgres
+        # and has no fixed release. Not exploitable here: the sidecar authenticates to a local/
+        # private Postgres via SCRAM/md5, never RSA key operations. Justified in .cargo/audit.toml
+        # and SECURITY.md; revisit when `rsa` ships a fix.
+        run: cargo audit --ignore RUSTSEC-2023-0071
+      - name: Secret scan
+        # Direct gitleaks binary (filesystem scan of the checkout) instead of the action, which
+        # mis-handles a PR whose base is the repo's root commit. Config allowlists the dev-only
+        # DB credential and generated data; every real secret pattern still fails the job.
+        run: |
+          ver=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
+          /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
+
+  # ---- bundle: build the Dioxus desktop app on each OS, package it, attach to the Release ----
+  bundle:
+    name: bundle (${{ matrix.os }})
+    needs: security
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      # The workspace pins `lto = true` (root Cargo.toml). Full LTO across the webkit/Dioxus tree
+      # balloons link time (and can OOM the linker) on the runners, so force it off for release
+      # bundles. The bundle is a distributable build, not a perf benchmark.
+      CARGO_PROFILE_RELEASE_LTO: false
+    steps:
+      - name: Checkout the tag being released
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Linux WebKitGTK/GTK system deps (Dioxus desktop)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
+
+      - name: Build desktop UI (release, LTO off)
+        run: cargo build --release -p ui --locked
+
+      # ---- macOS: assemble an unsigned Ziqpu.app and pack it into a UDZO .dmg ----
+      # Unsigned: first launch needs a right-click -> Open (or `xattr -dr com.apple.quarantine`)
+      # to get past Gatekeeper. Documented in the release notes.
+      - name: Package macOS .dmg
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          TAG="${RELEASE_TAG}"
+          VERSION="${TAG#v}"          # strip a leading "v": v1.1.0 -> 1.1.0
+          APP="Ziqpu.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          cp target/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
+          chmod +x "$APP/Contents/MacOS/ziqpu-ui"
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>Ziqpu</string>
+            <key>CFBundleDisplayName</key>
+            <string>Ziqpu</string>
+            <key>CFBundleExecutable</key>
+            <string>ziqpu-ui</string>
+            <key>CFBundleIdentifier</key>
+            <string>org.pursuit.ziqpu</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${VERSION}</string>
+            <key>CFBundleVersion</key>
+            <string>${VERSION}</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+          hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos.dmg"
+          echo "built Ziqpu-${TAG}-macos.dmg (unsigned)"
+
+      # ---- Windows: zip the .exe ----
+      - name: Package Windows .zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          Compress-Archive -Path target/release/ziqpu-ui.exe -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
+          Write-Host "built Ziqpu-$tag-windows-x64.zip"
+
+      # ---- Linux: tar.gz the binary ----
+      - name: Package Linux .tar.gz
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          TAG="${RELEASE_TAG}"
+          tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C target/release ziqpu-ui
+          echo "built Ziqpu-${TAG}-linux-x64.tar.gz"
+
+      # ---- attach the packaged artifact to the Release for the tag ----
+      # Create the release if it does not already exist (the v1.0.0 one was made by hand), then
+      # upload with --clobber so re-runs replace the asset instead of erroring. bash + gh are
+      # available on all three runners.
+      - name: Publish to the Release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${RELEASE_TAG}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG not found; creating it"
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          else
+            echo "release $TAG already exists; attaching asset"
+          fi
+          # Exactly one packaged file exists on each OS (Ziqpu.app is a dir and does not match).
+          for f in Ziqpu-*.dmg Ziqpu-*.zip Ziqpu-*.tar.gz; do
+            [ -e "$f" ] || continue
+            echo "uploading $f"
+            gh release upload "$TAG" "$f" --clobber
+          done

@@ -75,6 +75,14 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         for call in self.measurer.sequence(&choice.ticker) {
             self.calls.push(call);
         }
+        self.compute_measures(seeker, choice)
+    }
+
+    /// The pure chart math for one choice — **records no tool call**. Split out of
+    /// [`Session::measure`] so a caller that already recorded the tool order (e.g. `recommend`
+    /// filling readings after `recommend_measures`) can recompute the exact same [`Measures`]
+    /// without double-counting the graded sequence.
+    fn compute_measures(&self, seeker: &BirthMoment, choice: &Choice) -> Measures {
         let a = self.chart.chart(seeker);
         let b = self.chart.chart(&choice.birth);
         let aspects = self.chart.synastry(&a, &b);
@@ -130,15 +138,22 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         }
     }
 
-    /// DECIDE: measure and interpret each choice into a fit read, ranked best-fit first, then
-    /// propose grounding (the checkpoint). This is the whole product for a symbolic-only seeker.
-    pub fn recommend(&mut self, seeker: &BirthMoment, choices: &[Choice]) -> Vec<Recommendation> {
+    /// DECIDE (measures only, **no interpreter**): measure each choice into a ranked
+    /// [`Recommendation`] with an **empty** `reading`, recording the same fixed per-choice tool
+    /// order as [`Session::recommend`] and the trailing [`ToolCall::Propose`]. This is the
+    /// `Send`-safe half of the loop: the UI calls it on the event-loop thread to get the ranking +
+    /// tool log, then fills each reading off-thread via [`crate::reading_for`] (a [`Session`] is
+    /// `!Send`, so the interpreter cannot run on a worker thread that holds one).
+    pub fn recommend_measures(
+        &mut self,
+        seeker: &BirthMoment,
+        choices: &[Choice],
+    ) -> Vec<Recommendation> {
         let mut recs: Vec<Recommendation> = choices
             .iter()
             .map(|c| {
                 let measures = self.measure(seeker, c);
                 let fit = Fit::from_score(measures.score);
-                let reading = self.interp.fit_read(&measures, fit, &c.name);
                 Recommendation {
                     choice: c.ticker.clone(),
                     name: c.name.clone(),
@@ -146,7 +161,7 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
                     score: measures.score,
                     theme: measures.theme.clone(),
                     confidence: measures.confidence,
-                    reading,
+                    reading: String::new(),
                 }
             })
             .collect();
@@ -155,14 +170,33 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         recs
     }
 
+    /// DECIDE: measure and interpret each choice into a fit read, ranked best-fit first, then
+    /// propose grounding (the checkpoint). This is the whole product for a symbolic-only seeker.
+    ///
+    /// Shares one path with [`Session::recommend_measures`]: it records the tool order there (once),
+    /// then fills each reading via `self.interp.fit_read`. The reading fill recomputes measures
+    /// through the non-recording [`Session::compute_measures`], so the graded tool log is byte-for-
+    /// byte identical to `recommend_measures`.
+    pub fn recommend(&mut self, seeker: &BirthMoment, choices: &[Choice]) -> Vec<Recommendation> {
+        let mut recs = self.recommend_measures(seeker, choices);
+        for rec in &mut recs {
+            if let Some(c) = choices.iter().find(|c| c.ticker == rec.choice) {
+                let measures = self.compute_measures(seeker, c);
+                rec.reading = self.interp.fit_read(&measures, rec.fit, &c.name);
+            }
+        }
+        recs
+    }
+
     /// The no-advice guardrail. Advice-seeking → reflection + explicit refusal (never a signal);
     /// anything else → a plain reflective nudge. Enforced in code, not left to a prompt.
     pub fn ask(&self, question: &str) -> Answer {
         if is_advice_seeking(question) {
             Answer::Refusal(
-                "I measure how a choice aspects you — I can't tell you whether to buy, sell, or \
-                 hold, and I won't. That decision is yours. What I can show is the symbolic fit, \
-                 and (if you approve) a reality-check against real data. This is not financial advice."
+                "The ledger doesn't call trades — that decision is yours. But it won't dodge you: \
+                 it will measure how you and this choice aspect, and stake a verdict on that fit — \
+                 and you can ground that against the real record at the checkpoint. This is not \
+                 financial advice."
                     .to_string(),
             )
         } else {
@@ -206,6 +240,27 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         self.calls
             .push(ToolCall::PullGrounded(choice.ticker.clone()));
         Ok(self.grounded.fetch(choice))
+    }
+
+    /// Gate **and record** the grounded pull, but perform **no** external fetch. Splits
+    /// [`Session::pull_grounded`] the same way [`Session::recommend_measures`] splits `recommend`:
+    /// it enforces the approval gate and records [`ToolCall::PullGrounded`] on the graded log — the
+    /// two things that must happen synchronously on the real, `!Send` session — while leaving the
+    /// blocking [`GroundedSource::fetch`] to be run off the event loop (on a throwaway session), so
+    /// a slow SEC EDGAR pull never freezes the UI. A missing/mismatched token still errors before
+    /// anything is recorded, so the gate is identical to [`Session::pull_grounded`]'s.
+    pub fn pull_grounded_gate(
+        &mut self,
+        choice: &Choice,
+        approval: Option<&ApprovalToken>,
+    ) -> Result<(), GateError> {
+        let token = approval.ok_or(GateError::NotApproved)?;
+        if token.choice != choice.ticker {
+            return Err(GateError::WrongChoice);
+        }
+        self.calls
+            .push(ToolCall::PullGrounded(choice.ticker.clone()));
+        Ok(())
     }
 
     /// Fold grounded signals into a briefing that sets the chart read beside reality.
@@ -365,6 +420,69 @@ mod tests {
         let _ = s.recommend(&demo_seeker(), std::slice::from_ref(&choice));
         assert_fixed_order(s.calls(), &choice.ticker);
         assert_eq!(s.calls().last(), Some(&ToolCall::Propose));
+    }
+
+    #[test]
+    fn recommend_measures_matches_recommend_order_with_empty_readings() {
+        let seeker = demo_seeker();
+        let choices = demo_choices();
+
+        // Same recorded tool order + trailing Propose as `recommend`.
+        let mut s_measures = session();
+        let measures_recs = s_measures.recommend_measures(&seeker, &choices);
+        let mut s_full = session();
+        let full_recs = s_full.recommend(&seeker, &choices);
+        assert_eq!(
+            s_measures.calls(),
+            s_full.calls(),
+            "recommend_measures records the identical tool order recommend does"
+        );
+        assert_eq!(s_measures.calls().last(), Some(&ToolCall::Propose));
+
+        // Same ranking, but recommend_measures leaves every reading empty…
+        assert_eq!(measures_recs.len(), full_recs.len());
+        for (m, f) in measures_recs.iter().zip(full_recs.iter()) {
+            assert_eq!(m.choice, f.choice, "identical ranking");
+            assert_eq!(m.score, f.score);
+            assert!(
+                m.reading.is_empty(),
+                "recommend_measures leaves readings empty: {}",
+                m.reading
+            );
+        }
+        // …while recommend fills them.
+        assert!(full_recs.iter().all(|r| !r.reading.is_empty()));
+    }
+
+    #[test]
+    fn pull_grounded_gate_enforces_the_token_and_records_without_fetching() {
+        let mut s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+
+        // No token → refused, and nothing is recorded on the graded log.
+        assert_eq!(
+            s.pull_grounded_gate(&choice, None),
+            Err(GateError::NotApproved)
+        );
+        assert!(s.calls().is_empty(), "a refused gate records no tool call");
+
+        // A token minted for a *different* choice → wrong-choice, still nothing recorded.
+        let other = demo_choices().into_iter().nth(1).unwrap();
+        let other_token = s.approve(s.propose_grounding(&other));
+        assert_eq!(
+            s.pull_grounded_gate(&choice, Some(&other_token)),
+            Err(GateError::WrongChoice)
+        );
+        assert!(s.calls().is_empty());
+
+        // The matching token → records exactly PullGrounded(ticker), no fetch, no other calls.
+        let token = s.approve(s.propose_grounding(&choice));
+        assert!(s.pull_grounded_gate(&choice, Some(&token)).is_ok());
+        assert_eq!(
+            s.calls(),
+            &[ToolCall::PullGrounded(choice.ticker.clone())],
+            "the gate records the pull without any chart/fetch tool calls"
+        );
     }
 
     #[test]

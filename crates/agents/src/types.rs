@@ -3,6 +3,7 @@
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 use ephemeris::julian_day;
+use serde::{Deserialize, Serialize};
 
 // The chart-tagged aspect pattern type lives in the engine (the author's IP); the agents layer
 // carries it through `Measures`/`SynastryReport` and re-exports it for surfaces above.
@@ -10,7 +11,7 @@ pub use engine::Pattern;
 
 /// A birth moment — a local date/time at a place. The time is optional: an unknown birth
 /// time is honestly flagged (never invented), mirroring the sidecar and the PRD's honesty rule.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BirthMoment {
     pub date: NaiveDate,
     pub time: Option<NaiveTime>,
@@ -284,3 +285,32 @@ impl std::fmt::Display for GateError {
 }
 
 impl std::error::Error for GateError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A [`BirthMoment`] survives a `serde_json` round-trip byte-for-byte — the UI persists it.
+    #[test]
+    fn birth_moment_round_trips_through_serde_json() {
+        let original = BirthMoment {
+            date: NaiveDate::from_ymd_opt(1990, 5, 15).unwrap(),
+            time: Some(NaiveTime::from_hms_opt(14, 30, 0).unwrap()),
+            tz: chrono_tz::America::New_York,
+            lat: 40.7128,
+            lon: -74.0060,
+        };
+        let json = serde_json::to_string(&original).expect("serialize");
+        let restored: BirthMoment = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(original, restored);
+
+        // An unknown birth time (the honesty case) also round-trips.
+        let dateonly = BirthMoment {
+            time: None,
+            ..original.clone()
+        };
+        let restored: BirthMoment =
+            serde_json::from_str(&serde_json::to_string(&dateonly).unwrap()).unwrap();
+        assert_eq!(dateonly, restored);
+    }
+}

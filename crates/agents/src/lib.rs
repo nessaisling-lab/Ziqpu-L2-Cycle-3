@@ -15,6 +15,7 @@
 pub mod grounded;
 pub mod interpret;
 pub mod interpret_llm;
+mod llm_http;
 pub mod measure;
 pub mod measure_llm;
 pub mod orchestrator;
@@ -24,7 +25,10 @@ pub mod types;
 
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
 pub use interpret::{Interpreter, TemplateInterpreter};
-pub use interpret_llm::AnthropicInterpreter;
+pub use interpret_llm::{
+    build_interpreter, grounded_brief_for, reading_for, reading_for_mode, AnthropicInterpreter,
+    OpenAiCompatInterpreter, ReadMode,
+};
 pub use measure::{
     expected_sequence, ChartSource, DeterministicMeasurer, EngineChartSource, Measurer,
     SYNASTRY_ORB,
