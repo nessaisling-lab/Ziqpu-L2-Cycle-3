@@ -674,13 +674,30 @@ fn has_real_signals(grounded: &GroundedSignals) -> bool {
     })
 }
 
-/// Re-mark a reading as **unsourced**: insert the honesty note and swap whatever REMINDER the model
-/// emitted for the canonical unsourced one — so the disclaimer is guaranteed regardless of what the
+/// Does this line look like a **grounded / reality / source** beat? An unsourced read must carry
+/// none — but a small local model sometimes *invents* one (a fake "GROUNDED (Bloomberg): …$175.38…"
+/// with a price and a direction) even when told there are no signals. [`to_unsourced`] drops any such
+/// line so a fabricated source — and the price/market claim riding in it — can never survive into a
+/// read badged "LOCAL · UNSOURCED".
+fn is_grounded_beat_line(line: &str) -> bool {
+    let lc = line.trim_start().trim_start_matches('[').to_lowercase();
+    lc.starts_with("grounded (")
+        || lc.starts_with("grounded:")
+        || lc.starts_with("this is what reality says")
+}
+
+/// Re-mark a reading as **unsourced**: strip any (possibly hallucinated) grounded/reality beat,
+/// insert the honesty note, and swap whatever REMINDER the model emitted for the canonical unsourced
+/// one — so the disclaimer is guaranteed and no fabricated source survives, regardless of what the
 /// model wrote (or didn't). Robust to a model that emits no REMINDER at all (both are appended).
 fn to_unsourced(reading: &str) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut had_reminder = false;
     for line in reading.lines() {
+        // Drop a fabricated grounded/reality beat — an unsourced read has, by definition, none.
+        if is_grounded_beat_line(line) {
+            continue;
+        }
         if line.trim_start().starts_with("REMINDER") {
             had_reminder = true;
             out.push(format!("  {UNSOURCED_NOTE}"));
@@ -693,7 +710,12 @@ fn to_unsourced(reading: &str) -> String {
         out.push(format!("  {UNSOURCED_NOTE}"));
         out.push(format!("  {UNSOURCED_REMINDER}"));
     }
-    out.join("\n")
+    // Collapse any blank-line runs left by a stripped beat, so the read stays tidy.
+    let mut joined = out.join("\n");
+    while joined.contains("\n\n\n") {
+        joined = joined.replace("\n\n\n", "\n\n");
+    }
+    joined
 }
 
 /// The local/template fallback when the frontier is unavailable — the lower rungs of the ladder.
@@ -1044,6 +1066,30 @@ mod tests {
         let out2 = to_unsourced(bare);
         assert!(out2.contains("and unsourced"), "{out2}");
         assert_eq!(out2.matches("REMINDER").count(), 1, "{out2}");
+    }
+
+    #[test]
+    fn to_unsourced_strips_a_hallucinated_grounded_beat() {
+        // A small local model can invent a fake sourced/price beat even when told there are no
+        // signals. It MUST NOT survive into a read badged "unsourced".
+        let hallucinated = "FIT: Aligned (72 / 100) — Apple\nthe warm body of the read\n\n\
+             [GROUNDED (Bloomberg): Apple is trading at $175.38, up 1.2% this week]\n\n\
+             [this is what reality says: the stock is performing above expectations]\n\
+             REMINDER: measured, not fate — not financial advice.";
+        let out = to_unsourced(hallucinated);
+        assert!(
+            !out.to_lowercase().contains("grounded ("),
+            "fabricated GROUNDED beat must be stripped: {out}"
+        );
+        assert!(
+            !out.contains("$175.38") && !out.to_lowercase().contains("reality says"),
+            "the fabricated price + reality claim must be gone: {out}"
+        );
+        // The real read + the guaranteed unsourced disclaimer remain.
+        assert!(out.contains("the warm body of the read"), "{out}");
+        assert!(out.contains("and unsourced"), "{out}");
+        assert_eq!(out.matches("REMINDER").count(), 1, "{out}");
+        assert!(!out.contains("\n\n\n"), "blank runs collapsed: {out:?}");
     }
 
     #[test]
