@@ -90,7 +90,9 @@ fn benchmark(force_local: bool) {
             )
         }
     }
-    println!("\n(`get`/`serve` — ensure llama.cpp, pull, and wire settings.json — land next.)");
+    println!(
+        "\nNext: `ziqpu-model get` checks llama.cpp + your pick; `ziqpu-model serve` runs it on :1234."
+    );
 }
 
 fn resolve(term: Option<&str>) {
