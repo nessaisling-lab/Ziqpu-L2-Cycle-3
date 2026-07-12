@@ -167,7 +167,13 @@ jobs:
           TAG="${RELEASE_TAG}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG not found; creating it"
-            gh release create "$TAG" --title "$TAG" --generate-notes
+            # A hyphenated tag is a semver pre-release (e.g. v1.2.0-nightfall.1): publish it as a
+            # GitHub pre-release and never mark it "Latest", so a nightfall build never overtakes the
+            # stable release. `|| true` tolerates a create race between the three OS bundle jobs — the
+            # loser just attaches its asset to the winner's release.
+            PRE=""
+            case "$TAG" in *-*) PRE="--prerelease --latest=false" ;; esac
+            gh release create "$TAG" --title "$TAG" --generate-notes $PRE || true
           else
             echo "release $TAG already exists; attaching asset"
           fi
