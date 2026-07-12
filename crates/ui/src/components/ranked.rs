@@ -5,7 +5,7 @@
 use dioxus::prelude::*;
 
 use crate::components::FitCard;
-use crate::state::{AppCtx, Phase};
+use crate::state::{run_draft, AppCtx, Phase};
 
 #[component]
 pub fn Ranked() -> Element {
@@ -52,6 +52,10 @@ pub fn Ranked() -> Element {
 
                         ctx.request.set(Some(request));
                         ctx.gate_proof.set(Some(proof));
+                        // Put the pause to work: the local model drafts the interpreter's framing
+                        // brief off-thread while the human decides whether to approve. It sees only
+                        // the measures, never external data, so it can't touch the gated pull early.
+                        run_draft(ctx.clone(), choice.clone());
                         ctx.phase.set(Phase::Checkpoint);
                     }
                 },

@@ -17,19 +17,24 @@ The **DCO** CI check fails any PR whose commits lack a `Signed-off-by` line.
 
 ## Workflow
 
-1. Branch off `main`. Name your branch **`<yourfirstname>/<topic>`** (e.g. `nathan/airlines-v1`);
-   `feature/…` / `fix/…` are also fine. **You cannot push to `main`** — it is protected.
+Ziqpu ships on **two tracks**: `main` is the protected, all-green **stable** line, and **`nightfall`**
+is the integration branch where in-progress work soaks before being promoted to `main`. Contributions
+target **`nightfall`** — see [RELEASING.md](RELEASING.md) for the full track model.
+
+1. Branch off **`nightfall`**. Name your branch **`feat/<name>`** or **`<yourfirstname>/<topic>`**
+   (e.g. `nathan/airlines-v1`). **You cannot push to `main`** — it is protected. The owner pushes
+   build-ahead work to `nightfall` directly; contributors open PRs into it.
 2. Keep diffs small and reviewable.
 3. Before pushing, run the local gates:
    ```bash
    cargo fmt --all -- --check
    cargo clippy --workspace --all-features -- -D warnings
-   cargo test --workspace --all-features
-   cargo deny check licenses bans sources
+   cargo test --workspace --all-features --locked
+   cargo deny check          # advisories + licenses + bans + sources
    ```
-4. Open a pull request. **All CI jobs must be green** — `test`, `stability`, `smoke`, `security`,
-   `integration`, and `anise cross-check` across macOS/Windows/Linux, plus `DCO` — and **the repo
-   owner approves and merges.** This is the phase gate.
+4. Open a pull request **into `nightfall`**. **All CI jobs must be green** — `test`, `stability`,
+   `smoke`, `security`, `desktop`, `integration`, and `anise cross-check` across macOS/Windows/Linux,
+   plus `DCO` — and **the repo owner approves and merges.**
 
 ## Datasets
 

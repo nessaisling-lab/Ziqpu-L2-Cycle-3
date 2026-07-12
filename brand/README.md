@@ -6,15 +6,16 @@ sourced, anti-hype — *"measured, not believed."*
 - `tokens.css` — color + type + spacing tokens for both themes (light "Sunlit Clay",
   dark "Gold on Bitumen").
 
-## Fonts (added in Phase 4)
+## Fonts
 
-Self-host these under `brand/fonts/` (all SIL Open Font License 1.1):
-Cinzel Decorative (display), Spectral (body), JetBrains Mono (data), and
-**Noto Sans Cuneiform** for glyph accents.
+The desktop UI ships three **SIL OFL 1.1** faces, base64-embedded as `@font-face` in
+`crates/ui/assets/ziqpu.css` (self-hosted, never CDN): **Cinzel Decorative** (display),
+**Spectral** (body), and **Noto Sans Cuneiform** (glyph accents). JetBrains Mono is used for
+data/monospace as a **system fallback** (not bundled). The OFL text + per-font copyright /
+Reserved Font Name notices are in [LICENSES/OFL-1.1.txt](../LICENSES/OFL-1.1.txt).
 
-> Noto Sans Cuneiform must be **self-hosted, never CDN**, and pages carrying cuneiform
-> should include `<meta name="google" content="notranslate">` so browsers don't mis-detect
-> the glyphs. Font binaries are not committed at Genesis; they land with the UI in Phase 4.
+> Pages carrying cuneiform include `<meta name="google" content="notranslate">` so browsers
+> don't mis-detect the glyphs as a modern language.
 
 ## Marks
 

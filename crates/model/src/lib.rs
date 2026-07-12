@@ -728,6 +728,28 @@ fn detect_avx2() -> Option<bool> {
     }
 }
 
+/// The llama.cpp install command for this OS — shown by `get`/`serve` when `llama-server` is missing.
+pub fn llama_install_hint() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "winget install llama.cpp"
+    } else if cfg!(target_os = "macos") {
+        "brew install llama.cpp"
+    } else {
+        "see github.com/ggml-org/llama.cpp releases, or your package manager"
+    }
+}
+
+/// Whether `llama-server` is runnable on PATH — best-effort (it spawns at all). Used by `get`/`serve`
+/// to decide between "run it" and "here's how to install llama.cpp first".
+pub fn have_llama_server() -> bool {
+    std::process::Command::new("llama-server")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

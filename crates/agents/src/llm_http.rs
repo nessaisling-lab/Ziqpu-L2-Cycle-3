@@ -20,6 +20,8 @@ pub(crate) fn openai_chat(
     let body = serde_json::json!({
         "model": model,
         "stream": false,
+        // Headroom for the richer, narrative reading (the system prompt asks for a flowing passage).
+        "max_tokens": 1536,
         "messages": [
             { "role": "system", "content": system },
             { "role": "user", "content": user }

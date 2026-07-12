@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, nightfall]
   pull_request:
   workflow_dispatch:
 
@@ -15,19 +15,10 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # ---- stability gate: tests pass on all three OSes ----
-  test:
-    name: test (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude ui --all-features --locked
+  # ---- the shared gauntlet core: test (3-OS) · smoke (3-OS) · security · integration ----
+  # Defined once in checks.yml (workflow_call) so CI and Release can't drift.
+  checks:
+    uses: ./.github/workflows/checks.yml
 
   # ---- stability gate: formatting + lint ----
   stability:
@@ -41,25 +32,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --exclude ui --all-targets --all-features -- -D warnings
-
-  # ---- function smoke testing gate (all three OSes) ----
-  smoke:
-    name: smoke (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Function smoke tests
-        run: cargo test -p engine --test smoke --all-features --locked
-      - name: Agent-loop evals (tool order · checkpoint · guardrail)
-        run: cargo test -p agents --test loop --locked
-      - name: MCP server (tools + checkpoint at the protocol boundary)
-        run: cargo test -p mcp --locked
 
   # ---- desktop UI build-only gate (Dioxus): compiles on all three OSes ----
   desktop:
@@ -77,102 +49,6 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
       - run: cargo build -p ui --locked
-
-  # ---- security gate: advisories + license/ban policy + secret scan ----
-  security:
-    name: security (audit + deny + secrets)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny,cargo-audit
-      - name: License + ban policy (no AGPL/GPL in tree)
-        run: cargo deny check licenses bans sources
-      - name: Advisory audit
-        # RUSTSEC-2023-0071 (`rsa` "Marvin" timing attack) is pulled transitively by sqlx-postgres
-        # and has no fixed release. Not exploitable here: the sidecar authenticates to a local/
-        # private Postgres via SCRAM/md5, never RSA key operations. Justified in .cargo/audit.toml
-        # and SECURITY.md; revisit when `rsa` ships a fix.
-        run: cargo audit --ignore RUSTSEC-2023-0071
-      - name: Secret scan
-        # Direct gitleaks binary (filesystem scan of the checkout) instead of the action, which
-        # mis-handles a PR whose base is the repo's root commit. Config allowlists the dev-only
-        # DB credential and generated data; every real secret pattern still fails the job.
-        run: |
-          ver=8.24.3
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
-          /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
-
-  # ---- integration: run the sidecar against a real Postgres and probe the endpoints ----
-  integration:
-    name: integration (sidecar + Postgres)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ziqpu
-          POSTGRES_PASSWORD: ziqpu_dev
-          POSTGRES_DB: ziqpu
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U ziqpu -d ziqpu"
-          --health-interval 3s
-          --health-timeout 3s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgres://ziqpu:ziqpu_dev@localhost:5433/ziqpu
-      PGPASSWORD: ziqpu_dev
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Apply schema + seed
-        run: |
-          for f in db/init/*.sql; do
-            echo "applying $f"
-            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
-          done
-          echo -n "seeded tickers: "; psql "$DATABASE_URL" -tAc "SELECT count(*) FROM company_metadata;"
-      - name: Cache DE440s kernel
-        uses: actions/cache@v4
-        with:
-          path: ./data/ephemeris/de440s.bsp
-          key: de440s-v1
-      - name: Fetch DE440s kernel (for the ANISE backend)
-        run: bash scripts/fetch-ephemeris.sh
-      - name: Build sidecar (ANISE backend)
-        run: cargo build -p sidecar --features anise
-      - name: Run sidecar and assert endpoints
-        run: |
-          cargo run -p sidecar --features anise &
-          pid=$!
-          for _ in $(seq 1 40); do curl -sf http://localhost:8787/health >/dev/null && break || sleep 1; done
-          echo "== /chart/AAPL =="
-          chart=$(curl -sf http://localhost:8787/chart/AAPL)
-          echo "$chart" | grep -q '"backend":"ANISE/DE440"'
-          echo "  backend = ANISE/DE440: OK"
-          echo "$chart" | grep -q '"sign":"Sagittarius"'
-          echo "  AAPL Sun in Sagittarius: OK"
-          echo "$chart" | grep -q '"body":"Pluto"'
-          echo "  Pluto present: OK"
-          echo "$chart" | grep -q '"body":"Chiron"'
-          echo "  Chiron present: OK"
-          echo "== /synastry/AAPL/MSFT =="
-          curl -sf http://localhost:8787/synastry/AAPL/MSFT | grep -q '"aspect"'
-          echo "  cross-aspects present: OK"
-          echo "== edge: unknown ticker -> 404 =="
-          [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/chart/ZZZZ)" = "404" ]
-          echo "  404: OK"
-          echo "== edge: date-unknown ticker -> 422 =="
-          nd=$(psql "$DATABASE_URL" -tAc "SELECT ticker FROM company_metadata WHERE ipo_date IS NULL LIMIT 1" | tr -d '[:space:]')
-          [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8787/chart/$nd")" = "422" ]
-          echo "  422 ($nd): OK"
-          kill "$pid"
 
   # ---- anise: fetch the JPL DE440 kernel and cross-check the analytic backend (<1 deg) ----
   anise:

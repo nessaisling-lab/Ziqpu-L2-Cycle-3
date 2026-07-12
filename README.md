@@ -21,11 +21,11 @@ medical, legal, or psychological advice.
 | **Ephemeris** — pluggable trait, 13 bodies | ✅ built · analytic + ANISE backends, Chiron table, all JPL-validated |
 | **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
 | **Sidecar** — read-only API | ✅ built · `/chart` `/synastry` `/transits` over real data |
-| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ Phase 1a · observe→decide→act, approval gate, grounded tool, evals; Ungasaga = Claude (opt-in) |
-| **MCP + profile** — run the loop from any MCP host | 🔄 Phase 1b · `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
-| **UI** — Dioxus + Tauri | ⏳ Phase 4 |
+| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
+| **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
+| **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding |
 
-## The two-agent design (the graded artifact — Phase 1–2)
+## The two-agent design (the graded artifact)
 
 Every reading is produced by **two visible agents**:
 
@@ -38,8 +38,8 @@ The separation *is* the product's integrity guarantee: measurement and meaning a
 ## Architecture
 
 ```
-Postgres (company_metadata) ─▶ axum sidecar (read-only) ─▶ rig-core: Hamun-ana + Ungasaga ─▶ Dioxus/Tauri UI
-                                        │                              (Phase 1–2)            (Phase 4)
+Postgres (company_metadata) ─▶ axum sidecar (read-only) ─▶ agents: Hamun-ana + Ungasaga ─▶ Dioxus desktop UI
+                                        │                    (measure → interpret + checkpoint)
                               engine (interpretation)  ── over ──  ephemeris (pluggable trait)
 ```
 
@@ -58,10 +58,14 @@ Analytic and ANISE agree to **<1°** (a CI cross-check enforces it).
 |---|---|---|
 | `crates/ephemeris` | `Ephemeris` trait, analytic + ANISE backends, Chiron table, Asc/MC | ✅ |
 | `crates/engine` | chart assembly (`compute_chart`) + `find_aspect` keystone | ✅ |
+| `crates/astro` | astrotopography — relocation charts (additive; soaking on `nightfall`) | 🔄 nightfall |
 | `crates/sidecar` | axum read-only API (`/chart/:t`, `/synastry/:a/:b`, `/transits/:date`) | ✅ |
-| `crates/agents` | two-vizier observe→decide→act loop + checkpoint + grounded tool + Claude interpreter + portable profile | ✅ Phase 1a |
-| `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | 🔄 Phase 1b |
-| `crates/ui` | Dioxus 0.6 + Tauri 2 | ⏳ Phase 4 |
+| `crates/geo` | offline geocoder over a committed GeoNames gazetteer | ✅ |
+| `crates/tickers` | choice universes — Stocks · Airlines · Insurance | ✅ |
+| `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile | ✅ |
+| `crates/model` | local-model tier benchmark + `get`/`serve` (llama.cpp) | ✅ |
+| `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | ✅ |
+| `crates/ui` | Dioxus 0.6 desktop app (`ziqpu-ui`) | ✅ |
 
 ## Quickstart
 
@@ -78,6 +82,12 @@ cargo run -p sidecar --features anise
 # 3. ask it things
 curl localhost:8787/chart/AAPL           # 12–13 body natal chart
 curl localhost:8787/synastry/AAPL/MSFT   # cross-aspects between two charts
+
+# 4. or launch the desktop app (Dioxus)
+cargo run -p ui
+
+# 5. optional — check which local model fits this machine (then `serve` it on :1234)
+cargo run -p model -- benchmark
 ```
 
 ## Develop
@@ -86,7 +96,7 @@ curl localhost:8787/synastry/AAPL/MSFT   # cross-aspects between two charts
 cargo test --workspace --all-features                     # unit + smoke tests
 cargo fmt --all -- --check                                # formatting gate
 cargo clippy --workspace --all-features -- -D warnings
-cargo deny check licenses bans sources                    # keeps the tree permissive-only
+cargo deny check                                          # advisories + licenses + bans + sources
 ```
 
 Copy `.env.example` to `.env` for local runs (never commit it).
@@ -99,9 +109,11 @@ Copy `.env.example` to `.env` for local runs (never commit it).
 
 ## Building in phases
 
-Development is a **phase-gated tasklist**. Each phase must be **all-green on GitHub Actions** —
-`test`, `stability`, `smoke`, `security`, `integration`, `anise cross-check` across macOS/Windows/Linux —
-before the next begins. `main` is protected: contributions land via pull request, owner-approved.
+Every change must be **all-green on GitHub Actions** —
+`test`, `stability`, `smoke`, `security`, `desktop`, `integration`, `anise cross-check` (macOS/Windows/Linux) plus `DCO`.
+`main` is the protected, all-green **stable** line; day-to-day work builds ahead on **`nightfall`** and is
+promoted to `main` (via a merge commit) when green. Contributions PR into `nightfall`, owner-approved —
+see [CONTRIBUTING.md](CONTRIBUTING.md) and [RELEASING.md](RELEASING.md).
 
 ## Team
 

@@ -6,7 +6,10 @@ name: Release
 #   * Tag push  (git tag v1.1.0 && git push --tags)  -> builds github.ref_name (the pushed tag).
 #   * workflow_dispatch with an input `tag`           -> builds + attaches to that tag on demand.
 # The tag is resolved once into env.RELEASE_TAG below and reused by every job.
-
+#
+# Gate: guard (the tag must be on main OR be a pre-release) -> checks (the full gauntlet:
+# test/smoke/integration/security, shared with CI via checks.yml) -> bundle (build + publish).
+# So a random unmerged, non-prerelease commit can no longer be tagged and shipped.
 on:
   push:
     tags: ['v*']
@@ -32,39 +35,38 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 jobs:
-  # ---- security gate (verbatim from ci.yml): advisories + license/ban policy + secret scan ----
-  # Bundle jobs `needs: security`, so a policy or secret failure blocks the release from publishing.
-  security:
-    name: security (audit + deny + secrets)
+  # ---- guard: only publish a tag that is on `main` (stable) or is a pre-release (nightfall) ----
+  guard:
+    name: guard (on main, or a pre-release)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-audit
-      - name: License + ban policy (no AGPL/GPL in tree)
-        run: cargo deny check licenses bans sources
-      - name: Advisory audit
-        # RUSTSEC-2023-0071 (`rsa` "Marvin" timing attack) is pulled transitively by sqlx-postgres
-        # and has no fixed release. Not exploitable here: the sidecar authenticates to a local/
-        # private Postgres via SCRAM/md5, never RSA key operations. Justified in .cargo/audit.toml
-        # and SECURITY.md; revisit when `rsa` ships a fix.
-        run: cargo audit --ignore RUSTSEC-2023-0071
-      - name: Secret scan
-        # Direct gitleaks binary (filesystem scan of the checkout) instead of the action, which
-        # mis-handles a PR whose base is the repo's root commit. Config allowlists the dev-only
-        # DB credential and generated data; every real secret pattern still fails the job.
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+      - name: Tag must be on main, or be a hyphenated pre-release
         run: |
-          ver=8.24.3
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
-          /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
+          set -euo pipefail
+          TAG="${RELEASE_TAG}"
+          git fetch --quiet origin main
+          if git merge-base --is-ancestor HEAD origin/main; then
+            echo "the commit for $TAG is an ancestor of main — stable release, ok"
+          elif [[ "$TAG" == *-* ]]; then
+            echo "$TAG is a hyphenated pre-release (nightfall) — ok"
+          else
+            echo "::error::$TAG is neither on main nor a hyphenated pre-release; refusing to publish an unmerged, non-prerelease tag"
+            exit 1
+          fi
+
+  # ---- the full gauntlet (shared with CI): test/smoke/integration/security on the tagged code ----
+  checks:
+    needs: guard
+    uses: ./.github/workflows/checks.yml
 
   # ---- bundle: build the Dioxus desktop app on each OS, package it, attach to the Release ----
   bundle:
     name: bundle (${{ matrix.os }})
-    needs: security
+    needs: checks
     permissions:
       contents: write
     strategy:
@@ -167,7 +169,13 @@ jobs:
           TAG="${RELEASE_TAG}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG not found; creating it"
-            gh release create "$TAG" --title "$TAG" --generate-notes
+            # A hyphenated tag is a semver pre-release (e.g. v1.2.0-nightfall.1): publish it as a
+            # GitHub pre-release and never mark it "Latest", so a nightfall build never overtakes the
+            # stable release. `|| true` tolerates a create race between the three OS bundle jobs — the
+            # loser just attaches its asset to the winner's release.
+            PRE=""
+            case "$TAG" in *-*) PRE="--prerelease --latest=false" ;; esac
+            gh release create "$TAG" --title "$TAG" --generate-notes $PRE || true
           else
             echo "release $TAG already exists; attaching asset"
           fi

@@ -3,7 +3,8 @@
 # Purpose: keep the PUBLIC dependency tree permissive-only. A single AGPL/GPL/SSPL
 # dependency in-tree would poison the future closed-source commercial edition, so
 # copyleft licenses are denied by omission from the allow-list below. MPL-2.0 is
-# permitted (file-level copyleft only; ANISE, the default ephemeris backend, is MPL-2.0).
+# permitted (file-level copyleft only; the optional ANISE ephemeris backend is MPL-2.0 — the
+# default backend is the pure-Rust analytic/vsop87 one).
 #
 # Our own workspace crates carry PolyForm Noncommercial 1.0.0 (not an SPDX/OSI id);
 # they are `publish = false`, so `private.ignore = true` exempts them from this check.
@@ -47,6 +48,11 @@ yanked = "deny"
 #   * proc-macro-error / proc-macro-error2 / instant / fxhash — small transitive build-time
 #     macro + hashing helpers with no maintained drop-in we control.
 ignore = [
+    # Vulnerability exception (not unmaintained): rsa "Marvin" timing side-channel, pulled
+    # transitively by sqlx-postgres. Not exploitable here — the sidecar authenticates via
+    # SCRAM/md5, never RSA key ops. Also ignored in cargo audit + .cargo/audit.toml + SECURITY.md,
+    # so both tools share one accepted-advisory policy now that `cargo deny check` runs advisories.
+    "RUSTSEC-2023-0071", # rsa — Marvin timing attack (transitive, sqlx-postgres; not exploitable)
     "RUSTSEC-2024-0370", # proc-macro-error — unmaintained (transitive, build-time)
     "RUSTSEC-2024-0384", # instant — unmaintained (transitive)
     "RUSTSEC-2024-0411", # gtk-rs GTK3 bindings — unmaintained (WRY desktop stack)

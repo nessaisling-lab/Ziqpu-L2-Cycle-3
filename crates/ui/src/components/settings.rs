@@ -38,6 +38,9 @@ pub fn SettingsButton() -> Element {
             openrouter_key: (!k.is_empty()).then_some(k),
             model: (!m.is_empty()).then_some(m),
             local_url: (!u.is_empty()).then_some(u),
+            // Preserve the developer-build switch — this modal only edits credentials, and a bare
+            // literal would silently reset the entitlement to its default on Save.
+            dev_build: crate::settings::load_settings().dev_build,
         };
         // Persist to disk (0600 on Unix) AND apply to the live environment so the next reading uses
         // it immediately — no restart. The user chose these by hand, so live apply overrides env.

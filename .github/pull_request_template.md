@@ -1,6 +1,6 @@
 ## What & why
 
-<!-- What does this PR change, and which phase / exit-gate does it advance? -->
+<!-- What does this PR change, and why? -->
 
 ## Checklist
 
@@ -8,10 +8,11 @@
 - [ ] `cargo fmt --all -- --check` clean
 - [ ] `cargo clippy --workspace --all-features -- -D warnings` clean
 - [ ] `cargo test --workspace --all-features` green
-- [ ] `cargo deny check licenses bans sources` green (no AGPL/GPL added)
+- [ ] `cargo deny check` green (advisories + licenses/bans/sources; no AGPL/GPL added)
 - [ ] No secrets added; `.env` not committed
 - [ ] CI is green on macOS + Windows + Linux
 
-## Phase gate
+## Base branch
 
-<!-- If this closes a phase, note the exit gate met and the vphase-N tag to cut. -->
+<!-- Contributions target `nightfall` (see CONTRIBUTING.md). A `nightfall → main` promotion is
+     merged with a merge commit, not squash (see RELEASING.md). -->
