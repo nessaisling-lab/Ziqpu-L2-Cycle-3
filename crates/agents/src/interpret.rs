@@ -149,20 +149,31 @@ fn confidence_beat(confidence: Confidence) -> String {
 fn warm_prose(fit: Fit) -> &'static str {
     match fit {
         Fit::StronglyAligned => {
-            "This one sings — an easy, unmistakable pull, the kind of fit you feel before you can \
-             explain it. I'd stake the read right here: you two move together."
+            "This one sings. There's an easy, unmistakable pull between you — the kind of fit you \
+             feel before you can explain it, where the other's rhythm seems to answer your own. The \
+             parts of you that usually strain simply rest here; it asks little and gives back \
+             readily. I'd stake the read right here: you two move together, and it shows in how \
+             little effort the meeting takes."
         }
         Fit::Aligned => {
-            "This one flows — more ease than friction, a fit that carries its own weight. I'd \
-             stake the read on it: the current runs with you, not against you."
+            "This one flows. More ease than friction runs through it — a fit that carries its own \
+             weight without needing you to push. There are edges, as there always are, but the \
+             current runs with you rather than against you, and the good in it outlasts the rough. \
+             I'd stake the read on that: lean in and it tends to meet you halfway."
         }
         Fit::Mixed => {
-            "This one is genuinely split — real ease braided through real strain, and neither side \
-             wins outright. I'd stake the read on exactly that: it pulls both ways at once."
+            "This one is genuinely split. Real ease is braided right through real strain, and \
+             neither side wins outright — the same meeting that gives in one place takes in \
+             another. It's not a bad fit so much as an honest, two-handed one: it rewards attention \
+             and punishes autopilot. I'd stake the read on exactly that tension — it pulls both \
+             ways at once, and pretending otherwise would be the only real mistake."
         }
         Fit::Misaligned => {
-            "There's a real grind here — more friction than flow, effort without much ease. I'd \
-             stake the read on it: this one asks more of you than it gives back."
+            "There's a real grind here. More friction than flow — effort that doesn't return much \
+             ease, where the two charts keep catching on each other instead of settling. It can \
+             still be worked, but it asks more of you than it gives back, and it won't get quietly \
+             easier on its own. I'd stake the read on it: go in clear-eyed about the cost, or don't \
+             go in at all."
         }
     }
 }
@@ -192,6 +203,13 @@ fn body_word(body: &str) -> String {
         "Jupiter" => "an appetite for more",
         "Mercury" => "how you think",
         "Pluto" => "pressure and intensity",
+        "Neptune" => "your dreams and what blurs",
+        "Uranus" => "your urge to break form",
+        "Chiron" => "an old, tender place",
+        "MeanNode" | "TrueNode" | "NorthNode" | "North Node" => "where you're heading",
+        "SouthNode" | "South Node" => "what you're leaving behind",
+        "Ascendant" | "Asc" => "how you meet the world",
+        "Midheaven" | "MC" => "what you're building toward",
         other => return other.to_string(),
     }
     .to_string()
@@ -202,16 +220,40 @@ fn body_word(body: &str) -> String {
 fn why_line(measures: &Measures) -> String {
     match measures.top.first() {
         Some(a) => format!(
-            "why: the strongest thread is {}, {}",
+            "why: the strongest thread is {}, {} — {}",
             if a.harmonious {
                 "an easy one"
             } else {
                 "a tense one"
             },
             plain_dynamic(&a.body_a, &a.body_b, a.harmonious),
+            if a.harmonious {
+                "it's the part of the fit you can lean on"
+            } else {
+                "it's the part that will ask for the most patience"
+            },
         ),
-        None => "why: the two charts barely touch — no single thread stands out".to_string(),
+        None => "why: the two charts barely touch — no single thread stands out, which is its own \
+                 kind of answer"
+            .to_string(),
     }
+}
+
+/// A "threads:" beat naming the top few contacts as plain human dynamics — gives the offline read
+/// texture from the *actual* measures, not just the band. Empty (no line) when there are no close
+/// contacts. No aspect names, orbs, or degrees ever appear (via [`plain_dynamic`]).
+fn threads_line(measures: &Measures) -> String {
+    if measures.top.is_empty() {
+        return String::new();
+    }
+    let list = measures
+        .top
+        .iter()
+        .take(3)
+        .map(|a| plain_dynamic(&a.body_a, &a.body_b, a.harmonious))
+        .collect::<Vec<_>>()
+        .join(", then ");
+    format!("\n  the threads, in plain terms: {list}")
 }
 
 /// One neutral, hedged "this is what reality says:" sentence for the grounded beat. The deterministic
@@ -271,11 +313,12 @@ impl Interpreter for TemplateInterpreter {
         // Warm, plain prose a normal person gets — a staked verdict on the fit, plus one plain
         // "why:" line. The raw aspects/orbs/degrees stay out of the reading (they live in Backstage).
         format!(
-            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}{}\n  {REMINDER}",
             fit.label(),
             measures.score,
             warm_prose(fit),
             why_line(measures),
+            threads_line(measures),
         )
     }
 
