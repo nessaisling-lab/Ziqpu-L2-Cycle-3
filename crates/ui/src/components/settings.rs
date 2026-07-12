@@ -9,6 +9,7 @@
 
 use dioxus::prelude::*;
 
+use crate::components::ModelPanel;
 use crate::settings::{
     active_mode_label, apply_settings_live, load_settings, save_settings, SettingsFile,
 };
@@ -74,7 +75,15 @@ pub fn SettingsButton() -> Element {
                     role: "dialog",
                     "aria-modal": "true",
                     "aria-label": "Settings",
+                    tabindex: "-1",
+                    autofocus: true,
                     onclick: move |e| e.stop_propagation(),
+                    // Esc closes — a keyboard escape hatch alongside the × and the backdrop click.
+                    onkeydown: move |e| {
+                        if e.key() == Key::Escape {
+                            open.set(false);
+                        }
+                    },
 
                     div { class: "settings-head",
                         h2 { class: "settings-title", "Settings" }
@@ -156,6 +165,9 @@ pub fn SettingsButton() -> Element {
                         "Stored only on this machine, in Ziqpu's user-data folder (outside the app). "
                         "Sent only to the model API you configure — never logged, never shared."
                     }
+
+                    hr { class: "settings-sep" }
+                    ModelPanel {}
 
                     div { class: "settings-foot",
                         span { class: "settings-active",
