@@ -110,9 +110,10 @@ Copy `.env.example` to `.env` for local runs (never commit it).
 ## Building in phases
 
 Every change must be **all-green on GitHub Actions** —
-`test`, `stability`, `smoke`, `security`, `desktop`, `integration`, `anise cross-check` across macOS/Windows/Linux.
+`test`, `stability`, `smoke`, `security`, `desktop`, `integration`, `anise cross-check` (macOS/Windows/Linux) plus `DCO`.
 `main` is the protected, all-green **stable** line; day-to-day work builds ahead on **`nightfall`** and is
-promoted to `main` when green. Contributions land via pull request, owner-approved.
+promoted to `main` (via a merge commit) when green. Contributions PR into `nightfall`, owner-approved —
+see [CONTRIBUTING.md](CONTRIBUTING.md) and [RELEASING.md](RELEASING.md).
 
 ## Team
 
