@@ -5,13 +5,14 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use agents::{demo_choices, demo_seeker, GroundedSignals, ReadMode, Recommendation};
+use agents::{demo_choices, demo_seeker, GroundedRung, GroundedSignals, ReadMode, Recommendation};
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use crate::components::{
     Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, Setup,
 };
+use crate::settings::{dev_build_default, save_dev_build};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
 
 /// The full stylesheet, baked into the binary. Inlined as a raw `<style>` element (below) rather
@@ -63,6 +64,13 @@ pub fn App() -> Element {
     let mut signals = use_signal(|| None::<GroundedSignals>);
     let mut briefing = use_signal(|| None::<agents::Briefing>);
     let mut grounding = use_signal(|| false);
+    // The layered pipeline's reactive state, pulled out here so the `drafter`/`grounder` coroutines
+    // (hooks — cannot be created in an event handler) can capture them. The dev-build entitlement
+    // seeds from settings.json (on by default while building). All are `Copy`.
+    let mut dev_build = use_signal(dev_build_default);
+    let mut draft = use_signal(|| None::<String>);
+    let mut draft_pending = use_signal(|| false);
+    let mut rung = use_signal(|| None::<GroundedRung>);
 
     // The first-run onboarding gate: a brand-new seeker (no saved profile) is walked through
     // welcome → birth chart → handle reveal before the main app. A returning seeker (any saved
@@ -133,14 +141,34 @@ pub fn App() -> Element {
         }
     });
 
-    // The grounded pull's off-thread half: receive `(signals, briefing)` from the worker thread and
-    // commit them — set `signals`+`briefing`, drop the "grounding…" loading state, and advance to
-    // the Briefing phase. Only this channel crosses the thread boundary (never a `Signal`).
+    // The local drafter's off-thread half: receive the framing brief (`None` when no local server
+    // answered) drafted during the checkpoint pause, write it into `draft`, and clear `draft_pending`.
+    // Only this channel crosses the thread boundary (never a `Signal`).
+    let drafter = use_coroutine(
+        move |mut rx: UnboundedReceiver<Option<String>>| async move {
+            while let Some(d) = rx.next().await {
+                draft.set(d);
+                draft_pending.set(false);
+            }
+        },
+    );
+
+    // The grounded pull's off-thread half: receive `(signals, briefing, rung, source)` from the
+    // worker thread and commit them — set `signals`+`briefing`+`rung`, drop the "grounding…" loading
+    // state, and advance to the Briefing phase. Only this channel crosses the thread boundary (never
+    // a `Signal`). The source model id rides along for parity with the fit cards but the badge is
+    // derived from the rung, so it is not stored separately here.
     let grounder = use_coroutine(
-        move |mut rx: UnboundedReceiver<(GroundedSignals, agents::Briefing)>| async move {
-            while let Some((s, b)) = rx.next().await {
+        move |mut rx: UnboundedReceiver<(
+            GroundedSignals,
+            agents::Briefing,
+            GroundedRung,
+            Option<String>,
+        )>| async move {
+            while let Some((s, b, r, _source)) = rx.next().await {
                 signals.set(Some(s));
                 briefing.set(Some(b));
+                rung.set(Some(r));
                 grounding.set(false);
                 phase.set(Phase::Briefing);
             }
@@ -203,6 +231,11 @@ pub fn App() -> Element {
         reader,
         ask_reader,
         grounder,
+        dev_build,
+        draft,
+        draft_pending,
+        drafter,
+        rung,
     };
     use_context_provider(|| ctx.clone());
 
@@ -218,6 +251,20 @@ pub fn App() -> Element {
     // The grounded pull intensifies the starfield behind everything into a "searching the stars"
     // state, so the (off-thread) grounded wait clearly reads as activity.
     let searching = *ctx.grounding.read();
+
+    // The developer-build entitlement pill: on = the dev build (premium unlocked); off = previewing
+    // the free-customer experience (paywalled features lock with a 🔒). The label states which view
+    // you're in so the switch is unambiguous.
+    let dev_on = *dev_build.read();
+    let (dev_glyph, dev_word, dev_class) = if dev_on {
+        ("⚙", "dev build", "mode-toggle dev-toggle dev-toggle--on")
+    } else {
+        (
+            "👤",
+            "customer view",
+            "mode-toggle dev-toggle dev-toggle--off",
+        )
+    };
 
     // The header display-mode pill — glyph + word + the active source's model, cycling on click.
     let cur_mode = *mode.read();
@@ -340,6 +387,21 @@ pub fn App() -> Element {
                         },
                         "{mode_glyph} {mode_word}"
                         span { class: "mode-toggle__hint", "· {model_hint}" }
+                    }
+                    // The dev-build entitlement switch. Flipping to "customer view" simulates a free
+                    // customer — paywalled features lock with a 🔒 — so the developer can see exactly
+                    // what a customer sees. On by default while building; the choice is persisted.
+                    button {
+                        class: "{dev_class}",
+                        r#type: "button",
+                        title: "Switch between the developer build (all features) and the free-customer preview",
+                        "aria-label": "Build view: {dev_word}. Click to switch.",
+                        onclick: move |_| {
+                            let now = !*dev_build.read();
+                            dev_build.set(now);
+                            save_dev_build(now);
+                        },
+                        "{dev_glyph} {dev_word}"
                     }
                     // In-app credentials: paste an OpenRouter key (stored locally) for live readings
                     // without touching env vars. Opens a masked settings modal.

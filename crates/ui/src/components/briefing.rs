@@ -1,5 +1,8 @@
 //! Briefing — the ACT output. Sets the vizier's grounded reading beside the real (pulled) signals,
-//! as one ledger card. "Start over" rebuilds a fresh session and clears the reactive state to Setup.
+//! as one ledger card. A rung badge (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` /
+//! `GROUNDED`) says truthfully how much reality backs the words; for an **unsourced** read the raw
+//! signals panel is hidden — the reading stands on the charts alone and says so. "Start over"
+//! rebuilds a fresh session and clears the reactive state to Setup.
 
 use std::collections::HashMap;
 
@@ -19,6 +22,12 @@ pub fn Briefing() -> Element {
         .unwrap_or_default();
 
     let signals = ctx.signals.read().clone();
+
+    // Which rung produced this read — drives the badge and whether the raw-signals panel shows.
+    // `None` (pre-pipeline state) defaults to the sourced "GROUNDED" behavior for back-compat.
+    let rung = *ctx.rung.read();
+    let rung_badge = rung.map(|r| r.badge()).unwrap_or("GROUNDED");
+    let sourced = rung.map(|r| r.is_sourced()).unwrap_or(true);
 
     // Recover the graded choice's fit band + score from the ranked recs, so the grounded card wears
     // the same stripe, badge, and meter it did in the ranking.
@@ -66,6 +75,23 @@ pub fn Briefing() -> Element {
         .map(|s| s.source.clone())
         .unwrap_or_default();
 
+    // The card header already shows name + band + score, so strip a leading redundant
+    // "FIT: <band> (score) — name" line if the interpreter emitted one; keep the warm body, the
+    // grounded/reality beat (or the unsourced note), and the REMINDER intact.
+    let reading = match reading.split_once('\n') {
+        Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
+            rest.trim_start().to_string()
+        }
+        _ => reading,
+    };
+
+    // The rung badge's tone: unsourced reads out in a cautionary hue, the rest in the grounded gold.
+    let rung_cls = if sourced {
+        "badge badge--rung"
+    } else {
+        "badge badge--rung badge--unsourced"
+    };
+
     rsx! {
         p { class: "eyebrow", "Act · grounded, still reflection" }
         article { class: "card", style: "--band:var({band});--pct:{score}%",
@@ -77,18 +103,21 @@ pub fn Briefing() -> Element {
                 if !label.is_empty() {
                     span { class: "badge", "{label}" }
                 }
+                span { class: "{rung_cls}", "{rung_badge}" }
             }
             div { class: "meter", i {} }
 
             p { class: "reading", "{reading}" }
 
-            if signals.is_some() {
+            // The raw pulled signals — the receipts — only when the read is actually sourced. An
+            // unsourced read hides this panel entirely rather than show an empty/placeholder source
+            // under a "LOCAL · UNSOURCED" badge (which would contradict it).
+            if signals.is_some() && sourced {
                 p { class: "measured grounded-line", "GROUNDED · {source}" }
                 ul { class: "grounded-items", {items.into_iter()} }
             }
-            p { class: "measured grounded-reminder",
-                "REMINDER: measured, not fate — not financial advice."
-            }
+            // No separate REMINDER line here: the reading is self-contained and already ends on the
+            // rung-correct REMINDER (an unsourced read's carries "— and unsourced").
         }
 
         div { class: "actions", style: "justify-content:flex-start;margin-top:4px",
@@ -109,6 +138,10 @@ pub fn Briefing() -> Element {
                         ctx.grounding.set(false);
                         ctx.answer.set(None);
                         ctx.calls.set(Vec::new());
+                        // Clear the layered-pipeline state too, so a fresh run starts clean.
+                        ctx.draft.set(None);
+                        ctx.draft_pending.set(false);
+                        ctx.rung.set(None);
                         ctx.phase.set(Phase::Setup);
                     }
                 },

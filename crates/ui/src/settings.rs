@@ -32,6 +32,26 @@ pub struct SettingsFile {
     pub model: Option<String>,
     #[serde(default)]
     pub local_url: Option<String>,
+    /// The **developer-build** master switch (the entitlement gate). `Some(true)` = the developer
+    /// build with every paywalled feature unlocked; `Some(false)` = "preview as customer", where
+    /// premium features lock (each shows a 🔒). Absent → the default from [`dev_build_default`]
+    /// (on, since we're still building). Persisted so the chosen view survives a restart.
+    #[serde(default)]
+    pub dev_build: Option<bool>,
+}
+
+/// Whether the developer build is on — premium features unlocked. Defaults to **on** while we're
+/// building (so the developer sees everything); flip it off to preview the free-customer experience.
+pub fn dev_build_default() -> bool {
+    load_settings().dev_build.unwrap_or(true)
+}
+
+/// Persist just the developer-build switch, leaving the credential fields untouched. Best-effort
+/// (a failed read/write is swallowed — never panics).
+pub fn save_dev_build(on: bool) {
+    let mut settings = load_settings();
+    settings.dev_build = Some(on);
+    save_settings(&settings);
 }
 
 /// A **redacting** `Debug` — deliberately hand-written (not derived) so a stray `dbg!(settings)` or a

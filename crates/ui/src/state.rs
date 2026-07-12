@@ -9,9 +9,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use agents::{
-    ApprovalRequest, BirthMoment, Briefing, Choice, EdgarSource, EngineChartSource, Fit,
-    GroundedSignals, GroundedSource, Interpreter, LocalMeasurer, Measures, MockGroundedSource,
-    ReadMode, Recommendation, Session, TemplateInterpreter, ToolCall,
+    draft_grounding_prompt, grounded_layered, ApprovalRequest, BirthMoment, Briefing, Choice,
+    EdgarSource, EngineChartSource, Fit, GroundedRung, GroundedSignals, GroundedSource,
+    Interpreter, LocalMeasurer, Measures, MockGroundedSource, ReadMode, Recommendation, Session,
+    TemplateInterpreter, ToolCall,
 };
 use dioxus::prelude::*;
 
@@ -159,11 +160,41 @@ pub struct AppCtx {
     /// a superseded ask is dropped. Same `!Send` discipline as [`Self::reader`]: only this channel
     /// crosses the thread boundary, never a `Signal`.
     pub ask_reader: Coroutine<(u64, String)>,
-    /// The event-loop-thread coroutine that receives `(GroundedSignals, Briefing)` from the grounded
-    /// pull's worker thread and commits them: sets `signals` + `briefing`, clears `grounding`, and
-    /// advances to [`Phase::Briefing`]. Same `!Send` discipline as [`Self::reader`] — only owned,
-    /// `Send` values cross the channel; the real session and every `Signal` stay on the UI thread.
-    pub grounder: Coroutine<(GroundedSignals, Briefing)>,
+    /// The event-loop-thread coroutine that receives `(GroundedSignals, Briefing, rung, source)`
+    /// from the grounded pull's worker thread and commits them: sets `signals` + `briefing` + `rung`,
+    /// clears `grounding`, and advances to [`Phase::Briefing`]. Same `!Send` discipline as
+    /// [`Self::reader`] — only owned, `Send` values cross the channel; the real session and every
+    /// `Signal` stay on the UI thread.
+    pub grounder: Coroutine<(GroundedSignals, Briefing, GroundedRung, Option<String>)>,
+
+    // ── The layered grounding pipeline (N2 feature 4) ───────────────────────────────────────────
+    /// The **developer-build** entitlement switch (persisted in `settings.json`). `true` = the
+    /// developer build with every paywalled feature unlocked (the default while building); `false` =
+    /// "preview as customer", where premium affordances lock and show a 🔒. Read via [`Self::premium`].
+    pub dev_build: Signal<bool>,
+    /// The local model's **framing brief** for the grounded reading, drafted off-thread during the
+    /// checkpoint pause (`None` until it lands, or when no local server is reachable). Shown read-only
+    /// at the checkpoint (editable only in the developer build), and fed to the frontier on approval.
+    pub draft: Signal<Option<String>>,
+    /// `true` while the local draft is being written off-thread (the checkpoint shows a "preparing…"
+    /// state for the brief). Cleared by [`Self::drafter`] when the worker lands.
+    pub draft_pending: Signal<bool>,
+    /// The event-loop-thread coroutine that receives the drafted brief (`Option<String>`: `None` when
+    /// no local server answered) from [`run_draft`]'s worker thread, writes it into `draft`, and
+    /// clears `draft_pending`. Same `!Send` discipline as [`Self::reader`].
+    pub drafter: Coroutine<Option<String>>,
+    /// Which rung of the honesty ladder produced the grounded briefing — drives the Briefing card's
+    /// badge (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` / `GROUNDED`). Set by
+    /// [`Self::grounder`] alongside `briefing`.
+    pub rung: Signal<Option<GroundedRung>>,
+}
+
+impl AppCtx {
+    /// Whether paywalled features are unlocked — true in the developer build, false while previewing
+    /// as a customer. The single entitlement read every 🔒 gate consults.
+    pub fn premium(&self) -> bool {
+        *self.dev_build.read()
+    }
 }
 
 /// Render a graded tool call in the Backstage's "tool order" voice — lowercase, call-shaped
@@ -330,6 +361,30 @@ pub fn ensure_local_readings(mut ctx: AppCtx) {
     });
 }
 
+/// Draft the interpreter's framing brief on the **local** model, off the event loop, the instant the
+/// checkpoint pause begins — so the wait to approve is productive (the local model works while the
+/// human decides). Sees only the measures (computed on a throwaway session), never external data, so
+/// it is structurally safe to run before approval. Streams the draft (`Some(brief)`, or `None` when
+/// no local server answered) back through `ctx.drafter`. The closure captures only owned, `Send`
+/// values; it never touches `ctx.session` or a `Signal`.
+pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
+    let seeker = ctx.seeker.read().clone();
+    // A fresh draft supersedes any prior one; show the "preparing…" state.
+    ctx.draft.set(None);
+    ctx.draft_pending.set(true);
+
+    let tx = ctx.drafter.tx();
+    std::thread::spawn(move || {
+        let measures = {
+            let mut throwaway = build_session();
+            throwaway.measure(&seeker, &choice)
+        };
+        let fit = Fit::from_score(measures.score);
+        let draft = draft_grounding_prompt(&measures, fit, &choice.name);
+        let _ = tx.unbounded_send(draft);
+    });
+}
+
 /// Fetch the real grounded signals for a choice on a **throwaway**, `Send`-safe source — the same
 /// mock/EDGAR selection [`build_session`] makes. Called only from a worker thread (the SEC EDGAR
 /// `curl` blocks), never on the event loop.
@@ -382,6 +437,10 @@ pub fn run_grounding(mut ctx: AppCtx) {
 
     let seeker = ctx.seeker.read().clone();
     let mode = *ctx.mode.read();
+    // The framing brief the local model drafted during the pause (or the developer's edit of it).
+    // `None` when no local server answered or the human approved before it landed — the frontier then
+    // simply gets its standard prompt. Read on the event loop here; the worker only holds the owned copy.
+    let draft = ctx.draft.read().clone();
 
     // Enter the loading state: the tool log already shows the pull; the gate proof is cleared; the
     // checkpoint renders "grounding…" until the worker lands.
@@ -391,6 +450,9 @@ pub fn run_grounding(mut ctx: AppCtx) {
 
     // The only place the blocking SEC EDGAR curl + the grounded-brief model call run. Everything
     // captured is owned and `Send`; the throwaway session/source live entirely inside the thread.
+    // The layered pipeline routes by mode: Live sends the frontier the (locally-drafted) brief and
+    // degrades down the honesty ladder if it's down; Local/Raw stay on-device/template. The rung it
+    // lands on rides back so the Briefing card badges the read truthfully.
     let tx = ctx.grounder.tx();
     std::thread::spawn(move || {
         let signals = fetch_grounded(&choice);
@@ -399,10 +461,23 @@ pub fn run_grounding(mut ctx: AppCtx) {
             throwaway.measure(&seeker, &choice)
         };
         let fit = Fit::from_score(measures.score);
-        let (reading, _source) =
-            agents::grounded_brief_for(&measures, fit, &choice.name, &signals, mode);
+        let brief = grounded_layered(
+            &measures,
+            fit,
+            &choice.name,
+            &signals,
+            draft.as_deref(),
+            mode,
+        );
         // If the UI is gone (receiver dropped), this send just fails — nothing to do.
-        let _ = tx.unbounded_send((signals, Briefing { reading }));
+        let _ = tx.unbounded_send((
+            signals,
+            Briefing {
+                reading: brief.reading,
+            },
+            brief.rung,
+            brief.source,
+        ));
     });
 }
 
