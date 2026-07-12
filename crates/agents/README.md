@@ -62,8 +62,7 @@ not the model, not the seeker — owns the output; the guardrail and the checkpo
 
 ## Status
 
-Phase 1a + 1b polish. Both agents default to deterministic (CI-safe) with real models drop-in via
-traits, opt-in by env:
+Both agents default to deterministic (CI-safe), with real models drop-in via traits, opt-in by env:
 
 - **Hamun-ana** — [`Measurer`](src/measure.rs) seam: `DeterministicMeasurer` (default) or
   [`LocalMeasurer`](src/measure_llm.rs) = a local model (`ZIQPU_LOCAL_LLM=1`). Speaks both
@@ -72,8 +71,17 @@ traits, opt-in by env:
   `ZIQPU_LLM_URL`. The model only *sequences* the tools — accepted only if it names the exact order
   `get_chart → get_chart → get_synastry`, else deterministic fallback — so it can never corrupt a
   number. Verified live end-to-end against LM Studio (`gemma-4-e4b-it`).
-- **Ungasaga** — [`Interpreter`](src/interpret.rs) seam: `TemplateInterpreter` (default) or
-  [`AnthropicInterpreter`](src/interpret_llm.rs) = **Claude** (`ANTHROPIC_API_KEY`).
+- **Ungasaga** — [`Interpreter`](src/interpret.rs) seam with three sources, selected by precedence in
+  [`build_interpreter`](src/interpret_llm.rs): `OpenAiCompatInterpreter` (**OpenRouter / OpenAI-compat**,
+  `OPENROUTER_API_KEY` or `OPENAI_API_KEY`) → `AnthropicInterpreter` (**Claude**, `ANTHROPIC_API_KEY`) →
+  `TemplateInterpreter` (deterministic default). The UI's **Raw / Local / Live**
+  [`ReadMode`](src/interpret_llm.rs) picks the template, the user's own local model, or the hosted live
+  model per reading.
+- **Layered grounding** ([`grounded_layered`](src/interpret_llm.rs)) — during the checkpoint the local
+  model drafts the frontier's brief; on approval the frontier writes the grounded read, degrading down
+  an honesty ladder ([`GroundedRung`](src/interpret_llm.rs): Frontier → LocalGrounded → LocalUnsourced →
+  Template) badged for how much reality backs it. See
+  [docs/PRD-layered-grounding-pipeline.md](../../docs/PRD-layered-grounding-pipeline.md).
 - **Grounded tool** — `MockGroundedSource` (CI) or `EdgarSource` (`ZIQPU_LIVE=1`): real SEC EDGAR
   filings + industry **and** a keyless Wikipedia blurb, degrading cleanly if a source is blocked.
 - **Portable profile** ([`profile`](src/profile.rs)) — export/import birth data so the agent travels.

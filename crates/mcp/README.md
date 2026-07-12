@@ -37,5 +37,6 @@ Register with an MCP host (e.g. Claude Desktop `claude_desktop_config.json`):
 }
 ```
 
-Then, in the host: `make_profile` → `recommend` → (on a pick) `pull_grounded_signals`. Set
-`ANTHROPIC_API_KEY` to have Ungasaga speak as Claude; otherwise the deterministic reader is used.
+Then, in the host: `make_profile` → `recommend` → (on a pick) `pull_grounded_signals`. To have
+Ungasaga speak as a live model, set an interpreter key — `OPENROUTER_API_KEY` / `OPENAI_API_KEY`
+(tried first) or `ANTHROPIC_API_KEY` (Claude); with none set, the deterministic reader is used.
