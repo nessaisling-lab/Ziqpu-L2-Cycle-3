@@ -3,7 +3,8 @@
 # Purpose: keep the PUBLIC dependency tree permissive-only. A single AGPL/GPL/SSPL
 # dependency in-tree would poison the future closed-source commercial edition, so
 # copyleft licenses are denied by omission from the allow-list below. MPL-2.0 is
-# permitted (file-level copyleft only; ANISE, the default ephemeris backend, is MPL-2.0).
+# permitted (file-level copyleft only; the optional ANISE ephemeris backend is MPL-2.0 — the
+# default backend is the pure-Rust analytic/vsop87 one).
 #
 # Our own workspace crates carry PolyForm Noncommercial 1.0.0 (not an SPDX/OSI id);
 # they are `publish = false`, so `private.ignore = true` exempts them from this check.

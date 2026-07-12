@@ -11,11 +11,12 @@ Third-party code components (MIT/Apache-2.0/MPL-2.0/BlueOak/CDLA — all permiss
 - ANISE (optional high-accuracy ephemeris backend, `--features anise`) — Mozilla Public License 2.0
   https://github.com/nyx-space/anise
 - axum, tokio, sqlx, serde, serde_json, chrono, chrono-tz — MIT OR Apache-2.0
-- rig-core (agent orchestration, Phase 1–2) — MIT OR Apache-2.0
-- Dioxus, Tauri (Phase 4) — MIT OR Apache-2.0
+- Dioxus 0.6 (desktop UI, crates/ui) — MIT OR Apache-2.0
+- futures-util (async stream helpers, crates/ui) — MIT OR Apache-2.0
 - sysinfo, wait-timeout (local-model benchmark, crates/model) — MIT OR Apache-2.0
-- Fonts: Cinzel Decorative, Spectral, Inter, Fraunces, Source Serif 4, JetBrains Mono,
-  Noto Sans Cuneiform — SIL Open Font License 1.1
+- Fonts (bundled as base64 @font-face in crates/ui/assets/ziqpu.css): Cinzel Decorative, Spectral,
+  Noto Sans Cuneiform — SIL Open Font License 1.1. The full OFL 1.1 text and per-font copyright /
+  Reserved Font Name notices are in LICENSES/OFL-1.1.txt.
 
 Third-party data (public-domain / freely redistributable U.S. Government works):
 
@@ -32,8 +33,9 @@ Third-party data (public-domain / freely redistributable U.S. Government works):
 Local models (recommended, not distributed):
 
 - Ziqpu's local-model benchmark (crates/model) recommends and, only at the user's request, points
-  the user's own llama.cpp runtime at open-weight models on the Hugging Face Hub (e.g. Llama 3.2 —
-  Meta Llama Community License; GPT-OSS — Apache-2.0; Qwen — Apache-2.0 or the Qwen license). Ziqpu
+  the user's own llama.cpp runtime at open-weight models on the Hugging Face Hub (e.g. Gemma 3 —
+  Gemma Terms of Use, the default Low-tier recommendation; Llama 3.2 — Meta Llama Community License;
+  GPT-OSS — Apache-2.0; Qwen — Apache-2.0 or the Qwen license). Ziqpu
   does not fetch, bundle, or redistribute any model weights; each model is downloaded by, and
   governed by its own license accepted by, the user at download time. No model license attaches to
   Ziqpu's own source.
