@@ -302,19 +302,27 @@ impl Interpreter for OpenAiCompatInterpreter {
 /// server's stdout JSON-RPC stream) naming the choice. With no keys set this always resolves to
 /// [`TemplateInterpreter`], so CI and the offline demo stay deterministic.
 pub fn build_interpreter() -> Box<dyn Interpreter> {
+    // The banner prints AT MOST ONCE per process (via `Once`) — `build_interpreter` runs on every
+    // throwaway session, so an un-gated `eprintln!` spammed the terminal on every reading. It names
+    // only the model + mode; it never prints a key. To silence it entirely, gate on `debug_assertions`.
+    static BANNER: std::sync::Once = std::sync::Once::new();
     if let Some(o) = OpenAiCompatInterpreter::from_env() {
-        eprintln!(
-            "[interpreter: Ungasaga = OpenAI-compatible ({}) — live]",
-            o.model
-        );
+        BANNER.call_once(|| {
+            eprintln!(
+                "[interpreter: Ungasaga = OpenAI-compatible ({}) — live]",
+                o.model
+            )
+        });
         Box::new(o)
     } else if let Some(a) = AnthropicInterpreter::from_env() {
-        eprintln!("[interpreter: Ungasaga = Claude — live]");
+        BANNER.call_once(|| eprintln!("[interpreter: Ungasaga = Claude — live]"));
         Box::new(a)
     } else {
-        eprintln!(
-            "[interpreter: deterministic template — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY for a live model]"
-        );
+        BANNER.call_once(|| {
+            eprintln!(
+                "[interpreter: deterministic template — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY for a live model]"
+            )
+        });
         Box::new(TemplateInterpreter)
     }
 }

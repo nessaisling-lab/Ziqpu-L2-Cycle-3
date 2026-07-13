@@ -33,6 +33,14 @@ pub fn ModelPanel() -> Element {
     // Off-thread benchmark result → set the signals.
     let bench = use_coroutine(move |mut rx: UnboundedReceiver<BenchResult>| async move {
         while let Some((s, r, g, srv)) = rx.next().await {
+            // Prefill the search box with the pick's family — done HERE (an event handler), never in
+            // the render body: writing a signal you also read during render triggers Dioxus's
+            // "write during render" warning and can loop.
+            if let Recommendation::Local(pick) = &r {
+                if query.read().is_empty() {
+                    query.set(pick.search_term.to_string());
+                }
+            }
             spec.set(Some(s));
             rec.set(Some(r));
             gpu.set(g);
@@ -81,14 +89,6 @@ pub fn ModelPanel() -> Element {
 
     // ---- precompute display strings (keeps the rsx! free of fiddly inline formatting) ----
     let rec_now = rec.read().clone();
-
-    // Prefill the search box with the recommended pick's family, so "Search" is one click.
-    if let Some(Recommendation::Local(pick)) = &rec_now {
-        if query.read().is_empty() {
-            query.set(pick.search_term.to_string());
-        }
-    }
-
     let s_opt = *spec.read();
     let specs_line = s_opt.map(|s| {
         let gpu_part = match gpu.read().as_ref() {
