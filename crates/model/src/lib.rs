@@ -540,6 +540,152 @@ pub fn resolve_current_repo(pick: &ModelPick) -> Option<Candidate> {
     pick_for_agent(&resolve_candidates(pick.search_term))
 }
 
+// ---- Layer 2b: pick the QUANT — list a repo's GGUFs, choose the largest that fits the machine ----
+
+/// One GGUF quantization available in a repo — its quant tag (e.g. `Q4_K_M`) and total size in GB
+/// (summed across shards). What llama.cpp downloads for `-hf <repo>:<quant>`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GgufOption {
+    pub quant: String,
+    pub size_gb: f64,
+}
+
+/// Does a hyphen-separated filename segment look like a quant tag? A quant starts with `Q`/`F`/`BF`/
+/// `IQ` and the next char is a digit — so a model name like `qwen2.5` (`Q` then a letter) is NOT a
+/// quant. Checked uppercased.
+fn looks_like_quant(seg: &str) -> bool {
+    let up = seg.to_ascii_uppercase();
+    for pre in ["IQ", "BF", "Q", "F"] {
+        if let Some(rest) = up.strip_prefix(pre) {
+            return rest.chars().next().is_some_and(|c| c.is_ascii_digit());
+        }
+    }
+    false
+}
+
+/// The quant tag from a GGUF filename — the last quant-looking `-`-segment, so shard suffixes
+/// (`…-00001-of-00002`) and the model name are skipped. `None` when the name isn't `.gguf` or has no
+/// quant segment. E.g. `gpt-oss-20b-Q4_K_M.gguf` → `Q4_K_M`; `m-UD-Q4_K_XL-00001-of-00002.gguf` → `Q4_K_XL`.
+fn quant_from_filename(name: &str) -> Option<String> {
+    if !name.to_ascii_lowercase().ends_with(".gguf") {
+        return None;
+    }
+    let stem = &name[..name.len() - 5];
+    stem.split('-')
+        .rev()
+        .find(|s| looks_like_quant(s))
+        .map(|s| s.to_string())
+}
+
+/// Parse a Hugging Face `/tree` response into the repo's GGUF quants, summing shard sizes per quant.
+/// Pure; unit-tested. Full-precision (`F16`/`F32`/`BF16`) files are kept here — [`best_gguf_for`]
+/// filters them out of a recommendation. Malformed/empty JSON → empty (offline-safe, never panics).
+pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
+    let arr: Vec<serde_json::Value> = serde_json::from_str(json).unwrap_or_default();
+    let mut by_quant: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    for v in &arr {
+        let Some(path) = v.get("path").and_then(|x| x.as_str()) else {
+            continue;
+        };
+        let Some(quant) = quant_from_filename(path) else {
+            continue;
+        };
+        let bytes = v
+            .get("lfs")
+            .and_then(|l| l.get("size"))
+            .and_then(|s| s.as_u64())
+            .or_else(|| v.get("size").and_then(|s| s.as_u64()))
+            .unwrap_or(0);
+        *by_quant.entry(quant).or_insert(0) += bytes;
+    }
+    by_quant
+        .into_iter()
+        .map(|(quant, bytes)| GgufOption {
+            quant,
+            size_gb: bytes as f64 / 1_073_741_824.0,
+        })
+        .collect()
+}
+
+/// Fetch a repo's GGUF quants from the Hub (`/api/models/<repo>/tree/main`). Thin I/O (the parser is
+/// tested); same `curl` discipline as [`resolve_candidates`] (System32-pinned, time/size-bounded,
+/// User-Agent). Empty on any failure (offline-safe).
+pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
+    use std::process::Command;
+    let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
+    let Ok(out) = Command::new(system_cmd("curl.exe", "curl"))
+        .args([
+            "-sS",
+            "--max-time",
+            "8",
+            "--max-filesize",
+            "5000000",
+            "-A",
+            HF_USER_AGENT,
+            url.as_str(),
+        ])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !out.status.success() {
+        return Vec::new();
+    }
+    parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// How much memory a model may occupy on this machine — the budget the quant is fitted to. A discrete
+/// GPU gets a VRAM budget (0.85×, leaving headroom for the KV cache/context) so the pick runs fully on
+/// the GPU; a CPU / unified-memory machine gets `ram_gb * FIT_FRACTION`.
+pub fn device_model_budget_gb(spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> f64 {
+    match gpu {
+        Some(g) if !g.unified && g.vram_gb >= 1.0 => g.vram_gb * 0.85,
+        _ => spec.ram_gb * FIT_FRACTION,
+    }
+}
+
+/// Pick the **largest quant that fits** `budget_gb` — the best quality the machine can actually run.
+/// Full-precision (`F16`/`F32`/`BF16`) is excluded (overkill for a guarded reader) unless nothing else
+/// exists. If no quant fits the budget, returns the smallest (least likely to swap to disk). Pure; tested.
+pub fn best_gguf_for(files: &[GgufOption], budget_gb: f64) -> Option<GgufOption> {
+    let is_quant = |q: &str| {
+        let up = q.to_ascii_uppercase();
+        up.starts_with('Q') || up.starts_with("IQ")
+    };
+    let quants: Vec<&GgufOption> = files.iter().filter(|f| is_quant(&f.quant)).collect();
+    let pool: Vec<&GgufOption> = if quants.is_empty() {
+        files.iter().collect()
+    } else {
+        quants
+    };
+    pool.iter()
+        .filter(|f| f.size_gb <= budget_gb)
+        .max_by(|a, b| a.size_gb.total_cmp(&b.size_gb))
+        .or_else(|| pool.iter().min_by(|a, b| a.size_gb.total_cmp(&b.size_gb)))
+        .map(|f| (*f).clone())
+}
+
+/// The full serve plan for a machine: the current repo for the tier's model + the largest quant it can
+/// run, fitted to [`device_model_budget_gb`]. `None` offline (no repo / no files) — the caller then
+/// falls back to the static [`ModelPick`] quant.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServePlan {
+    pub repo: String,
+    pub quant: String,
+    pub size_gb: f64,
+}
+
+/// Resolve the recommended pick to a concrete `repo:quant` fitted to this machine's memory budget.
+pub fn plan_serve(pick: &ModelPick, spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> Option<ServePlan> {
+    let repo = resolve_current_repo(pick)?.repo;
+    let best = best_gguf_for(&list_repo_ggufs(&repo), device_model_budget_gb(spec, gpu))?;
+    Some(ServePlan {
+        repo,
+        quant: best.quant,
+        size_gb: best.size_gb,
+    })
+}
+
 /// A detected GPU: name + video memory. `unified` marks Apple-Silicon-style shared memory, where the
 /// GPU draws from system RAM rather than a dedicated pool — the caller then uses RAM as the VRAM
 /// budget instead of a (nonexistent) discrete figure.
@@ -1108,5 +1254,106 @@ mod tests {
         assert_eq!(vram_budget(Some(&unified), 32.0), Some(32.0 * 0.7));
         // No GPU → unknown budget.
         assert_eq!(vram_budget(None, 32.0), None);
+    }
+
+    #[test]
+    fn quant_from_filename_handles_shards_ud_and_model_names() {
+        assert_eq!(
+            quant_from_filename("gpt-oss-20b-Q4_K_M.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        assert_eq!(
+            quant_from_filename("model-F16.gguf").as_deref(),
+            Some("F16")
+        );
+        assert_eq!(
+            quant_from_filename("m-UD-Q4_K_XL.gguf").as_deref(),
+            Some("Q4_K_XL")
+        );
+        // Sharded: the shard suffix (…-00001-of-00002) is skipped, the quant is still found.
+        assert_eq!(
+            quant_from_filename("gpt-oss-120b-Q4_K_M-00001-of-00002.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        // A model name starting with Q+letter (qwen2.5) is NOT mistaken for a quant.
+        assert_eq!(
+            quant_from_filename("qwen2.5-9b-Q5_K_M.gguf").as_deref(),
+            Some("Q5_K_M")
+        );
+        assert_eq!(quant_from_filename("README.md"), None);
+    }
+
+    #[test]
+    fn parse_repo_tree_sums_shards_and_ignores_non_gguf() {
+        let json = r#"[
+            {"path":"gpt-oss-20b-Q4_K_M.gguf","lfs":{"size":12884901888}},
+            {"path":"gpt-oss-20b-Q8_0.gguf","size":23622320128},
+            {"path":"gpt-oss-20b-F16-00001-of-00002.gguf","lfs":{"size":21474836480}},
+            {"path":"gpt-oss-20b-F16-00002-of-00002.gguf","lfs":{"size":21474836480}},
+            {"path":"README.md","size":1234}
+        ]"#;
+        let opts = parse_repo_tree(json);
+        let get = |q: &str| opts.iter().find(|o| o.quant == q).map(|o| o.size_gb);
+        assert!((get("Q4_K_M").unwrap() - 12.0).abs() < 0.1);
+        assert!((get("Q8_0").unwrap() - 22.0).abs() < 0.1);
+        assert!((get("F16").unwrap() - 40.0).abs() < 0.2, "shards summed");
+        assert_eq!(opts.len(), 3, "README ignored");
+    }
+
+    #[test]
+    fn best_gguf_for_largest_that_fits_and_skips_full_precision() {
+        let files = vec![
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 12.0,
+            },
+            GgufOption {
+                quant: "Q5_K_M".into(),
+                size_gb: 14.0,
+            },
+            GgufOption {
+                quant: "Q6_K".into(),
+                size_gb: 16.0,
+            },
+            GgufOption {
+                quant: "Q8_0".into(),
+                size_gb: 22.0,
+            },
+            GgufOption {
+                quant: "F16".into(),
+                size_gb: 40.0,
+            },
+        ];
+        // 16 GB VRAM * 0.85 = 13.6 → the largest quant <= 13.6 is Q4_K_M.
+        assert_eq!(best_gguf_for(&files, 13.6).unwrap().quant, "Q4_K_M");
+        // A big budget picks Q8_0 (largest quant), NOT F16 (full precision is excluded).
+        assert_eq!(best_gguf_for(&files, 100.0).unwrap().quant, "Q8_0");
+        // Nothing fits a tiny budget → the smallest quant (least likely to swap).
+        assert_eq!(best_gguf_for(&files, 5.0).unwrap().quant, "Q4_K_M");
+        // Only full precision → last resort.
+        let f16 = vec![GgufOption {
+            quant: "F16".into(),
+            size_gb: 40.0,
+        }];
+        assert_eq!(best_gguf_for(&f16, 100.0).unwrap().quant, "F16");
+        assert_eq!(best_gguf_for(&[], 100.0), None);
+    }
+
+    #[test]
+    fn device_budget_prefers_vram_then_ram() {
+        let s = spec(31.0, 24, Some(100.0), Some(16.0));
+        let discrete = GpuInfo {
+            name: "RTX 5080".into(),
+            vram_gb: 16.0,
+            unified: false,
+        };
+        assert!((device_model_budget_gb(&s, Some(&discrete)) - 13.6).abs() < 0.01);
+        assert!((device_model_budget_gb(&s, None) - 31.0 * FIT_FRACTION).abs() < 0.01);
+        let unified = GpuInfo {
+            name: "Apple M3".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        assert!((device_model_budget_gb(&s, Some(&unified)) - 31.0 * FIT_FRACTION).abs() < 0.01);
     }
 }

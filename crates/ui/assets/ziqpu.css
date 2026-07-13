@@ -794,3 +794,12 @@ td.b{color:var(--ink)}
   border:1px solid color-mix(in srgb,var(--carnelian) 34%,transparent);
   border-radius:999px;padding:3px 7px;white-space:nowrap;cursor:help;
 }
+
+/* the fitted-quant line (best quant this machine can run) */
+.modelpanel-plan{
+  font:600 13px/1.45 var(--f-mono);letter-spacing:.01em;color:var(--gold-deep);
+  padding:7px 12px;border-radius:9px;
+  background:color-mix(in srgb,var(--gold) 9%,transparent);
+  border:1px solid var(--gold-line);
+  overflow-wrap:anywhere;
+}

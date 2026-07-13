@@ -1,21 +1,28 @@
 //! ModelPanel — the in-app **local-model** benchmark + recommendation + search. Answers "how
-//! powerful is this machine, and which local model should I run?" by calling the `model` crate
-//! directly (no CLI, no second binary). Both the benchmark (which shells out to probe the GPU) and
-//! the Hugging Face search are blocking, so they run off the event loop and stream their results
-//! back through a coroutine — the same `!Send`-safe discipline the readings use.
+//! powerful is this machine, and which local model (and which quant) should I run?" by calling the
+//! `model` crate directly (no CLI, no second binary). The benchmark (which probes the GPU and lists
+//! the repo's quants online) and the Hugging Face search are blocking, so they run off the event loop
+//! and stream results back through a coroutine — the same `!Send`-safe discipline the readings use.
 
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use model::{
     agent_disqualified, detect_gpu, detect_spec_with, have_llama_server, llama_install_hint,
-    llama_server_path, recommend_for, resolve_candidates, resolve_current_repo, Candidate,
-    DeviceSpec, GpuInfo, Recommendation,
+    llama_server_path, plan_serve, recommend_for, resolve_candidates, Candidate, DeviceSpec,
+    GpuInfo, Recommendation, ServePlan,
 };
 
-/// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, and whether
-/// a `llama-server` binary is installed. All owned + `Send`.
-type BenchResult = (DeviceSpec, Recommendation, Option<GpuInfo>, bool);
+/// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, whether a
+/// `llama-server` binary is installed, and the **fitted serve plan** (repo + the largest quant this
+/// machine can run — `None` offline). All owned + `Send`.
+type BenchResult = (
+    DeviceSpec,
+    Recommendation,
+    Option<GpuInfo>,
+    bool,
+    Option<ServePlan>,
+);
 
 /// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
 /// another OpenAI-compatible server frequently already holds it, so a fresh serve falls forward to
@@ -33,6 +40,7 @@ pub fn ModelPanel() -> Element {
     let mut rec = use_signal(|| None::<Recommendation>);
     let mut gpu = use_signal(|| None::<GpuInfo>);
     let mut have_server = use_signal(|| false);
+    let mut plan = use_signal(|| None::<ServePlan>);
     let mut running = use_signal(|| false);
 
     // Search state.
@@ -43,7 +51,7 @@ pub fn ModelPanel() -> Element {
 
     // Off-thread benchmark result → set the signals.
     let bench = use_coroutine(move |mut rx: UnboundedReceiver<BenchResult>| async move {
-        while let Some((s, r, g, srv)) = rx.next().await {
+        while let Some((s, r, g, srv, p)) = rx.next().await {
             // Prefill the search box with the pick's family — done HERE (an event handler), never in
             // the render body: writing a signal you also read during render triggers Dioxus's
             // "write during render" warning and can loop.
@@ -56,6 +64,7 @@ pub fn ModelPanel() -> Element {
             rec.set(Some(r));
             gpu.set(g);
             have_server.set(srv);
+            plan.set(p);
             running.set(false);
         }
     });
@@ -89,7 +98,12 @@ pub fn ModelPanel() -> Element {
             let s = detect_spec_with(g.as_ref());
             let r = recommend_for(&s);
             let srv = have_llama_server();
-            let _ = tx.unbounded_send((s, r, g, srv));
+            // Fit the quant to this machine — lists the resolved repo's GGUFs online. None offline.
+            let p = match &r {
+                Recommendation::Local(pick) => plan_serve(pick, &s, g.as_ref()),
+                _ => None,
+            };
+            let _ = tx.unbounded_send((s, r, g, srv, p));
         });
     };
 
@@ -108,56 +122,72 @@ pub fn ModelPanel() -> Element {
         });
     };
 
-    // Download + serve the recommended pick on :1234, off-thread. Resolves the current HF repo, then
-    // spawns `llama-server` DETACHED (dropping the Child leaves it running) — the first run downloads
-    // the weights. Reports a status line; never blocks the UI. `ModelPick` is Copy, so it moves in.
+    // Download + serve the fitted pick off-thread. Uses the benchmark's `ServePlan` (repo + the
+    // largest quant this machine can run); re-plans if it's missing. Spawns `llama-server` DETACHED
+    // (dropping the Child leaves it running) on the first free port from 1234, then points Ziqpu's
+    // Local mode at it. Never blocks the UI.
     let run_serve = move |()| {
+        let plan_v = plan.read().clone();
+        let spec_v = *spec.read();
+        let gpu_v = gpu.read().clone();
         let pick = match &*rec.read() {
             Some(Recommendation::Local(p)) => Some(*p),
             _ => None,
         };
         let Some(pick) = pick else { return };
         serving.set(true);
-        serve_status.set(Some("Resolving the model repo…".to_string()));
+        serve_status.set(Some("Preparing to serve…".to_string()));
         let tx = server_co.tx();
         std::thread::spawn(move || {
-            let msg = match llama_server_path() {
-                None => format!("llama.cpp not found — install it first ({}).", llama_install_hint()),
-                Some(bin) => match resolve_current_repo(&pick) {
-                    None => "Couldn't resolve a current repo (offline?). Try the search below, or go online.".to_string(),
-                    Some(c) => {
-                        let hf = format!("{}:{}", c.repo, pick.quant);
-                        // :1234 is Ziqpu's Local default, but LM Studio (or another server) often
-                        // already holds it — fall forward to the next free port.
-                        let port = free_local_port(1234);
-                        match std::process::Command::new(&bin)
-                            .args(["-hf", &hf, "--host", "127.0.0.1", "--port", &port.to_string()])
-                            .spawn()
-                        {
-                            Err(e) => format!("Failed to start llama-server: {e}"),
-                            Ok(mut child) => {
-                                // Give it a moment; if it died immediately (busy port, missing quant),
-                                // report that truthfully instead of a false "serving".
-                                std::thread::sleep(std::time::Duration::from_millis(1800));
-                                match child.try_wait() {
-                                    Ok(Some(status)) => format!(
-                                        "llama-server exited early ({status}). Check the terminal — usually the port is busy or that quant isn't in the repo."
-                                    ),
-                                    _ => {
-                                        // Still up → point Ziqpu's Local mode at this port.
-                                        std::env::set_var(
-                                            "ZIQPU_LLM_URL",
-                                            format!("http://127.0.0.1:{port}/v1"),
-                                        );
-                                        format!(
-                                            "Serving {hf} on :{port}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local."
-                                        )
-                                    }
-                                }
-                            }
+            let Some(bin) = llama_server_path() else {
+                let _ = tx.unbounded_send(format!(
+                    "llama.cpp not found — install it first ({}).",
+                    llama_install_hint()
+                ));
+                return;
+            };
+            let resolved =
+                plan_v.or_else(|| spec_v.and_then(|s| plan_serve(&pick, &s, gpu_v.as_ref())));
+            let Some(plan) = resolved else {
+                let _ = tx.unbounded_send(
+                    "Couldn't list the repo's quants (offline?). Try again online.".to_string(),
+                );
+                return;
+            };
+            let hf = format!("{}:{}", plan.repo, plan.quant);
+            let port = free_local_port(1234);
+            let msg = match std::process::Command::new(&bin)
+                .args([
+                    "-hf",
+                    &hf,
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    &port.to_string(),
+                ])
+                .spawn()
+            {
+                Err(e) => format!("Failed to start llama-server: {e}"),
+                Ok(mut child) => {
+                    // Give it a moment; if it died immediately (busy port, download error), say so
+                    // truthfully instead of a false "serving".
+                    std::thread::sleep(std::time::Duration::from_millis(1800));
+                    match child.try_wait() {
+                        Ok(Some(status)) => format!(
+                            "llama-server exited early ({status}). Check the terminal — usually the port is busy or the download failed."
+                        ),
+                        _ => {
+                            std::env::set_var(
+                                "ZIQPU_LLM_URL",
+                                format!("http://127.0.0.1:{port}/v1"),
+                            );
+                            format!(
+                                "Serving {hf} (~{:.0} GB) on :{port}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local.",
+                                plan.size_gb
+                            )
                         }
                     }
-                },
+                }
             };
             let _ = tx.unbounded_send(msg);
         });
@@ -179,15 +209,20 @@ pub fn ModelPanel() -> Element {
 
     let pick_line = match &rec_now {
         Some(Recommendation::Local(p)) => Some(format!(
-            "Tier {} → {} · {} · {} · ~{:.0} GB download",
+            "Tier {} → {} · {} params",
             p.tier.label(),
             p.name,
-            p.params,
-            p.quant,
-            p.download_gb
+            p.params
         )),
         _ => None,
     };
+    // The fitted quant (from the online plan): the largest the machine can run. `None` offline.
+    let plan_line = plan.read().as_ref().map(|p| {
+        format!(
+            "→ {} (~{:.0} GB) — the best quant your machine can run · {}",
+            p.quant, p.size_gb, p.repo
+        )
+    });
     let nolocal_line = match &rec_now {
         Some(Recommendation::NoLocal { reason, .. }) => Some(format!(
             "No local model — {}. Use Raw (offline) or Live (an API key) instead.",
@@ -196,6 +231,7 @@ pub fn ModelPanel() -> Element {
         _ => None,
     };
     let is_local = matches!(rec_now, Some(Recommendation::Local(_)));
+    let plan_known = plan.read().is_some();
     let srv = *have_server.read();
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
@@ -221,6 +257,14 @@ pub fn ModelPanel() -> Element {
                 if let Some(line) = pick_line {
                     div { class: "modelpanel-pick", "{line}" }
                 }
+                if let Some(line) = plan_line {
+                    div { class: "modelpanel-plan", "{line}" }
+                }
+                if is_local && !plan_known {
+                    p { class: "settings-hint",
+                        "The best quant for your hardware is chosen when you serve (needs a connection to list the repo)."
+                    }
+                }
                 if let Some(line) = nolocal_line {
                     div { class: "modelpanel-nolocal", "{line}" }
                 }
@@ -234,13 +278,13 @@ pub fn ModelPanel() -> Element {
                                 let mut f = run_serve;
                                 f(());
                             },
-                            if serving_now { "Starting…" } else { "Download & serve on :1234" }
+                            if serving_now { "Starting…" } else { "Download & serve locally" }
                         }
                         if let Some(msg) = serve_msg.clone() {
                             p { class: "settings-hint", "{msg}" }
                         } else {
                             p { class: "settings-hint",
-                                "llama.cpp detected. This downloads the pick (first run) and serves it locally — or run `ziqpu-model serve` in a terminal."
+                                "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."
                             }
                         }
                     } else {
