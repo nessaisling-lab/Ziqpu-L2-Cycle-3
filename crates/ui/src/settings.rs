@@ -132,21 +132,26 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
 }
 
-/// Apply the settings to the live environment **authoritatively** — set each var to the chosen
-/// value, or remove it when the field was cleared. Used by the Settings panel's Save so a new key
-/// takes effect on the next reading (`agents::reading_for` reads the env fresh per call) without a
-/// restart. Unlike [`apply_settings_to_env`], this deliberately overrides any existing var, because
-/// the user just picked these values by hand.
+/// Apply the settings to the live environment on Save so a new value takes effect on the next
+/// reading (`agents::reading_for` reads the env fresh per call) without a restart. A **non-empty**
+/// field overrides the live var; an **empty** field is **left alone** — it does NOT remove the var.
+///
+/// This is deliberate: the key field is only ever pre-seeded from `settings.json`, so a key provided
+/// via the shell/env (or not yet saved to the file) leaves the field blank — and a blank-field Save
+/// used to `remove_var` it, silently dropping Live mid-session (observed in testing). Saving can only
+/// ever *set* a value now; to remove a saved key, clear it from `settings.json` (or the data folder).
 pub fn apply_settings_live(settings: &SettingsFile) {
-    fn set_or_clear(key: &str, val: &Option<String>) {
-        match val {
-            Some(v) if !v.is_empty() => std::env::set_var(key, v),
-            _ => std::env::remove_var(key),
+    fn set_if_present(key: &str, val: &Option<String>) {
+        if let Some(v) = val {
+            if !v.is_empty() {
+                std::env::set_var(key, v);
+            }
         }
+        // Empty/None → leave the existing env var untouched (never wipe a live key on an empty field).
     }
-    set_or_clear("OPENROUTER_API_KEY", &settings.openrouter_key);
-    set_or_clear("ZIQPU_MODEL", &settings.model);
-    set_or_clear("ZIQPU_LLM_URL", &settings.local_url);
+    set_if_present("OPENROUTER_API_KEY", &settings.openrouter_key);
+    set_if_present("ZIQPU_MODEL", &settings.model);
+    set_if_present("ZIQPU_LLM_URL", &settings.local_url);
 }
 
 /// A short, human-readable label for which interpreter the **current environment** selects — shown
