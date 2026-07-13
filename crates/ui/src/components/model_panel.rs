@@ -17,6 +17,16 @@ use model::{
 /// a `llama-server` binary is installed. All owned + `Send`.
 type BenchResult = (DeviceSpec, Recommendation, Option<GpuInfo>, bool);
 
+/// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
+/// another OpenAI-compatible server frequently already holds it, so a fresh serve falls forward to
+/// the next open port. Best-effort: it binds to test then releases, so there's a tiny race before
+/// llama-server rebinds — acceptable for a local dev server.
+fn free_local_port(start: u16) -> u16 {
+    (start..start + 12)
+        .find(|&p| std::net::TcpListener::bind(("127.0.0.1", p)).is_ok())
+        .unwrap_or(start)
+}
+
 #[component]
 pub fn ModelPanel() -> Element {
     let mut spec = use_signal(|| None::<DeviceSpec>);
@@ -117,14 +127,34 @@ pub fn ModelPanel() -> Element {
                     None => "Couldn't resolve a current repo (offline?). Try the search below, or go online.".to_string(),
                     Some(c) => {
                         let hf = format!("{}:{}", c.repo, pick.quant);
+                        // :1234 is Ziqpu's Local default, but LM Studio (or another server) often
+                        // already holds it — fall forward to the next free port.
+                        let port = free_local_port(1234);
                         match std::process::Command::new(&bin)
-                            .args(["-hf", &hf, "--host", "127.0.0.1", "--port", "1234"])
+                            .args(["-hf", &hf, "--host", "127.0.0.1", "--port", &port.to_string()])
                             .spawn()
                         {
-                            Ok(_child) => format!(
-                                "Serving {hf} on :1234. First run downloads the model — give it a minute, then switch the header toggle to Local."
-                            ),
                             Err(e) => format!("Failed to start llama-server: {e}"),
+                            Ok(mut child) => {
+                                // Give it a moment; if it died immediately (busy port, missing quant),
+                                // report that truthfully instead of a false "serving".
+                                std::thread::sleep(std::time::Duration::from_millis(1800));
+                                match child.try_wait() {
+                                    Ok(Some(status)) => format!(
+                                        "llama-server exited early ({status}). Check the terminal — usually the port is busy or that quant isn't in the repo."
+                                    ),
+                                    _ => {
+                                        // Still up → point Ziqpu's Local mode at this port.
+                                        std::env::set_var(
+                                            "ZIQPU_LLM_URL",
+                                            format!("http://127.0.0.1:{port}/v1"),
+                                        );
+                                        format!(
+                                            "Serving {hf} on :{port}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local."
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 },
