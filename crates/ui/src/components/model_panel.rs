@@ -8,8 +8,9 @@ use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use model::{
-    detect_gpu, detect_spec_with, have_llama_server, llama_install_hint, recommend_for,
-    resolve_candidates, Candidate, DeviceSpec, GpuInfo, Recommendation,
+    agent_disqualified, detect_gpu, detect_spec_with, have_llama_server, llama_install_hint,
+    llama_server_path, recommend_for, resolve_candidates, resolve_current_repo, Candidate,
+    DeviceSpec, GpuInfo, Recommendation,
 };
 
 /// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, and whether
@@ -60,6 +61,16 @@ pub fn ModelPanel() -> Element {
         },
     );
 
+    // Serve state — the in-app "download & serve" spawns llama-server off-thread and reports status.
+    let mut serving = use_signal(|| false);
+    let mut serve_status = use_signal(|| None::<String>);
+    let server_co = use_coroutine(move |mut rx: UnboundedReceiver<String>| async move {
+        while let Some(msg) = rx.next().await {
+            serve_status.set(Some(msg));
+            serving.set(false);
+        }
+    });
+
     let run_bench = move |_| {
         running.set(true);
         let tx = bench.tx();
@@ -84,6 +95,41 @@ pub fn ModelPanel() -> Element {
         let tx = finder.tx();
         std::thread::spawn(move || {
             let _ = tx.unbounded_send(resolve_candidates(&term));
+        });
+    };
+
+    // Download + serve the recommended pick on :1234, off-thread. Resolves the current HF repo, then
+    // spawns `llama-server` DETACHED (dropping the Child leaves it running) — the first run downloads
+    // the weights. Reports a status line; never blocks the UI. `ModelPick` is Copy, so it moves in.
+    let run_serve = move |()| {
+        let pick = match &*rec.read() {
+            Some(Recommendation::Local(p)) => Some(*p),
+            _ => None,
+        };
+        let Some(pick) = pick else { return };
+        serving.set(true);
+        serve_status.set(Some("Resolving the model repo…".to_string()));
+        let tx = server_co.tx();
+        std::thread::spawn(move || {
+            let msg = match llama_server_path() {
+                None => format!("llama.cpp not found — install it first ({}).", llama_install_hint()),
+                Some(bin) => match resolve_current_repo(&pick) {
+                    None => "Couldn't resolve a current repo (offline?). Try the search below, or go online.".to_string(),
+                    Some(c) => {
+                        let hf = format!("{}:{}", c.repo, pick.quant);
+                        match std::process::Command::new(&bin)
+                            .args(["-hf", &hf, "--host", "127.0.0.1", "--port", "1234"])
+                            .spawn()
+                        {
+                            Ok(_child) => format!(
+                                "Serving {hf} on :1234. First run downloads the model — give it a minute, then switch the header toggle to Local."
+                            ),
+                            Err(e) => format!("Failed to start llama-server: {e}"),
+                        }
+                    }
+                },
+            };
+            let _ = tx.unbounded_send(msg);
         });
     };
 
@@ -123,6 +169,8 @@ pub fn ModelPanel() -> Element {
     let srv = *have_server.read();
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
+    let serving_now = *serving.read();
+    let serve_msg = serve_status.read().clone();
 
     rsx! {
         div { class: "modelpanel",
@@ -148,10 +196,23 @@ pub fn ModelPanel() -> Element {
                 }
                 if is_local {
                     if srv {
-                        p { class: "settings-hint",
-                            "llama.cpp is installed. Download + serve the pick on :1234 from a terminal:"
+                        button {
+                            class: "btn btn--go modelpanel-btn",
+                            r#type: "button",
+                            disabled: serving_now,
+                            onclick: move |_| {
+                                let mut f = run_serve;
+                                f(());
+                            },
+                            if serving_now { "Starting…" } else { "Download & serve on :1234" }
                         }
-                        code { class: "modelpanel-cmd", "ziqpu-model serve" }
+                        if let Some(msg) = serve_msg.clone() {
+                            p { class: "settings-hint", "{msg}" }
+                        } else {
+                            p { class: "settings-hint",
+                                "llama.cpp detected. This downloads the pick (first run) and serves it locally — or run `ziqpu-model serve` in a terminal."
+                            }
+                        }
                     } else {
                         p { class: "settings-hint modelpanel-warn", "{install_hint}" }
                     }
@@ -201,9 +262,14 @@ pub fn ModelPanel() -> Element {
                             {cands.read().iter().take(6).enumerate().map(|(i, c)| {
                                 let repo = c.repo.clone();
                                 let dl = c.downloads;
+                                let bad = agent_disqualified(&repo);
+                                let repo_cls = if bad { "modelpanel-repo modelpanel-repo--warn" } else { "modelpanel-repo" };
                                 rsx! {
                                     li { key: "{i}",
-                                        span { class: "modelpanel-repo", "{repo}" }
+                                        span { class: "{repo_cls}", "{repo}" }
+                                        if bad {
+                                            span { class: "modelpanel-uncensored", title: "Abliterated / uncensored — strips the model's safety guardrails. Off-brand for Ziqpu; the recommendation skips these.", "⚠ uncensored" }
+                                        }
                                         span { class: "modelpanel-dl", "{dl} ↓" }
                                     }
                                 }

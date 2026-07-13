@@ -514,8 +514,10 @@ const AGENT_DISQUALIFIERS: [&str; 9] = [
     "roleplay",
 ];
 
-/// Whether a repo id carries a guardrail-hostile marker (see [`AGENT_DISQUALIFIERS`]).
-fn agent_disqualified(repo: &str) -> bool {
+/// Whether a repo id carries a guardrail-hostile marker (see [`AGENT_DISQUALIFIERS`]) — an
+/// abliterated / uncensored / jailbroken / NSFW variant. Public so the UI can flag such repos in the
+/// model search (the recommendation already skips them via [`pick_for_agent`]).
+pub fn agent_disqualified(repo: &str) -> bool {
     let lower = repo.to_ascii_lowercase();
     AGENT_DISQUALIFIERS.iter().any(|m| lower.contains(m))
 }
@@ -739,15 +741,55 @@ pub fn llama_install_hint() -> &'static str {
     }
 }
 
-/// Whether `llama-server` is runnable on PATH — best-effort (it spawns at all). Used by `get`/`serve`
-/// to decide between "run it" and "here's how to install llama.cpp first".
-pub fn have_llama_server() -> bool {
-    std::process::Command::new("llama-server")
+/// Locate a runnable `llama-server` binary: first on `PATH`, then — on Windows — the winget install
+/// location (`%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_*\llama-server.exe`), which is
+/// NOT added to `PATH` until the shell restarts. Returns the path to spawn (`"llama-server"` itself
+/// when it's on `PATH`). `None` when llama.cpp isn't installed anywhere we look.
+pub fn llama_server_path() -> Option<std::path::PathBuf> {
+    let bin = if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    };
+    // 1. On PATH? (a spawn that succeeds — the exit code doesn't matter).
+    let on_path = std::process::Command::new(bin)
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .is_ok()
+        .is_ok();
+    if on_path {
+        return Some(std::path::PathBuf::from(bin));
+    }
+    // 2. Windows winget install location (off-PATH until a shell restart).
+    #[cfg(windows)]
+    if let Ok(local) = std::env::var("LOCALAPPDATA") {
+        let pkgs = std::path::Path::new(&local)
+            .join("Microsoft")
+            .join("WinGet")
+            .join("Packages");
+        if let Ok(entries) = std::fs::read_dir(&pkgs) {
+            for entry in entries.flatten() {
+                if entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("ggml.llamacpp")
+                {
+                    let cand = entry.path().join("llama-server.exe");
+                    if cand.exists() {
+                        return Some(cand);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Whether a runnable `llama-server` exists (PATH or the winget location) — see [`llama_server_path`].
+/// Used by `get`/`serve` and the UI to decide between "run it" and "here's how to install llama.cpp".
+pub fn have_llama_server() -> bool {
+    llama_server_path().is_some()
 }
 
 #[cfg(test)]

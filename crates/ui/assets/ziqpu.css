@@ -785,3 +785,12 @@ td.b{color:var(--ink)}
 }
 .modelpanel-repo{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modelpanel-dl{color:var(--ink-faint);flex:none}
+
+/* uncensored/abliterated flag in the model search */
+.modelpanel-repo--warn{color:var(--ink-faint)}
+.modelpanel-uncensored{
+  flex:none;font:600 9.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--carnelian);background:color-mix(in srgb,var(--carnelian) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--carnelian) 34%,transparent);
+  border-radius:999px;padding:3px 7px;white-space:nowrap;cursor:help;
+}

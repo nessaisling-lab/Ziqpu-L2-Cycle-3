@@ -206,11 +206,11 @@ fn serve(force_local: bool, port: u16) {
     let Some((repo, quant, label)) = resolve_target(force_local) else {
         std::process::exit(1);
     };
-    if !model::have_llama_server() {
+    let Some(bin) = model::llama_server_path() else {
         eprintln!("llama.cpp not found. Install it, then re-run `ziqpu-model serve`:");
         eprintln!("  {}", model::llama_install_hint());
         std::process::exit(1);
-    }
+    };
     let hf = format!("{repo}:{quant}");
     println!("Ziqpu · serving {label}");
     println!("  endpoint  http://127.0.0.1:{port}/v1   (Ziqpu Local mode's default is :1234)");
@@ -218,7 +218,7 @@ fn serve(force_local: bool, port: u16) {
     println!(
         "  first run downloads the model from Hugging Face, then serves. Leave this running.\n"
     );
-    let status = std::process::Command::new("llama-server")
+    let status = std::process::Command::new(&bin)
         .args([
             "-hf",
             &hf,
