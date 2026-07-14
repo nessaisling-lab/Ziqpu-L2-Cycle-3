@@ -8,9 +8,9 @@ use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use model::{
-    agent_disqualified, detect_gpu, detect_spec_with, have_llama_server, llama_install_hint,
-    llama_server_path, plan_serve, recommend_for, resolve_candidates, Candidate, DeviceSpec,
-    GpuInfo, Recommendation, ServePlan,
+    agent_disqualified, detect_gpu, detect_spec_with, gpu_serve_args, have_llama_server,
+    llama_install_hint, plan_serve, probe_devices, recommend_for, resolve_candidates,
+    resolve_llama_server, select_device, Candidate, DeviceSpec, GpuInfo, Recommendation, ServePlan,
 };
 
 /// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, whether a
@@ -22,6 +22,9 @@ type BenchResult = (
     Option<GpuInfo>,
     bool,
     Option<ServePlan>,
+    // The RuntimeHealth line: which backend + GPU the resolved llama-server will actually serve on
+    // (e.g. "CUDA → NVIDIA GeForce RTX 5080 Laptop GPU"), or None if llama.cpp isn't installed.
+    Option<String>,
 );
 
 /// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
@@ -41,6 +44,8 @@ pub fn ModelPanel() -> Element {
     let mut gpu = use_signal(|| None::<GpuInfo>);
     let mut have_server = use_signal(|| false);
     let mut plan = use_signal(|| None::<ServePlan>);
+    let mut runtime = use_signal(|| None::<String>);
+    let mut runtime_warn = use_signal(|| false);
     let mut running = use_signal(|| false);
 
     // Search state.
@@ -51,7 +56,7 @@ pub fn ModelPanel() -> Element {
 
     // Off-thread benchmark result → set the signals.
     let bench = use_coroutine(move |mut rx: UnboundedReceiver<BenchResult>| async move {
-        while let Some((s, r, g, srv, p)) = rx.next().await {
+        while let Some((s, r, g, srv, p, rt)) = rx.next().await {
             // Prefill the search box with the pick's family — done HERE (an event handler), never in
             // the render body: writing a signal you also read during render triggers Dioxus's
             // "write during render" warning and can loop.
@@ -60,11 +65,14 @@ pub fn ModelPanel() -> Element {
                     query.set(pick.search_term.to_string());
                 }
             }
+            // A Vulkan runtime on a machine with a discrete GPU is the iGPU-trap warning sign.
+            runtime_warn.set(rt.as_deref().is_some_and(|l| l.starts_with("Vulkan")));
             spec.set(Some(s));
             rec.set(Some(r));
             gpu.set(g);
             have_server.set(srv);
             plan.set(p);
+            runtime.set(rt);
             running.set(false);
         }
     });
@@ -98,12 +106,18 @@ pub fn ModelPanel() -> Element {
             let s = detect_spec_with(g.as_ref());
             let r = recommend_for(&s);
             let srv = have_llama_server();
+            // RuntimeHealth: which backend + GPU the resolved llama-server actually serves on. This is
+            // the on-screen proof the iGPU-trap is fixed ("CUDA → RTX 5080" vs "Vulkan → AMD iGPU").
+            let rt = resolve_llama_server().and_then(|bin| {
+                let devs = probe_devices(&bin);
+                select_device(&devs).map(|d| format!("{} → {}", d.backend.label(), d.name))
+            });
             // Fit the quant to this machine — lists the resolved repo's GGUFs online. None offline.
             let p = match &r {
                 Recommendation::Local(pick) => plan_serve(pick, &s, g.as_ref()),
                 _ => None,
             };
-            let _ = tx.unbounded_send((s, r, g, srv, p));
+            let _ = tx.unbounded_send((s, r, g, srv, p, rt));
         });
     };
 
@@ -139,7 +153,9 @@ pub fn ModelPanel() -> Element {
         serve_status.set(Some("Preparing to serve…".to_string()));
         let tx = server_co.tx();
         std::thread::spawn(move || {
-            let Some(bin) = llama_server_path() else {
+            // Resolve the backend-correct llama-server (app-managed CUDA/Metal/ROCm build first, then
+            // PATH/winget) — NOT the winget Vulkan build that binds a hybrid laptop's integrated GPU.
+            let Some(bin) = resolve_llama_server() else {
                 let _ = tx.unbounded_send(format!(
                     "llama.cpp not found — install it first ({}).",
                     llama_install_hint()
@@ -154,27 +170,34 @@ pub fn ModelPanel() -> Element {
                 );
                 return;
             };
+            // Which GPU will this build actually serve on? Pin the discrete device so we never land on
+            // the integrated GPU (the OOM saga). Empty args on a CPU-only build/machine.
+            let devices = probe_devices(&bin);
+            let device = select_device(&devices);
+            let runtime_line = match &device {
+                Some(d) => format!("{} → {}", d.backend.label(), d.name),
+                None => "CPU (no GPU visible to this build)".to_string(),
+            };
             let hf = format!("{}:{}", plan.repo, plan.quant);
             let port = free_local_port(1234);
-            let msg = match std::process::Command::new(&bin)
-                .args([
-                    "-hf",
-                    &hf,
-                    "--host",
-                    "127.0.0.1",
-                    "--port",
-                    &port.to_string(),
-                    // Cap the context so the KV cache fits alongside the weights — llama-server
-                    // otherwise sizes it to the model's full trained context (32k+ for GPT-OSS =
-                    // several GB of KV), which is what OOM'd the 16 GB card. See model::SERVE_CTX_SIZE.
-                    "-c",
-                    &model::SERVE_CTX_SIZE.to_string(),
-                    // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
-                    "-lv",
-                    "1",
-                ])
-                .spawn()
-            {
+            let mut args: Vec<String> = vec![
+                "-hf".into(),
+                hf.clone(),
+                "--host".into(),
+                "127.0.0.1".into(),
+                "--port".into(),
+                port.to_string(),
+                // Cap the context so the KV cache fits alongside the weights — llama-server otherwise
+                // sizes it to the model's full trained context (32k+), several GB of KV. SERVE_CTX_SIZE.
+                "-c".into(),
+                model::SERVE_CTX_SIZE.to_string(),
+                // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
+                "-lv".into(),
+                "1".into(),
+            ];
+            // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
+            args.extend(gpu_serve_args(device.as_ref()));
+            let msg = match std::process::Command::new(&bin).args(&args).spawn() {
                 Err(e) => format!("Failed to start llama-server: {e}"),
                 Ok(mut child) => {
                     // Give it a moment; if it died immediately (busy port, download error), say so
@@ -190,7 +213,7 @@ pub fn ModelPanel() -> Element {
                                 format!("http://127.0.0.1:{port}/v1"),
                             );
                             format!(
-                                "Serving {hf} (~{:.0} GB) on :{port}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local.",
+                                "Serving {hf} (~{:.0} GB) on :{port} · {runtime_line}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local.",
                                 plan.size_gb
                             )
                         }
@@ -240,6 +263,10 @@ pub fn ModelPanel() -> Element {
     };
     let is_local = matches!(rec_now, Some(Recommendation::Local(_)));
     let plan_known = plan.read().is_some();
+    // RuntimeHealth: the backend + GPU the serve will land on. A Vulkan runtime on a discrete-GPU
+    // machine is the iGPU-trap warning; CUDA/Metal/ROCm is the healthy path.
+    let runtime_line = runtime.read().clone();
+    let runtime_bad = *runtime_warn.read();
     let srv = *have_server.read();
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
@@ -261,6 +288,18 @@ pub fn ModelPanel() -> Element {
             if benched {
                 if let Some(line) = specs_line {
                     div { class: "modelpanel-specs", "{line}" }
+                }
+                if let Some(line) = runtime_line {
+                    div {
+                        class: if runtime_bad { "modelpanel-runtime modelpanel-runtime--warn" } else { "modelpanel-runtime modelpanel-runtime--ok" },
+                        span { class: "modelpanel-runtime-dot" }
+                        "runtime · {line}"
+                        if runtime_bad {
+                            span { class: "modelpanel-runtime-note",
+                                " — ⚠ integrated GPU; a CUDA/Metal build serves on your discrete card"
+                            }
+                        }
+                    }
                 }
                 if let Some(line) = pick_line {
                     div { class: "modelpanel-pick", "{line}" }

@@ -211,14 +211,18 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         min_ram_gb: 16.0,
         search_term: "Qwen3.5-9B-Instruct",
     },
+    // Medium = a 16 GB dedicated-VRAM card (e.g. RTX 5080 Laptop). A DENSE 14B at Q4_K_M (~9 GB) fits
+    // with real headroom for the KV cache + compute (a 20B's ~12 GB quants left almost none and OOM'd),
+    // and Qwen3-14B has a strong native tool-calling template — the load-bearing capability for the
+    // reading agent. Gemma 3 4B (the Low pick) is the safe fallback if a machine struggles with 14B.
     ModelPick {
         tier: Tier::Medium,
-        name: "GPT-OSS 20B",
-        params: "20B",
+        name: "Qwen3 14B",
+        params: "14B",
         quant: "Q4_K_M",
-        download_gb: 14.0,
+        download_gb: 9.0,
         min_ram_gb: 16.0,
-        search_term: "gpt-oss-20b",
+        search_term: "Qwen3-14B",
     },
     ModelPick {
         tier: Tier::Strong,
@@ -563,15 +567,17 @@ fn looks_like_quant(seg: &str) -> bool {
     false
 }
 
-/// The quant tag from a GGUF filename — the last quant-looking `-`-segment, so shard suffixes
-/// (`…-00001-of-00002`) and the model name are skipped. `None` when the name isn't `.gguf` or has no
-/// quant segment. E.g. `gpt-oss-20b-Q4_K_M.gguf` → `Q4_K_M`; `m-UD-Q4_K_XL-00001-of-00002.gguf` → `Q4_K_XL`.
+/// The quant tag from a GGUF filename — the last quant-looking segment, so shard suffixes
+/// (`…-00001-of-00002`) and the model name are skipped. Splits on BOTH `-` and `.` (repos differ:
+/// `gpt-oss-20b-Q4_K_M.gguf` uses dashes, `Qwen3-14B.Q4_K_M.gguf` uses a dot) — but NOT `_`, since a
+/// quant tag itself contains underscores (`Q4_K_M`). `None` when the name isn't `.gguf` or has no
+/// quant segment. E.g. both examples above → `Q4_K_M`; `m-UD-Q4_K_XL-00001-of-00002.gguf` → `Q4_K_XL`.
 fn quant_from_filename(name: &str) -> Option<String> {
     if !name.to_ascii_lowercase().ends_with(".gguf") {
         return None;
     }
     let stem = &name[..name.len() - 5];
-    stem.split('-')
+    stem.split(['-', '.'])
         .rev()
         .find(|s| looks_like_quant(s))
         .map(|s| s.to_string())
@@ -993,7 +999,232 @@ pub fn llama_server_path() -> Option<std::path::PathBuf> {
 /// Whether a runnable `llama-server` exists (PATH or the winget location) — see [`llama_server_path`].
 /// Used by `get`/`serve` and the UI to decide between "run it" and "here's how to install llama.cpp".
 pub fn have_llama_server() -> bool {
-    llama_server_path().is_some()
+    resolve_llama_server().is_some()
+}
+
+// ─── GPU runtime backend + device selection ──────────────────────────────────────────────────────
+//
+// The runtime bug this solves: the winget `ggml.llamacpp` is a Vulkan-only build, and on a hybrid
+// laptop (AMD iGPU + NVIDIA dGPU) its Vulkan ICD enumerates ONLY the AMD iGPU (`Vulkan0`) — so a big
+// model loads onto shared system RAM and OOMs, never touching the discrete RTX 5080. The fix is to
+// run a backend build that actually targets the discrete GPU (CUDA on NVIDIA, Metal on Apple, ROCm on
+// AMD) and to PIN the served device explicitly with `-dev`, never trusting auto-pick on a hybrid.
+
+/// The compute backend a `llama-server` build talks to the GPU through. Which one is available is a
+/// property of the *binary* (chosen at compile time), surfaced at runtime by `--list-devices`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    Cuda,
+    Metal,
+    Rocm,
+    Sycl,
+    Vulkan,
+    Cpu,
+}
+
+impl Backend {
+    /// Classify a `--list-devices` token prefix (`CUDA0` → Cuda, `Vulkan0` → Vulkan, …).
+    fn from_token(token: &str) -> Backend {
+        let t = token.to_ascii_uppercase();
+        if t.starts_with("CUDA") {
+            Backend::Cuda
+        } else if t.starts_with("METAL") {
+            Backend::Metal
+        } else if t.starts_with("ROCM") || t.starts_with("HIP") {
+            Backend::Rocm
+        } else if t.starts_with("SYCL") {
+            Backend::Sycl
+        } else if t.starts_with("VULKAN") {
+            Backend::Vulkan
+        } else {
+            Backend::Cpu
+        }
+    }
+
+    /// A short human label for the RuntimeHealth line.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Backend::Cuda => "CUDA",
+            Backend::Metal => "Metal",
+            Backend::Rocm => "ROCm",
+            Backend::Sycl => "SYCL",
+            Backend::Vulkan => "Vulkan",
+            Backend::Cpu => "CPU",
+        }
+    }
+
+    /// Whether this backend targets a discrete/dedicated GPU well. Vulkan is deprioritized because on
+    /// a hybrid machine it tends to bind the integrated GPU (the whole bug); CPU is not a GPU at all.
+    fn is_preferred_gpu(&self) -> bool {
+        matches!(
+            self,
+            Backend::Cuda | Backend::Metal | Backend::Rocm | Backend::Sycl
+        )
+    }
+}
+
+/// One compute device as reported by `llama-server --list-devices`, e.g.
+/// `CUDA0: NVIDIA GeForce RTX 5080 Laptop GPU (16302 MiB, 15067 MiB free)`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Device {
+    /// The `-dev` token, e.g. `CUDA0` / `Vulkan0` / `Metal0`.
+    pub token: String,
+    pub backend: Backend,
+    pub name: String,
+    pub total_mib: u64,
+    pub free_mib: u64,
+}
+
+impl Device {
+    pub fn vram_gb(&self) -> f64 {
+        self.total_mib as f64 / 1024.0
+    }
+}
+
+/// Parse the `--list-devices` block into [`Device`]s. Pure + unit-tested. Tolerant: a line without the
+/// `(… MiB, … MiB free)` tail still yields a device (memory 0) so a format drift never drops a GPU.
+/// The `Available devices:` header and any stray `E`/log lines are ignored (a device line starts with
+/// `<TOKEN>:` where TOKEN is alphanumeric).
+pub fn parse_list_devices(output: &str) -> Vec<Device> {
+    let mut out = Vec::new();
+    for raw in output.lines() {
+        let line = raw.trim();
+        // A device line is `TOKEN: name (....)`. Split once on ':'; the token must be a bare
+        // alnum run (CUDA0, Vulkan1) — this rejects timestamped log lines like `0.02.5 E ...`.
+        let Some((token, rest)) = line.split_once(':') else {
+            continue;
+        };
+        let token = token.trim();
+        if token.is_empty()
+            || !token.chars().all(|c| c.is_ascii_alphanumeric())
+            || !token.chars().any(|c| c.is_ascii_alphabetic())
+            || !token.chars().any(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        let rest = rest.trim();
+        // Split the trailing "(total MiB, free MiB free)" if present.
+        let (name, total_mib, free_mib) = match rest.rsplit_once('(') {
+            Some((name, mem)) => {
+                let nums: Vec<u64> = mem
+                    .split(|c: char| !c.is_ascii_digit())
+                    .filter(|s| !s.is_empty())
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                (
+                    name.trim(),
+                    nums.first().copied().unwrap_or(0),
+                    nums.get(1).copied().unwrap_or(0),
+                )
+            }
+            None => (rest, 0, 0),
+        };
+        out.push(Device {
+            token: token.to_string(),
+            backend: Backend::from_token(token),
+            name: name.to_string(),
+            total_mib,
+            free_mib,
+        });
+    }
+    out
+}
+
+/// Choose the device to serve on: a preferred-GPU backend (CUDA/Metal/ROCm/SYCL) over Vulkan over CPU,
+/// and within a class the highest total VRAM (the discrete card on a hybrid). `None` = no device line
+/// at all (CPU-only build/machine). Pure + unit-tested. This is the anti-iGPU-trap rule.
+pub fn select_device(devices: &[Device]) -> Option<Device> {
+    devices
+        .iter()
+        .max_by(|a, b| {
+            a.backend
+                .is_preferred_gpu()
+                .cmp(&b.backend.is_preferred_gpu())
+                .then(a.total_mib.cmp(&b.total_mib))
+        })
+        .cloned()
+}
+
+/// The app-managed runtime root — where Ziqpu lays down the per-vendor llama.cpp build it fetches
+/// (`ensure_runtime`, future), e.g. `%LOCALAPPDATA%\Ziqpu\runtime\llama-b9993-cuda-13.3\`. Kept
+/// separate from the winget location so the managed (correct-backend) build always wins.
+pub fn managed_runtime_root() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var("LOCALAPPDATA")
+            .ok()
+            .map(|l| std::path::Path::new(&l).join("Ziqpu").join("runtime"))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::env::var("HOME").ok().map(|h| {
+            std::path::Path::new(&h)
+                .join("Library")
+                .join("Application Support")
+                .join("Ziqpu")
+                .join("runtime")
+        })
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        std::env::var("HOME")
+            .ok()
+            .map(|h| std::path::Path::new(&h).join(".local/share/ziqpu/runtime"))
+    }
+}
+
+/// A `llama-server` inside the managed runtime root, if one has been laid down (one level of subdirs,
+/// e.g. `.../runtime/llama-b9993-cuda-13.3/llama-server.exe`). This is the backend-correct build for
+/// the machine, so it takes priority over PATH/winget in [`resolve_llama_server`].
+fn managed_llama_server() -> Option<std::path::PathBuf> {
+    let bin = if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    };
+    let root = managed_runtime_root()?;
+    let direct = root.join(bin);
+    if direct.exists() {
+        return Some(direct);
+    }
+    let entries = std::fs::read_dir(&root).ok()?;
+    for e in entries.flatten() {
+        if e.path().is_dir() {
+            let cand = e.path().join(bin);
+            if cand.exists() {
+                return Some(cand);
+            }
+        }
+    }
+    None
+}
+
+/// Resolve the `llama-server` to run: the app-managed (backend-correct) build first, then PATH, then
+/// the winget location. Supersedes bare [`llama_server_path`] in the serve paths so a machine with the
+/// managed CUDA build serves on the dGPU instead of the winget Vulkan build's iGPU.
+pub fn resolve_llama_server() -> Option<std::path::PathBuf> {
+    managed_llama_server().or_else(llama_server_path)
+}
+
+/// Probe a specific `llama-server` binary for its visible devices (`--list-devices`, 8 s cap). Empty
+/// on a CPU-only build/machine or if the probe fails. Used to build the RuntimeHealth line and to pick
+/// the `-dev` token.
+pub fn probe_devices(bin: &std::path::Path) -> Vec<Device> {
+    run_capped(&bin.to_string_lossy(), &["--list-devices"], 8)
+        .map(|o| parse_list_devices(&o))
+        .unwrap_or_default()
+}
+
+/// The GPU serve flags for a chosen device: full offload + an explicit device pin. Empty for CPU/none
+/// (llama-server runs on CPU). Metal needs no `-dev` (one implicit device) but `-ngl 99` is harmless.
+pub fn gpu_serve_args(device: Option<&Device>) -> Vec<String> {
+    match device {
+        Some(d) if d.backend == Backend::Metal => vec!["-ngl".into(), "99".into()],
+        Some(d) if d.backend != Backend::Cpu => {
+            vec!["-ngl".into(), "99".into(), "-dev".into(), d.token.clone()]
+        }
+        _ => Vec::new(),
+    }
 }
 
 #[cfg(test)]
@@ -1338,6 +1569,15 @@ mod tests {
             quant_from_filename("qwen2.5-9b-Q5_K_M.gguf").as_deref(),
             Some("Q5_K_M")
         );
+        // DOT separator before the quant (MaziyarPanahi/TheBloke style) — must still parse.
+        assert_eq!(
+            quant_from_filename("Qwen3-14B.Q4_K_M.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        assert_eq!(
+            quant_from_filename("Meta-Llama-3.1-8B-Instruct.Q6_K.gguf").as_deref(),
+            Some("Q6_K")
+        );
         assert_eq!(quant_from_filename("README.md"), None);
     }
 
@@ -1457,5 +1697,88 @@ mod tests {
         // A tighter budget where even Q5_K_M (10.91) is out: the pick steps down to Q4_K_M (10.83),
         // NOT the fallback smallest-by-size — quality ranking still governs among what fits.
         assert_eq!(best_gguf_for(&files, 10.88).unwrap().quant, "Q4_K_M");
+    }
+
+    #[test]
+    fn parse_list_devices_reads_cuda_and_vulkan() {
+        // Real CUDA build output (with a leading timestamped log line that must be ignored).
+        let cuda = "0.02.5 E ggml_cuda_init: found 1 device\nAvailable devices:\n  CUDA0: NVIDIA GeForce RTX 5080 Laptop GPU (16302 MiB, 15067 MiB free)\n";
+        let d = parse_list_devices(cuda);
+        assert_eq!(d.len(), 1);
+        assert_eq!(d[0].token, "CUDA0");
+        assert_eq!(d[0].backend, Backend::Cuda);
+        assert_eq!(d[0].name, "NVIDIA GeForce RTX 5080 Laptop GPU");
+        assert_eq!(d[0].total_mib, 16302);
+        assert_eq!(d[0].free_mib, 15067);
+        // The winget Vulkan build on the hybrid laptop — the iGPU trap.
+        let vk = "Available devices:\n  Vulkan0: AMD Radeon(TM) 890M Graphics (16276 MiB, 15462 MiB free)\n";
+        let d = parse_list_devices(vk);
+        assert_eq!(d[0].backend, Backend::Vulkan);
+        assert_eq!(d[0].name, "AMD Radeon(TM) 890M Graphics");
+    }
+
+    #[test]
+    fn select_device_prefers_discrete_cuda_over_igpu_vulkan() {
+        // A hybrid where a multi-backend build sees BOTH: must pick the CUDA dGPU, never the Vulkan iGPU.
+        let devs = vec![
+            Device {
+                token: "Vulkan0".into(),
+                backend: Backend::Vulkan,
+                name: "AMD Radeon 890M".into(),
+                total_mib: 16276,
+                free_mib: 15462,
+            },
+            Device {
+                token: "CUDA0".into(),
+                backend: Backend::Cuda,
+                name: "RTX 5080".into(),
+                total_mib: 16302,
+                free_mib: 15067,
+            },
+        ];
+        assert_eq!(select_device(&devs).unwrap().token, "CUDA0");
+        // Two CUDA devices → the higher-VRAM one.
+        let two = vec![
+            Device {
+                token: "CUDA0".into(),
+                backend: Backend::Cuda,
+                name: "A".into(),
+                total_mib: 8192,
+                free_mib: 8000,
+            },
+            Device {
+                token: "CUDA1".into(),
+                backend: Backend::Cuda,
+                name: "B".into(),
+                total_mib: 24576,
+                free_mib: 24000,
+            },
+        ];
+        assert_eq!(select_device(&two).unwrap().token, "CUDA1");
+        assert_eq!(select_device(&[]), None);
+    }
+
+    #[test]
+    fn gpu_serve_args_pins_the_device() {
+        let cuda = Device {
+            token: "CUDA0".into(),
+            backend: Backend::Cuda,
+            name: "x".into(),
+            total_mib: 16302,
+            free_mib: 15067,
+        };
+        assert_eq!(
+            gpu_serve_args(Some(&cuda)),
+            vec!["-ngl", "99", "-dev", "CUDA0"]
+        );
+        let metal = Device {
+            token: "Metal0".into(),
+            backend: Backend::Metal,
+            name: "m".into(),
+            total_mib: 0,
+            free_mib: 0,
+        };
+        assert_eq!(gpu_serve_args(Some(&metal)), vec!["-ngl", "99"]); // Metal: no -dev
+        assert!(gpu_serve_args(None).is_empty()); // CPU-only: no GPU flags
     }
 }

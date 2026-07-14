@@ -220,6 +220,30 @@ fn plan_cmd(force_local: bool) {
     };
     let budget = model::device_model_budget_gb(&spec, gpu.as_ref());
     println!("Ziqpu · serve plan for this machine");
+    // Runtime + the GPU this build will actually serve on (the RuntimeHealth line).
+    match model::resolve_llama_server() {
+        Some(bin) => {
+            let devices = model::probe_devices(&bin);
+            match model::select_device(&devices) {
+                Some(d) => println!(
+                    "  runtime    {} → {} ({:.0} GB){}",
+                    d.backend.label(),
+                    d.name,
+                    d.vram_gb(),
+                    if d.backend == model::Backend::Vulkan {
+                        "  ⚠ may be an integrated GPU"
+                    } else {
+                        ""
+                    }
+                ),
+                None => println!("  runtime    CPU (no GPU visible to this llama.cpp build)"),
+            }
+        }
+        None => println!(
+            "  runtime    (llama.cpp not found — {})",
+            model::llama_install_hint()
+        ),
+    }
     println!("  model      {} ({})", pick.name, pick.params);
     println!(
         "  budget     {:.2} GB  (weights must fit under this; the rest is KV cache + overhead)",
@@ -277,7 +301,7 @@ fn serve(force_local: bool, port: u16) {
     let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
         std::process::exit(1);
     };
-    let Some(bin) = model::llama_server_path() else {
+    let Some(bin) = model::resolve_llama_server() else {
         eprintln!("llama.cpp not found. Install it, then re-run `ziqpu-model serve`:");
         eprintln!("  {}", model::llama_install_hint());
         std::process::exit(1);
@@ -301,8 +325,27 @@ fn serve(force_local: bool, port: u16) {
             (cand.repo, pick.quant.to_string(), None)
         }
     };
+    // Which GPU will this binary actually use? Probe --list-devices and pin the discrete one, so we
+    // never silently land on a hybrid laptop's integrated GPU (the whole OOM saga). No device line =
+    // CPU-only build/machine.
+    let devices = model::probe_devices(&bin);
+    let device = model::select_device(&devices);
     let hf = format!("{repo}:{quant}");
     println!("Ziqpu · serving {} ({quant})", pick.name);
+    match &device {
+        Some(d) => println!(
+            "  runtime   {} → {} ({:.0} GB)",
+            d.backend.label(),
+            d.name,
+            d.vram_gb()
+        ),
+        None => println!("  runtime   CPU (no GPU device visible to this build)"),
+    }
+    if matches!(&device, Some(d) if d.backend == model::Backend::Vulkan) {
+        println!(
+            "  ⚠ Vulkan may bind an integrated GPU on a hybrid machine; a CUDA/Metal/ROCm build is more reliable."
+        );
+    }
     println!("  endpoint  http://127.0.0.1:{port}/v1   (Ziqpu Local mode's default is :1234)");
     match size_gb {
         Some(gb) => {
@@ -313,22 +356,23 @@ fn serve(force_local: bool, port: u16) {
     println!(
         "  first run downloads the model from Hugging Face, then serves. Leave this running.\n"
     );
-    let status = std::process::Command::new(&bin)
-        .args([
-            "-hf",
-            &hf,
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-            // Cap the context (default 0 = the model's full 32k+ trained window, whose KV cache is
-            // several GB) so weights + KV fit in VRAM — the real fix for the 16 GB card's OOM.
-            "-c",
-            &model::SERVE_CTX_SIZE.to_string(),
-            "-lv",
-            "1",
-        ])
-        .status();
+    let mut args: Vec<String> = vec![
+        "-hf".into(),
+        hf.clone(),
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string(),
+        // Cap the context (default 0 = the model's full 32k+ trained window, whose KV cache is
+        // several GB) so weights + KV fit in VRAM — a real contributor to the earlier OOM.
+        "-c".into(),
+        model::SERVE_CTX_SIZE.to_string(),
+        "-lv".into(),
+        "1".into(),
+    ];
+    // Full GPU offload + an explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
+    args.extend(model::gpu_serve_args(device.as_ref()));
+    let status = std::process::Command::new(&bin).args(&args).status();
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => std::process::exit(s.code().unwrap_or(1)),

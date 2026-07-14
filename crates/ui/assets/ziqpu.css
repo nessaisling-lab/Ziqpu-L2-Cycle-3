@@ -761,6 +761,29 @@ td.b{color:var(--ink)}
 .modelpanel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .modelpanel-btn{font-size:12px;padding:7px 13px}
 .modelpanel-specs{font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft)}
+/* RuntimeHealth: which backend + GPU the serve lands on. Green = discrete (CUDA/Metal/ROCm);
+   carnelian = a Vulkan integrated-GPU fallback (the OOM trap). */
+.modelpanel-runtime{
+  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
+  font:600 12px/1.5 var(--f-mono);letter-spacing:.02em;
+  padding:6px 11px;border-radius:8px;
+}
+.modelpanel-runtime-dot{
+  align-self:center;width:7px;height:7px;border-radius:50%;flex:none;
+}
+.modelpanel-runtime--ok{
+  color:var(--malachite);
+  background:color-mix(in srgb,var(--malachite) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--malachite) 30%,transparent);
+}
+.modelpanel-runtime--ok .modelpanel-runtime-dot{background:var(--malachite);box-shadow:0 0 6px var(--malachite)}
+.modelpanel-runtime--warn{
+  color:var(--carnelian);
+  background:color-mix(in srgb,var(--carnelian) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--carnelian) 30%,transparent);
+}
+.modelpanel-runtime--warn .modelpanel-runtime-dot{background:var(--carnelian)}
+.modelpanel-runtime-note{color:var(--ink-soft);font-weight:500}
 .modelpanel-pick{
   font-size:14px;color:var(--ink);padding:9px 12px;border-radius:9px;
   background:color-mix(in srgb,var(--malachite) 10%,transparent);
