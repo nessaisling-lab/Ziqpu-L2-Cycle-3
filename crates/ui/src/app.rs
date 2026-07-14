@@ -21,6 +21,11 @@ use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars
 /// the brand always apply.
 const CSS: &str = include_str!("../assets/ziqpu.css");
 
+/// A tiny inline SVG favicon (gold sparkle on bitumen — the "ledger of the sky" mark), base64'd into
+/// a data URI. Linked into the document head below so the desktop webview stops requesting the
+/// nonexistent `/favicon.ico` (a stray red 404 in the console) and shows a real window icon instead.
+const FAVICON: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzJhMjAxNycvPjxwYXRoIGQ9J00xNiAzLjUgTDE4LjIgMTMuOCBMMjguNSAxNiBMMTguMiAxOC4yIEwxNiAyOC41IEwxMy44IDE4LjIgTDMuNSAxNiBMMTMuOCAxMy44IFonIGZpbGw9JyNjOWE0NGEnLz48L3N2Zz4=";
+
 /// The real 4-beat sequence, in order. Rendered as the `.steps` rail with `aria-current` on the
 /// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
 const STEPS: [&str; 4] = ["Setup", "Ranked fits", "Checkpoint", "Grounded briefing"];
@@ -302,6 +307,9 @@ pub fn App() -> Element {
     };
 
     rsx! {
+        // Favicon (inline data URI) — stops the webview's /favicon.ico 404 and gives a real icon.
+        document::Link { rel: "icon", href: FAVICON }
+
         // Inlined stylesheet, baked into the binary — see `CSS` above for why this isn't `asset!()`.
         style { dangerous_inner_html: CSS }
 
