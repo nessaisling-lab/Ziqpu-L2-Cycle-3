@@ -226,6 +226,8 @@ fn serve(force_local: bool, port: u16) {
             "127.0.0.1",
             "--port",
             &port.to_string(),
+            "-lv",
+            "1",
         ])
         .status();
     match status {

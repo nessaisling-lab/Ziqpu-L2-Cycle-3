@@ -5996,6 +5996,7 @@ dependencies = [
  "dioxus",
  "futures-util",
  "geo",
+ "model",
  "serde",
  "serde_json",
  "tickers",

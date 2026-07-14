@@ -634,19 +634,64 @@ pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
     parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
 }
 
-/// How much memory a model may occupy on this machine — the budget the quant is fitted to. A discrete
-/// GPU gets a VRAM budget (0.85×, leaving headroom for the KV cache/context) so the pick runs fully on
-/// the GPU; a CPU / unified-memory machine gets `ram_gb * FIT_FRACTION`.
+/// Fraction of VRAM the model weights may occupy — the rest (~a third) is left for the KV cache, the
+/// compute buffers, and driver overhead, which for a big-vocab MoE like GPT-OSS run several GB. Set
+/// deliberately low after a 16 GB card OOM'd on a 12.3 GB quant that "fit" a naive 0.85 budget.
+const VRAM_USABLE_FRACTION: f64 = 0.68;
+
+/// How much memory the model **weights** may occupy on this machine — the budget the quant is fitted
+/// to. A discrete GPU gets `vram * VRAM_USABLE_FRACTION` (the rest is runtime headroom) so the pick
+/// runs fully on the GPU without OOM; a CPU / unified-memory machine gets `ram_gb * FIT_FRACTION`.
 pub fn device_model_budget_gb(spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> f64 {
     match gpu {
-        Some(g) if !g.unified && g.vram_gb >= 1.0 => g.vram_gb * 0.85,
+        Some(g) if !g.unified && g.vram_gb >= 1.0 => g.vram_gb * VRAM_USABLE_FRACTION,
         _ => spec.ram_gb * FIT_FRACTION,
     }
 }
 
-/// Pick the **largest quant that fits** `budget_gb` — the best quality the machine can actually run.
-/// Full-precision (`F16`/`F32`/`BF16`) is excluded (overkill for a guarded reader) unless nothing else
-/// exists. If no quant fits the budget, returns the smallest (least likely to swap to disk). Pure; tested.
+/// A coarse **quality** rank for a GGUF quant — higher is better. Needed because for a compact model
+/// (GPT-OSS is MoE/MXFP4-native) the quant file sizes barely differ, so size alone is a poor quality
+/// signal; the pick should be the highest-quality quant that fits, not merely the largest file.
+pub fn quant_rank(quant: &str) -> u32 {
+    let q = quant.to_ascii_uppercase();
+    let base = if q.starts_with("F32") {
+        100
+    } else if q.starts_with("BF16") || q.starts_with("F16") {
+        95
+    } else if q.starts_with("Q8") {
+        80
+    } else if q.starts_with("Q6") {
+        60
+    } else if q.starts_with("Q5") {
+        50
+    } else if q.starts_with("Q4") || q.starts_with("IQ4") {
+        40
+    } else if q.starts_with("Q3") || q.starts_with("IQ3") {
+        30
+    } else if q.starts_with("Q2") || q.starts_with("IQ2") {
+        20
+    } else {
+        10
+    };
+    // K-quant size modifier: S < (none) < M < L < XL.
+    let modi = if q.ends_with("_XL") {
+        4
+    } else if q.ends_with("_L") {
+        3
+    } else if q.ends_with("_M") {
+        2
+    } else if q.ends_with("_S") {
+        1
+    } else {
+        0
+    };
+    base + modi
+}
+
+/// Pick the **highest-quality quant that fits** `budget_gb` — the best the machine can actually run.
+/// Ranks by [`quant_rank`] (not file size, which is near-constant for a compact model), tie-breaking
+/// toward the smaller file (safer headroom). Full-precision (`F16`/`F32`/`BF16`) is excluded (overkill
+/// for a guarded reader) unless nothing else exists. Nothing fits → the smallest file. Pure; tested.
 pub fn best_gguf_for(files: &[GgufOption], budget_gb: f64) -> Option<GgufOption> {
     let is_quant = |q: &str| {
         let up = q.to_ascii_uppercase();
@@ -660,7 +705,12 @@ pub fn best_gguf_for(files: &[GgufOption], budget_gb: f64) -> Option<GgufOption>
     };
     pool.iter()
         .filter(|f| f.size_gb <= budget_gb)
-        .max_by(|a, b| a.size_gb.total_cmp(&b.size_gb))
+        .max_by(|a, b| {
+            quant_rank(&a.quant)
+                .cmp(&quant_rank(&b.quant))
+                // Same rank → prefer the smaller file (more runtime headroom).
+                .then_with(|| b.size_gb.total_cmp(&a.size_gb))
+        })
         .or_else(|| pool.iter().min_by(|a, b| a.size_gb.total_cmp(&b.size_gb)))
         .map(|f| (*f).clone())
 }
@@ -1324,7 +1374,7 @@ mod tests {
                 size_gb: 40.0,
             },
         ];
-        // 16 GB VRAM * 0.85 = 13.6 → the largest quant <= 13.6 is Q4_K_M.
+        // Budget 13.6 → only Q4_K_M fits (Q5_K_M is 14); the highest-quality quant under budget.
         assert_eq!(best_gguf_for(&files, 13.6).unwrap().quant, "Q4_K_M");
         // A big budget picks Q8_0 (largest quant), NOT F16 (full precision is excluded).
         assert_eq!(best_gguf_for(&files, 100.0).unwrap().quant, "Q8_0");
@@ -1347,7 +1397,10 @@ mod tests {
             vram_gb: 16.0,
             unified: false,
         };
-        assert!((device_model_budget_gb(&s, Some(&discrete)) - 13.6).abs() < 0.01);
+        assert!(
+            (device_model_budget_gb(&s, Some(&discrete)) - 16.0 * VRAM_USABLE_FRACTION).abs()
+                < 0.01
+        );
         assert!((device_model_budget_gb(&s, None) - 31.0 * FIT_FRACTION).abs() < 0.01);
         let unified = GpuInfo {
             name: "Apple M3".into(),
@@ -1355,5 +1408,45 @@ mod tests {
             unified: true,
         };
         assert!((device_model_budget_gb(&s, Some(&unified)) - 31.0 * FIT_FRACTION).abs() < 0.01);
+    }
+
+    #[test]
+    fn quant_rank_orders_by_quality() {
+        assert!(quant_rank("Q8_0") > quant_rank("Q6_K"));
+        assert!(quant_rank("Q6_K") > quant_rank("Q5_K_M"));
+        assert!(quant_rank("Q5_K_M") > quant_rank("Q4_K_M"));
+        assert!(quant_rank("Q4_K_M") > quant_rank("Q4_K_S"));
+        assert!(quant_rank("Q4_K_M") > quant_rank("Q3_K_M"));
+        // Full precision outranks any quant (but best_gguf_for excludes it from the pick).
+        assert!(quant_rank("F16") > quant_rank("Q8_0"));
+    }
+
+    #[test]
+    fn best_gguf_prefers_quality_not_size_when_sizes_are_close() {
+        // GPT-OSS-like: every quant is ~11 GB. Q5_K_M should win over the slightly-BIGGER but
+        // lower-quality Q2_K_L — the bug that picked a big-by-size quant that then OOM'd.
+        let files = vec![
+            GgufOption {
+                quant: "Q2_K_L".into(),
+                size_gb: 10.95,
+            },
+            GgufOption {
+                quant: "Q5_K_M".into(),
+                size_gb: 10.91,
+            },
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 10.83,
+            },
+            GgufOption {
+                quant: "Q8_0".into(),
+                size_gb: 12.29,
+            },
+        ];
+        // Budget 11.0 → Q8_0 (12.29) doesn't fit; the highest-quality quant under budget is Q5_K_M,
+        // NOT the marginally-bigger Q2_K_L (that was the OOM bug: size-ranked, not quality-ranked).
+        assert_eq!(best_gguf_for(&files, 11.0).unwrap().quant, "Q5_K_M");
+        // The real 16 GB card: budget 16*0.68 = 10.88 → even Q5_K_M (10.91) is out; pick is Q4_K_M.
+        assert_eq!(best_gguf_for(&files, 10.88).unwrap().quant, "Q4_K_M");
     }
 }

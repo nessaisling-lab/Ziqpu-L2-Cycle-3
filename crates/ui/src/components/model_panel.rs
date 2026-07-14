@@ -164,6 +164,9 @@ pub fn ModelPanel() -> Element {
                     "127.0.0.1",
                     "--port",
                     &port.to_string(),
+                    // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
+                    "-lv",
+                    "1",
                 ])
                 .spawn()
             {
