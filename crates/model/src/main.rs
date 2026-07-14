@@ -140,10 +140,13 @@ fn port_arg(args: &[String]) -> u16 {
         .unwrap_or(1234)
 }
 
-/// Resolve the model this machine should serve → `(hf_repo, quant, human_label)`. Below the floor,
-/// requires `--force-local` (else prints the Raw/Live guidance and returns None). Needs the network
-/// to resolve the current HF repo.
-fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
+/// Detect this machine + resolve the recommended pick → `(pick, spec, gpu)`, honoring `--force-local`
+/// below the floor (else prints the Raw/Live guidance and returns None). No network — the caller
+/// resolves the concrete repo/quant. `spec`/`gpu` are returned so the caller can fit the quant to the
+/// machine's memory budget (`plan_serve`) rather than serving the static pick's quant.
+fn resolve_pick(
+    force_local: bool,
+) -> Option<(model::ModelPick, model::DeviceSpec, Option<model::GpuInfo>)> {
     let gpu = model::detect_gpu();
     let spec = model::detect_spec_with(gpu.as_ref());
     let pick = match model::recommend_for(&spec) {
@@ -162,6 +165,14 @@ fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
             return None;
         }
     };
+    Some((pick, spec, gpu))
+}
+
+/// Resolve the model this machine should serve → `(hf_repo, quant, human_label)` at the pick's
+/// **static** quant (what `get` reports as "next steps"; `serve` fits the quant per machine instead).
+/// Needs the network to resolve the current HF repo.
+fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
+    let (pick, _spec, _gpu) = resolve_pick(force_local)?;
     let Some(cand) = model::resolve_current_repo(&pick) else {
         eprintln!(
             "couldn't resolve a current Hugging Face repo for {} (offline?)",
@@ -203,7 +214,7 @@ fn get(force_local: bool) {
 /// app's Local default). Blocks while serving; the seeker leaves it running and Ziqpu's Local mode
 /// talks to it. No settings change needed at the default port.
 fn serve(force_local: bool, port: u16) {
-    let Some((repo, quant, label)) = resolve_target(force_local) else {
+    let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
         std::process::exit(1);
     };
     let Some(bin) = model::llama_server_path() else {
@@ -211,10 +222,34 @@ fn serve(force_local: bool, port: u16) {
         eprintln!("  {}", model::llama_install_hint());
         std::process::exit(1);
     };
+    // Fit the quant to this machine's memory budget (the largest-quality GGUF that fits, NOT the
+    // static pick's quant — that hardcoded a quant a smaller card can't hold). Offline → static pick.
+    let (repo, quant, size_gb) = match model::plan_serve(&pick, &spec, gpu.as_ref()) {
+        Some(p) => (p.repo, p.quant, Some(p.size_gb)),
+        None => {
+            let Some(cand) = model::resolve_current_repo(&pick) else {
+                eprintln!(
+                    "couldn't resolve a current Hugging Face repo for {} (offline?)",
+                    pick.name
+                );
+                eprintln!(
+                    "try `ziqpu-model resolve {}` when online.",
+                    pick.search_term
+                );
+                std::process::exit(1);
+            };
+            (cand.repo, pick.quant.to_string(), None)
+        }
+    };
     let hf = format!("{repo}:{quant}");
-    println!("Ziqpu · serving {label}");
+    println!("Ziqpu · serving {} ({quant})", pick.name);
     println!("  endpoint  http://127.0.0.1:{port}/v1   (Ziqpu Local mode's default is :1234)");
-    println!("  model     {hf}");
+    match size_gb {
+        Some(gb) => {
+            println!("  model     {hf}  (~{gb:.1} GB — the best quant this machine can run)")
+        }
+        None => println!("  model     {hf}"),
+    }
     println!(
         "  first run downloads the model from Hugging Face, then serves. Leave this running.\n"
     );
@@ -226,6 +261,10 @@ fn serve(force_local: bool, port: u16) {
             "127.0.0.1",
             "--port",
             &port.to_string(),
+            // Cap the context (default 0 = the model's full 32k+ trained window, whose KV cache is
+            // several GB) so weights + KV fit in VRAM — the real fix for the 16 GB card's OOM.
+            "-c",
+            &model::SERVE_CTX_SIZE.to_string(),
             "-lv",
             "1",
         ])

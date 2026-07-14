@@ -164,6 +164,11 @@ pub fn ModelPanel() -> Element {
                     "127.0.0.1",
                     "--port",
                     &port.to_string(),
+                    // Cap the context so the KV cache fits alongside the weights — llama-server
+                    // otherwise sizes it to the model's full trained context (32k+ for GPT-OSS =
+                    // several GB of KV), which is what OOM'd the 16 GB card. See model::SERVE_CTX_SIZE.
+                    "-c",
+                    &model::SERVE_CTX_SIZE.to_string(),
                     // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
                     "-lv",
                     "1",

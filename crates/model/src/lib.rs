@@ -634,10 +634,18 @@ pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
     parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
 }
 
-/// Fraction of VRAM the model weights may occupy — the rest (~a third) is left for the KV cache, the
-/// compute buffers, and driver overhead, which for a big-vocab MoE like GPT-OSS run several GB. Set
-/// deliberately low after a 16 GB card OOM'd on a 12.3 GB quant that "fit" a naive 0.85 budget.
-const VRAM_USABLE_FRACTION: f64 = 0.68;
+/// Context window (tokens) the served model is capped to. `llama-server`'s default is 0 = "use the
+/// model's full trained context" — for GPT-OSS-20B that's 32k+, whose KV cache is several GB and was
+/// the real cause of the 16 GB card's OOM (weights fit; weights + full-context KV did not). A reading
+/// needs far less, so we cap it: the KV cache shrinks to a fraction of a GB and the weight budget below
+/// can be generous again. Passed as `-c` by every serve path (CLI + panel).
+pub const SERVE_CTX_SIZE: u32 = 8192;
+
+/// Fraction of VRAM the model **weights** may occupy — the rest (~a fifth) covers the (now capped, see
+/// [`SERVE_CTX_SIZE`]) KV cache, compute buffers, and driver overhead, ~2–3 GB for a 20B MoE at an 8k
+/// context. With the context capped this can be generous; the earlier 0.68 (set before the context cap)
+/// overcorrected and dropped a 16 GB card to a low-quality Q3 fallback on a model it runs comfortably.
+const VRAM_USABLE_FRACTION: f64 = 0.80;
 
 /// How much memory the model **weights** may occupy on this machine — the budget the quant is fitted
 /// to. A discrete GPU gets `vram * VRAM_USABLE_FRACTION` (the rest is runtime headroom) so the pick
@@ -1446,7 +1454,8 @@ mod tests {
         // Budget 11.0 → Q8_0 (12.29) doesn't fit; the highest-quality quant under budget is Q5_K_M,
         // NOT the marginally-bigger Q2_K_L (that was the OOM bug: size-ranked, not quality-ranked).
         assert_eq!(best_gguf_for(&files, 11.0).unwrap().quant, "Q5_K_M");
-        // The real 16 GB card: budget 16*0.68 = 10.88 → even Q5_K_M (10.91) is out; pick is Q4_K_M.
+        // A tighter budget where even Q5_K_M (10.91) is out: the pick steps down to Q4_K_M (10.83),
+        // NOT the fallback smallest-by-size — quality ranking still governs among what fits.
         assert_eq!(best_gguf_for(&files, 10.88).unwrap().quant, "Q4_K_M");
     }
 }
