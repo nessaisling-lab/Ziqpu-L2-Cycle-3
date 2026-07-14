@@ -1079,6 +1079,19 @@ impl Device {
     pub fn vram_gb(&self) -> f64 {
         self.total_mib as f64 / 1024.0
     }
+
+    /// Whether this looks like a discrete GPU (by name) — a dedicated card, not an integrated one
+    /// sharing system RAM. Used to keep the RuntimeHealth warning honest: Vulkan on a discrete NVIDIA
+    /// is fine (green); Vulkan on an integrated GPU is the OOM-risk case (carnelian).
+    pub fn is_discrete(&self) -> bool {
+        name_discreteness_rank(&self.name) == 2
+    }
+
+    /// A healthy serving path: a preferred backend (CUDA/Metal/ROCm/SYCL) OR at least a discrete GPU.
+    /// Integrated-GPU or CPU serving of a multi-GB model is the risky case the UI warns about.
+    pub fn is_healthy(&self) -> bool {
+        self.backend.is_preferred_gpu() || self.is_discrete()
+    }
 }
 
 /// Parse the `--list-devices` block into [`Device`]s. Pure + unit-tested. Tolerant: a line without the
@@ -1130,9 +1143,39 @@ pub fn parse_list_devices(output: &str) -> Vec<Device> {
     out
 }
 
-/// Choose the device to serve on: a preferred-GPU backend (CUDA/Metal/ROCm/SYCL) over Vulkan over CPU,
-/// and within a class the highest total VRAM (the discrete card on a hybrid). `None` = no device line
-/// at all (CPU-only build/machine). Pure + unit-tested. This is the anti-iGPU-trap rule.
+/// A coarse discrete-vs-integrated rank from a GPU's name: 2 = clearly discrete, 0 = clearly an
+/// integrated GPU (shares system RAM), 1 = unknown. Needed because a hybrid laptop's Vulkan build
+/// enumerates BOTH the iGPU and the dGPU as `Vulkan0`/`Vulkan1`, and the iGPU often reports MORE
+/// "VRAM" (a slice of system RAM) than the discrete card's dedicated pool — so picking by memory alone
+/// lands on the iGPU (the OOM trap). Name is the reliable signal.
+fn name_discreteness_rank(name: &str) -> u8 {
+    let n = name.to_ascii_uppercase();
+    // Discrete markers first (an AMD "Radeon RX"/"Radeon Pro" is discrete despite the "Radeon").
+    const DISCRETE: [&str; 8] = [
+        "NVIDIA",
+        "GEFORCE",
+        "RTX",
+        "GTX",
+        "QUADRO",
+        "RADEON RX",
+        "RADEON PRO",
+        "ARC ",
+    ];
+    if DISCRETE.iter().any(|m| n.contains(m)) {
+        return 2;
+    }
+    // Integrated markers: AMD/Intel iGPUs are "… Graphics"; Apple/Intel iGPU families.
+    const INTEGRATED: [&str; 6] = ["GRAPHICS", "UHD", "IRIS", "VEGA", "890M", "RADEON(TM)"];
+    if INTEGRATED.iter().any(|m| n.contains(m)) {
+        return 0;
+    }
+    1
+}
+
+/// Choose the device to serve on: a preferred-GPU backend (CUDA/Metal/ROCm/SYCL) over Vulkan over CPU;
+/// then a DISCRETE GPU over an integrated one (by name — the iGPU can falsely report more shared RAM);
+/// then the highest total VRAM. `None` = no device line at all (CPU-only build/machine). Pure +
+/// unit-tested. This is the anti-iGPU-trap rule — on a hybrid it must land on the dedicated card.
 pub fn select_device(devices: &[Device]) -> Option<Device> {
     devices
         .iter()
@@ -1140,6 +1183,7 @@ pub fn select_device(devices: &[Device]) -> Option<Device> {
             a.backend
                 .is_preferred_gpu()
                 .cmp(&b.backend.is_preferred_gpu())
+                .then(name_discreteness_rank(&a.name).cmp(&name_discreteness_rank(&b.name)))
                 .then(a.total_mib.cmp(&b.total_mib))
         })
         .cloned()
@@ -1756,6 +1800,36 @@ mod tests {
         ];
         assert_eq!(select_device(&two).unwrap().token, "CUDA1");
         assert_eq!(select_device(&[]), None);
+    }
+
+    #[test]
+    fn select_device_picks_discrete_over_igpu_within_vulkan() {
+        // The real post-reboot case: a Vulkan build sees BOTH GPUs, and the AMD iGPU reports MORE
+        // "VRAM" (shared RAM) than the discrete NVIDIA — must still pick the NVIDIA (dedicated).
+        let devs = vec![
+            Device {
+                token: "Vulkan0".into(),
+                backend: Backend::Vulkan,
+                name: "AMD Radeon(TM) 890M Graphics".into(),
+                total_mib: 16276,
+                free_mib: 15462,
+            },
+            Device {
+                token: "Vulkan1".into(),
+                backend: Backend::Vulkan,
+                name: "NVIDIA GeForce RTX 5080 Laptop GPU".into(),
+                total_mib: 16003,
+                free_mib: 15235,
+            },
+        ];
+        assert_eq!(select_device(&devs).unwrap().token, "Vulkan1");
+        assert_eq!(
+            name_discreteness_rank("NVIDIA GeForce RTX 5080 Laptop GPU"),
+            2
+        );
+        assert_eq!(name_discreteness_rank("AMD Radeon(TM) 890M Graphics"), 0);
+        assert_eq!(name_discreteness_rank("Intel(R) UHD Graphics"), 0);
+        assert_eq!(name_discreteness_rank("AMD Radeon RX 7900 XTX"), 2);
     }
 
     #[test]

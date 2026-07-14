@@ -22,9 +22,10 @@ type BenchResult = (
     Option<GpuInfo>,
     bool,
     Option<ServePlan>,
-    // The RuntimeHealth line: which backend + GPU the resolved llama-server will actually serve on
-    // (e.g. "CUDA → NVIDIA GeForce RTX 5080 Laptop GPU"), or None if llama.cpp isn't installed.
-    Option<String>,
+    // The RuntimeHealth line + a warn flag: which backend + GPU the resolved llama-server will serve
+    // on (e.g. "CUDA → NVIDIA GeForce RTX 5080 Laptop GPU"), and whether that path is risky (an
+    // integrated GPU / CPU). None if llama.cpp isn't installed.
+    Option<(String, bool)>,
 );
 
 /// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
@@ -65,14 +66,15 @@ pub fn ModelPanel() -> Element {
                     query.set(pick.search_term.to_string());
                 }
             }
-            // A Vulkan runtime on a machine with a discrete GPU is the iGPU-trap warning sign.
-            runtime_warn.set(rt.as_deref().is_some_and(|l| l.starts_with("Vulkan")));
+            // Warn only when the serving path is genuinely risky (integrated GPU / CPU) — a Vulkan
+            // build on the discrete NVIDIA is fine, so it must NOT warn.
+            runtime_warn.set(rt.as_ref().is_some_and(|(_, warn)| *warn));
+            runtime.set(rt.map(|(line, _)| line));
             spec.set(Some(s));
             rec.set(Some(r));
             gpu.set(g);
             have_server.set(srv);
             plan.set(p);
-            runtime.set(rt);
             running.set(false);
         }
     });
@@ -108,9 +110,34 @@ pub fn ModelPanel() -> Element {
             let srv = have_llama_server();
             // RuntimeHealth: which backend + GPU the resolved llama-server actually serves on. This is
             // the on-screen proof the iGPU-trap is fixed ("CUDA → RTX 5080" vs "Vulkan → AMD iGPU").
+            // Set ZIQPU_DEBUG=1 for the verbose resolution trace (managed-runtime lookup + device list).
+            let debug = std::env::var("ZIQPU_DEBUG").is_ok();
+            if debug {
+                if let Some(root) = model::managed_runtime_root() {
+                    eprintln!(
+                        "[ziqpu-runtime] managed root = {} (read_dir={:?})",
+                        root.display(),
+                        std::fs::read_dir(&root).map(|it| it
+                            .flatten()
+                            .map(|e| e.file_name().to_string_lossy().into_owned())
+                            .collect::<Vec<_>>())
+                    );
+                }
+            }
             let rt = resolve_llama_server().and_then(|bin| {
                 let devs = probe_devices(&bin);
-                select_device(&devs).map(|d| format!("{} → {}", d.backend.label(), d.name))
+                if debug {
+                    eprintln!(
+                        "[ziqpu-runtime] llama-server = {} · {devs:?}",
+                        bin.display()
+                    );
+                }
+                select_device(&devs).map(|d| {
+                    (
+                        format!("{} → {}", d.backend.label(), d.name),
+                        !d.is_healthy(),
+                    )
+                })
             });
             // Fit the quant to this machine — lists the resolved repo's GGUFs online. None offline.
             let p = match &r {
