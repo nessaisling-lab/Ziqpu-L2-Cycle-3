@@ -218,9 +218,12 @@ fn body_word(body: &str) -> String {
 /// The one plain "why:" line — the single tightest contact (`top[0]`) translated into a human
 /// dynamic. Names the dominant thread without a single aspect name, orb, or degree.
 fn why_line(measures: &Measures) -> String {
+    // A flowing sentence (NOT a "why:" label) naming the single strongest thread — the reading is
+    // rendered as prose with newlines collapsed to spaces, so every beat must be a complete,
+    // period-terminated sentence or the beats run together on screen.
     match measures.top.first() {
         Some(a) => format!(
-            "why: the strongest thread is {}, {} — {}",
+            "The strongest thread is {}, {} — and {}.",
             if a.harmonious {
                 "an easy one"
             } else {
@@ -233,27 +236,30 @@ fn why_line(measures: &Measures) -> String {
                 "it's the part that will ask for the most patience"
             },
         ),
-        None => "why: the two charts barely touch — no single thread stands out, which is its own \
-                 kind of answer"
-            .to_string(),
+        None => {
+            "The two charts barely touch — no single thread stands out, which is its own kind of \
+                 answer."
+                .to_string()
+        }
     }
 }
 
-/// A "threads:" beat naming the top few contacts as plain human dynamics — gives the offline read
-/// texture from the *actual* measures, not just the band. Empty (no line) when there are no close
-/// contacts. No aspect names, orbs, or degrees ever appear (via [`plain_dynamic`]).
+/// A "beneath it" beat naming the *secondary* contacts as plain human dynamics — texture from the
+/// actual measures beyond the band. Starts at the SECOND thread (`skip(1)`) because [`why_line`]
+/// already named the strongest, so the two beats never repeat the same dynamic. Empty (no line) when
+/// there's only one close contact. No aspect names, orbs, or degrees appear (via [`plain_dynamic`]).
 fn threads_line(measures: &Measures) -> String {
-    if measures.top.is_empty() {
-        return String::new();
-    }
-    let list = measures
+    let others: Vec<String> = measures
         .top
         .iter()
-        .take(3)
+        .skip(1)
+        .take(2)
         .map(|a| plain_dynamic(&a.body_a, &a.body_b, a.harmonious))
-        .collect::<Vec<_>>()
-        .join(", then ");
-    format!("\n  the threads, in plain terms: {list}")
+        .collect();
+    if others.is_empty() {
+        return String::new();
+    }
+    format!("\n  Beneath it, {}.", others.join(", then "))
 }
 
 /// One neutral, hedged "this is what reality says:" sentence for the grounded beat. The deterministic

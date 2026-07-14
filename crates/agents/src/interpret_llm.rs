@@ -388,6 +388,66 @@ fn local_interpreter() -> OpenAiCompatInterpreter {
     }
 }
 
+/// The local server's readiness. `Ready` = model loaded and serving; `Loading` = reachable but the
+/// model is still loading (`llama-server` answers `/health` with a 503 "loading model" until it's
+/// resident); `Down` = not reachable at all (no server running / no curl).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LocalStatus {
+    Ready,
+    Loading,
+    Down,
+}
+
+/// Probe `llama-server`'s `/health` (the server ROOT, so strip the `/v1` off `ZIQPU_LLM_URL`). `curl`
+/// exits 0 for any HTTP response (200 *or* a 503 loading body) and non-zero on connection-refused, so
+/// exit code separates `Loading`/`Ready` from `Down`; the `"ok"` body separates `Ready` from `Loading`.
+fn local_status() -> LocalStatus {
+    let base = std::env::var("ZIQPU_LLM_URL")
+        .ok()
+        .filter(|u| !u.is_empty())
+        .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
+    let health = format!(
+        "{}/health",
+        base.trim_end_matches('/')
+            .trim_end_matches("/v1")
+            .trim_end_matches('/')
+    );
+    match std::process::Command::new("curl")
+        .args(["-sS", "--max-time", "3", &health])
+        .output()
+    {
+        Ok(o) if o.status.success() => {
+            if String::from_utf8_lossy(&o.stdout).contains("\"ok\"") {
+                LocalStatus::Ready
+            } else {
+                LocalStatus::Loading
+            }
+        }
+        _ => LocalStatus::Down,
+    }
+}
+
+/// Block until the local model is loaded and serving, or we give up. Returns whether it became ready.
+/// The UI calls this before firing the ranked-list Local reads so the first cards don't hit a
+/// not-yet-loaded server, fall back to the template, and (being cached) never recover — the warm-up
+/// race. A `Loading` server is waited on up to `max_wait` (a big quant loads slowly); a `Down` server
+/// gets only a short grace (it may be spawning) before we give up, so a Local read with no server
+/// running falls back to the template quickly instead of hanging the whole `max_wait`.
+pub fn wait_for_local(max_wait: std::time::Duration) -> bool {
+    let start = std::time::Instant::now();
+    let down_grace = std::time::Duration::from_secs(6);
+    loop {
+        match local_status() {
+            LocalStatus::Ready => return true,
+            LocalStatus::Down if start.elapsed() >= down_grace => return false,
+            LocalStatus::Down => {}
+            LocalStatus::Loading if start.elapsed() >= max_wait => return false,
+            LocalStatus::Loading => {}
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+}
+
 /// A **Send-safe** fit read routed by [`ReadMode`] — the mode-aware sibling of [`reading_for`].
 /// Constructs its interpreter locally and returns an **owned** `(prose, source)`, so the UI can run
 /// it straight off a worker thread. `source` is the live model id that wrote it, or `None` when the

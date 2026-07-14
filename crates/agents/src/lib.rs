@@ -29,8 +29,8 @@ pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::{
     build_interpreter, draft_grounding_prompt, grounded_brief_for, grounded_layered, reading_for,
-    reading_for_mode, AnthropicInterpreter, GroundedRung, LayeredBrief, OpenAiCompatInterpreter,
-    ReadMode,
+    reading_for_mode, wait_for_local, AnthropicInterpreter, GroundedRung, LayeredBrief,
+    OpenAiCompatInterpreter, ReadMode,
 };
 pub use measure::{
     expected_sequence, ChartSource, DeterministicMeasurer, EngineChartSource, Measurer,
