@@ -15,6 +15,7 @@ fn main() {
         "list" => list(),
         "resolve" => resolve(args.get(2).map(String::as_str)),
         "get" => get(force_local),
+        "plan" => plan_cmd(force_local),
         "serve" => serve(force_local, port_arg(&args)),
         "-h" | "--help" | "help" => usage(),
         other => {
@@ -210,6 +211,65 @@ fn get(force_local: bool) {
     }
 }
 
+/// `plan` — dry-run the serve decision: show the repo's real GGUFs (quant + size), this machine's
+/// memory budget, which quants fit, and the quant the panel/serve would actually pick. Downloads
+/// nothing — a diagnostic for "why did it grab THAT quant".
+fn plan_cmd(force_local: bool) {
+    let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
+        std::process::exit(1);
+    };
+    let budget = model::device_model_budget_gb(&spec, gpu.as_ref());
+    println!("Ziqpu · serve plan for this machine");
+    println!("  model      {} ({})", pick.name, pick.params);
+    println!(
+        "  budget     {:.2} GB  (weights must fit under this; the rest is KV cache + overhead)",
+        budget
+    );
+    let Some(cand) = model::resolve_current_repo(&pick) else {
+        println!(
+            "  repo       (offline / none found — would serve the static {})",
+            pick.quant
+        );
+        return;
+    };
+    println!("  repo       {}", cand.repo);
+    let ggufs = model::list_repo_ggufs(&cand.repo);
+    if ggufs.is_empty() {
+        println!(
+            "  (no GGUFs listed — offline? would fall back to the static {})",
+            pick.quant
+        );
+        return;
+    }
+    println!("  --- quants in the repo (rank · size · fits budget?) ---");
+    let mut rows: Vec<_> = ggufs.iter().collect();
+    rows.sort_by(|a, b| b.size_gb.total_cmp(&a.size_gb));
+    for g in rows {
+        let fits = if g.size_gb <= budget {
+            "FITS"
+        } else {
+            "too big"
+        };
+        println!(
+            "    rank {:>3} · {:>6.2} GB · {:<12} {}",
+            model::quant_rank(&g.quant),
+            g.size_gb,
+            g.quant,
+            fits
+        );
+    }
+    match model::plan_serve(&pick, &spec, gpu.as_ref()) {
+        Some(p) => println!(
+            "  >>> PICK   {}:{}  (~{:.2} GB) — headroom ~{:.2} GB",
+            p.repo,
+            p.quant,
+            p.size_gb,
+            budget - p.size_gb
+        ),
+        None => println!("  >>> PICK   (none — offline)"),
+    }
+}
+
 /// `serve` — download (first run) + serve the model via `llama-server` on `--port` (default 1234, the
 /// app's Local default). Blocks while serving; the seeker leaves it running and Ziqpu's Local mode
 /// talks to it. No settings change needed at the default port.
@@ -288,6 +348,9 @@ fn usage() {
     );
     eprintln!(
         "  get [--force-local]         resolve the model + check llama.cpp; print next steps"
+    );
+    eprintln!(
+        "  plan [--force-local]        dry-run the serve pick: repo quants, sizes, budget, fit (no download)"
     );
     eprintln!("  serve [--force-local] [--port N]  download + serve the model (default :1234)");
 }
