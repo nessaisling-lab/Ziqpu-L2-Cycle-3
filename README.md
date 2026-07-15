@@ -23,7 +23,10 @@ medical, legal, or psychological advice.
 | **Sidecar** — read-only API | ✅ built · `/chart` `/synastry` `/transits` over real data |
 | **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
 | **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
-| **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding |
+| **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
+
+Stable **v1.2.0** on `main`; build-ahead **v1.3.2** on `nightfall`. Full history in
+[CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
 
 ## The two-agent design (the graded artifact)
 
@@ -63,7 +66,7 @@ Analytic and ANISE agree to **<1°** (a CI cross-check enforces it).
 | `crates/geo` | offline geocoder over a committed GeoNames gazetteer | ✅ |
 | `crates/tickers` | choice universes — Stocks · Airlines · Insurance | ✅ |
 | `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile | ✅ |
-| `crates/model` | local-model tier benchmark + `get`/`serve` (llama.cpp) | ✅ |
+| `crates/model` | local-model tier benchmark + `get`/`serve` (llama.cpp) + CUDA-first runtime resolution + quant-aware fit | ✅ |
 | `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | ✅ |
 | `crates/ui` | Dioxus 0.6 desktop app (`ziqpu-ui`) | ✅ |
 
