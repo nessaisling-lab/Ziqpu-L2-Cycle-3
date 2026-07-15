@@ -10,8 +10,9 @@ use futures_util::StreamExt;
 use crate::components::{WheatLoader, WheatPhase};
 use model::{
     agent_disqualified, detect_gpu, detect_spec_with, gpu_serve_args, have_llama_server,
-    llama_install_hint, plan_serve, probe_devices, recommend_for, resolve_candidates,
-    resolve_llama_server, select_device, Candidate, DeviceSpec, GpuInfo, Recommendation, ServePlan,
+    llama_install_hint, model_cached, plan_serve, probe_devices, recommend_for, resolve_candidates,
+    resolve_llama_server, running_server_port, select_device, Candidate, DeviceSpec, GpuInfo,
+    Recommendation, ServePlan,
 };
 
 /// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, whether a
@@ -27,6 +28,9 @@ type BenchResult = (
     // on (e.g. "CUDA → NVIDIA GeForce RTX 5080 Laptop GPU"), and whether that path is risky (an
     // integrated GPU / CPU). None if llama.cpp isn't installed.
     Option<(String, bool)>,
+    // Whether the fitted model is ALREADY in the Hugging Face cache — serving then only loads it, no
+    // download. Drives the "downloaded ✓" hint + the "Serve" (vs "Download & serve") button label.
+    bool,
 );
 
 /// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
@@ -122,6 +126,7 @@ pub fn ModelPanel() -> Element {
     let mut plan = use_signal(|| None::<ServePlan>);
     let mut runtime = use_signal(|| None::<String>);
     let mut runtime_warn = use_signal(|| false);
+    let mut cached = use_signal(|| false);
     let mut running = use_signal(|| false);
 
     // Search state.
@@ -132,7 +137,7 @@ pub fn ModelPanel() -> Element {
 
     // Off-thread benchmark result → set the signals.
     let bench = use_coroutine(move |mut rx: UnboundedReceiver<BenchResult>| async move {
-        while let Some((s, r, g, srv, p, rt)) = rx.next().await {
+        while let Some((s, r, g, srv, p, rt, is_cached)) = rx.next().await {
             // Prefill the search box with the pick's family — done HERE (an event handler), never in
             // the render body: writing a signal you also read during render triggers Dioxus's
             // "write during render" warning and can loop.
@@ -145,6 +150,7 @@ pub fn ModelPanel() -> Element {
             // build on the discrete NVIDIA is fine, so it must NOT warn.
             runtime_warn.set(rt.as_ref().is_some_and(|(_, warn)| *warn));
             runtime.set(rt.map(|(line, _)| line));
+            cached.set(is_cached);
             spec.set(Some(s));
             rec.set(Some(r));
             gpu.set(g);
@@ -223,7 +229,12 @@ pub fn ModelPanel() -> Element {
                 Recommendation::Local(pick) => plan_serve(pick, &s, g.as_ref()),
                 _ => None,
             };
-            let _ = tx.unbounded_send((s, r, g, srv, p, rt));
+            // Already in the local HF cache? Then serving only loads it — no download.
+            let is_cached = p
+                .as_ref()
+                .map(|pl| model_cached(&pl.repo, &pl.quant))
+                .unwrap_or(false);
+            let _ = tx.unbounded_send((s, r, g, srv, p, rt, is_cached));
         });
     };
 
@@ -259,6 +270,16 @@ pub fn ModelPanel() -> Element {
         serve_status.set(Some(ServeProgress::Preparing));
         let tx = server_co.tx();
         std::thread::spawn(move || {
+            // RECONNECT, don't reload: if a model server is already loaded + serving, just point Local
+            // mode at it. No re-download, no re-load — the whole "why load every time" fix. (Single-
+            // active means the running server is the one we last served.)
+            if let Some(port) = running_server_port() {
+                std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
+                let _ = tx.unbounded_send(ServeProgress::Serving(format!(
+                    "Connected — model already loaded on :{port}. Switch the header toggle to Local."
+                )));
+                return;
+            }
             // Resolve the backend-correct llama-server (app-managed CUDA/Metal/ROCm build first, then
             // PATH/winget) — NOT the winget Vulkan build that binds a hybrid laptop's integrated GPU.
             let Some(bin) = resolve_llama_server() else {
@@ -450,6 +471,7 @@ pub fn ModelPanel() -> Element {
     let srv = *have_server.read();
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
+    let is_cached = *cached.read();
     let serving_now = *serving.read();
     // Serve progress → (label, wheat phase, kind). The wheat loader draws the phase; `None` phase =
     // no wheat (a failure, shown as carnelian text). `kind` colors the label.
@@ -521,6 +543,12 @@ pub fn ModelPanel() -> Element {
                 }
                 if is_local {
                     if srv {
+                        if is_cached {
+                            div { class: "modelpanel-cached",
+                                span { class: "modelpanel-cached-dot" }
+                                "downloaded — serving just loads it, no re-download"
+                            }
+                        }
                         button {
                             class: "btn btn--go modelpanel-btn",
                             r#type: "button",
@@ -529,7 +557,13 @@ pub fn ModelPanel() -> Element {
                                 let mut f = run_serve;
                                 f(());
                             },
-                            if serving_now { "Starting…" } else { "Download & serve locally" }
+                            if serving_now {
+                                "Starting…"
+                            } else if is_cached {
+                                "Serve locally"
+                            } else {
+                                "Download & serve locally"
+                            }
                         }
                         if let Some((label, wheat, kind)) = serve_view {
                             div { class: "modelpanel-serve modelpanel-serve--{kind}",

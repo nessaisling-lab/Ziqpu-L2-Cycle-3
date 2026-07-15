@@ -784,6 +784,9 @@ td.b{color:var(--ink)}
 }
 .modelpanel-runtime--warn .modelpanel-runtime-dot{background:var(--carnelian)}
 .modelpanel-runtime-note{color:var(--ink-soft);font-weight:500}
+/* "downloaded" cue — the fitted model is already in the HF cache, so serving only loads it. */
+.modelpanel-cached{display:flex;align-items:center;gap:7px;margin:2px 0 6px;font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--malachite)}
+.modelpanel-cached-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--malachite);box-shadow:0 0 5px color-mix(in srgb,var(--malachite) 55%,transparent)}
 /* Serve progress: a phase label + a bar. Determinate (download %) sets an explicit width; the
    indeterminate bar (preparing / loading into VRAM) slides a short fill across the track. Colors:
    neutral gold, ok = malachite, fail = carnelian (no bar). */

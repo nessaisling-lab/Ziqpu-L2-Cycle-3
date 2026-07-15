@@ -19,6 +19,15 @@ fn main() {
     // already set, so an exported env var still overrides the file for power users and CI.
     settings::apply_settings_to_env(&settings::load_settings());
 
+    // If a local model server is already running — this machine's serve left alive from a prior
+    // session — reconnect to it so Local mode works immediately, with no reload. An explicit
+    // `ZIQPU_LLM_URL` (power users / CI) still wins.
+    if std::env::var("ZIQPU_LLM_URL").is_err() {
+        if let Some(port) = model::running_server_port() {
+            std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
+        }
+    }
+
     LaunchBuilder::desktop()
         .with_cfg(
             Config::new().with_window(

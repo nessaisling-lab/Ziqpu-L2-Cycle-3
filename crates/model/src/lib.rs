@@ -1002,6 +1002,65 @@ pub fn have_llama_server() -> bool {
     resolve_llama_server().is_some()
 }
 
+/// The user's home directory (`%USERPROFILE%` / `$HOME`) — where the Hugging Face cache lives.
+fn home_dir() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    let key = "USERPROFILE";
+    #[cfg(not(windows))]
+    let key = "HOME";
+    std::env::var(key).ok().map(std::path::PathBuf::from)
+}
+
+/// Is the GGUF for `repo`:`quant` ALREADY in the local Hugging Face cache? When it is, a serve only
+/// LOADS the model — the (large, one-time) download is skipped — so the UI can say "downloaded ✓" and
+/// label the button "Serve" instead of "Download & serve". Matches a `.gguf` under the repo's snapshot
+/// whose name contains the quant tag (case-insensitive).
+pub fn model_cached(repo: &str, quant: &str) -> bool {
+    let Some(home) = home_dir() else {
+        return false;
+    };
+    let snaps = home
+        .join(".cache")
+        .join("huggingface")
+        .join("hub")
+        .join(format!("models--{}", repo.replace('/', "--")))
+        .join("snapshots");
+    let ql = quant.to_ascii_lowercase();
+    let Ok(entries) = std::fs::read_dir(&snaps) else {
+        return false;
+    };
+    for snap in entries.flatten() {
+        if let Ok(files) = std::fs::read_dir(snap.path()) {
+            for f in files.flatten() {
+                let name = f.file_name().to_string_lossy().to_ascii_lowercase();
+                if name.ends_with(".gguf") && name.contains(&ql) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// A local port [1234, 1245] with a **healthy** `llama-server` (`/health` → `{"status":"ok"}`), or
+/// `None`. Lets the app RECONNECT to an already-loaded model instead of reloading it, and auto-detect
+/// a server still running from a prior session on startup. Only `llama-server` answers `/health` with
+/// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
+pub fn running_server_port() -> Option<u16> {
+    (1234u16..=1245).find(|&p| {
+        std::process::Command::new("curl")
+            .args([
+                "-sS",
+                "--max-time",
+                "2",
+                &format!("http://127.0.0.1:{p}/health"),
+            ])
+            .output()
+            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
+            .unwrap_or(false)
+    })
+}
+
 // ─── GPU runtime backend + device selection ──────────────────────────────────────────────────────
 //
 // The runtime bug this solves: the winget `ggml.llamacpp` is a Vulkan-only build, and on a hybrid
