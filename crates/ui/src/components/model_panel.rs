@@ -7,6 +7,7 @@
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
+use crate::components::{WheatLoader, WheatPhase};
 use model::{
     agent_disqualified, detect_gpu, detect_spec_with, gpu_serve_args, have_llama_server,
     llama_install_hint, plan_serve, probe_devices, recommend_for, resolve_candidates,
@@ -426,16 +427,24 @@ pub fn ModelPanel() -> Element {
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
     let serving_now = *serving.read();
-    // Serve progress → (label, bar %, kind). `bar % = None` means an indeterminate bar; `kind` drives
-    // the color (ok=green, fail=carnelian, else neutral gold).
-    let serve_view: Option<(String, Option<u8>, &'static str)> =
+    // Serve progress → (label, wheat phase, kind). The wheat loader draws the phase; `None` phase =
+    // no wheat (a failure, shown as carnelian text). `kind` colors the label.
+    let serve_view: Option<(String, Option<WheatPhase>, &'static str)> =
         serve_status.read().as_ref().map(|p| match p {
-            ServeProgress::Preparing => ("Preparing…".to_string(), None, "prep"),
-            ServeProgress::Downloading(pct) => {
-                (format!("Downloading model… {pct}%"), Some(*pct), "dl")
+            ServeProgress::Preparing => {
+                ("Preparing…".to_string(), Some(WheatPhase::Loading), "prep")
             }
-            ServeProgress::Loading => ("Loading model into VRAM…".to_string(), None, "load"),
-            ServeProgress::Serving(line) => (line.clone(), Some(100), "ok"),
+            ServeProgress::Downloading(pct) => (
+                format!("Downloading model… {pct}%"),
+                Some(WheatPhase::Download(*pct)),
+                "dl",
+            ),
+            ServeProgress::Loading => (
+                "Loading model into VRAM…".to_string(),
+                Some(WheatPhase::Loading),
+                "load",
+            ),
+            ServeProgress::Serving(line) => (line.clone(), Some(WheatPhase::Done), "ok"),
             ServeProgress::Failed(reason) => (reason.clone(), None, "fail"),
         });
 
@@ -453,9 +462,7 @@ pub fn ModelPanel() -> Element {
 
             // While the benchmark runs (GPU probe + online quant lookup), show it's working.
             if *running.read() {
-                div { class: "progress",
-                    div { class: "progress-fill progress-fill--indeterminate" }
-                }
+                WheatLoader { phase: WheatPhase::Loading }
             }
 
             if benched {
@@ -500,20 +507,11 @@ pub fn ModelPanel() -> Element {
                             },
                             if serving_now { "Starting…" } else { "Download & serve locally" }
                         }
-                        if let Some((label, bar, kind)) = serve_view {
+                        if let Some((label, wheat, kind)) = serve_view {
                             div { class: "modelpanel-serve modelpanel-serve--{kind}",
                                 p { class: "modelpanel-serve-label", "{label}" }
-                                if kind != "fail" {
-                                    div { class: "progress",
-                                        match bar {
-                                            Some(pct) => rsx! {
-                                                div { class: "progress-fill", style: "width:{pct}%" }
-                                            },
-                                            None => rsx! {
-                                                div { class: "progress-fill progress-fill--indeterminate" }
-                                            },
-                                        }
-                                    }
+                                if let Some(phase) = wheat {
+                                    WheatLoader { phase }
                                 }
                             }
                         } else {

@@ -14,6 +14,7 @@ mod onboarding;
 mod ranked;
 mod settings;
 mod setup;
+mod wheat_loader;
 mod your_sky;
 
 pub use backstage::Backstage;
@@ -30,4 +31,5 @@ pub use onboarding::Onboarding;
 pub use ranked::Ranked;
 pub use settings::SettingsButton;
 pub use setup::Setup;
+pub use wheat_loader::{WheatLoader, WheatPhase};
 pub use your_sky::YourSky;

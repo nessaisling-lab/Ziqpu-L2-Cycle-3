@@ -5,7 +5,7 @@
 use agents::ReadMode;
 use dioxus::prelude::*;
 
-use crate::components::FitCard;
+use crate::components::{FitCard, WheatLoader, WheatPhase};
 use crate::state::{run_draft, AppCtx, Phase};
 
 #[component]
@@ -30,9 +30,7 @@ pub fn Ranked() -> Element {
                 span { class: "local-progress-label",
                     "Reading on your machine — {local_ready} of {count} ready"
                 }
-                div { class: "progress",
-                    div { class: "progress-fill progress-fill--indeterminate" }
-                }
+                WheatLoader { phase: WheatPhase::Loading }
             }
         }
 
