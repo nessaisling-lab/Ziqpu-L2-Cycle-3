@@ -25,6 +25,7 @@
   --carnelian:#b1452c; --carnelian-deep:#8f3621; --malachite:#2f7d57;
   --line:rgba(42,32,23,.12); --line-soft:rgba(42,32,23,.07);
   --shadow:0 1px 2px rgba(42,32,23,.05), 0 8px 28px rgba(42,32,23,.06);
+  --shadow-lift:0 4px 12px rgba(42,32,23,.10), 0 20px 44px rgba(42,32,23,.14);
 
   --f-display:"Cinzel Decorative","Trajan Pro",Optima,"Palatino Linotype",Georgia,serif;
   --f-body:"Spectral","Palatino Linotype",Palatino,Georgia,serif;
@@ -47,6 +48,7 @@
   --carnelian:#c25a3c; --carnelian-deep:#a8492f; --malachite:#6fa86b;
   --line:rgba(201,164,74,.18); --line-soft:rgba(243,236,216,.08);
   --shadow:0 1px 2px rgba(0,0,0,.40), 0 10px 30px rgba(0,0,0,.45);
+  --shadow-lift:0 6px 16px rgba(0,0,0,.50), 0 24px 52px rgba(0,0,0,.60);
 
   --band-strong:#6fa86b;
   --band-aligned:#9cb25a;
@@ -247,7 +249,32 @@ header{
 }
 .card--fit{cursor:pointer}
 .card--fit:hover{border-color:var(--gold-line);transform:translateY(-2px)}
-.card--selected{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold-line),var(--shadow)}
+
+/* ---- selected-choice indicator: "spotlight" (owner-chosen, review 0714) ----
+   The picked card stays full and rises; the rest of the ranked list dims and desaturates so the
+   one you chose is unmistakable from across a room. No new chrome — selection reads by contrast.
+   Selection always exists (defaults to best-fit index 0), so the top card is spotlit on arrival.
+   Hovering a dimmed card restores it to full for reading before you commit the click. */
+.card--fit.card--selected{
+  border-color:var(--gold);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+  transform:translateY(-3px);
+  z-index:1;
+}
+/* The rest of the list simply recedes — a gentle fade, kept above WCAG AA so the readings stay
+   legible + comparable. No desaturate or scale: those muted the color-coded compare cues (band
+   badge, meter gradient, living-wheat hue) and softened the prose in the webview. The selected
+   card's gold ring + lift is what actually spotlights; this only pushes the others back. */
+.card--fit:not(.card--selected){opacity:.72}
+.card--fit:not(.card--selected):hover{opacity:1;transform:translateY(-2px)}
+/* Keyboard selection is real (see FitCard onkeydown) — give it a visible focus ring. */
+.card--fit:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* The grounded ACT card carries the chosen treatment forward — it IS the choice you selected, now
+   grounded — so it wears the same gold ring + lift for visual continuity from list → briefing. */
+.card--chosen{
+  border-color:var(--gold);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+}
 .card__top{display:flex;align-items:center;gap:13px;padding:20px 22px 8px}
 .rune{
   width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:13px;

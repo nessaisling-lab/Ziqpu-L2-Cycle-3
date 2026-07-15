@@ -89,7 +89,7 @@ pub fn Briefing() -> Element {
 
     rsx! {
         p { class: "eyebrow", "Act · grounded, still reflection" }
-        article { class: "card", style: "--band:var({band});--pct:{score}%",
+        article { class: "card card--chosen", style: "--band:var({band});--pct:{score}%",
             div { class: "card__top",
                 h2 { class: "card__name", "{name}" }
                 if !ticker.is_empty() {

@@ -316,9 +316,26 @@ pub fn FitCard(index: usize) -> Element {
         article {
             class: "{card_cls}",
             style: "--band:var({band});--pct:{score}%;--wheat-color:{wheat_base};--wheat-tip:{wheat_tip}",
+            // Each ranked card is a real, keyboard-operable choice control — not a mouse-only div — so
+            // a keyboard/screen-reader user can move the selection the spotlight makes visible.
+            // `aria-current` announces which card is the chosen one (WCAG 2.1.1 / 4.1.2, Level A).
+            role: "button",
+            "aria-current": "{is_selected}",
+            tabindex: "0",
             onclick: {
                 let mut ctx = ctx.clone();
                 move |_| ctx.selected.set(index)
+            },
+            onkeydown: {
+                let mut ctx = ctx.clone();
+                move |e: KeyboardEvent| {
+                    // Enter/Space pick this card, matching the app's tablist keyboard contract.
+                    let key = e.key();
+                    if key == Key::Enter || matches!(&key, Key::Character(c) if c == " ") {
+                        e.prevent_default();
+                        ctx.selected.set(index);
+                    }
+                }
             },
 
             div { class: "card__top",
