@@ -202,13 +202,20 @@ fn wheat_stalk(i: usize, n: usize, h: &WheatHealth) -> Element {
 /// persistently on every card (a living health indicator, not just a loader); while the reading is
 /// pending it doubles as the loader with the "Consulting the viziers…" caption beside it. Pure inline
 /// SVG; each `.stalk` sways via the CSS `sway` keyframes (always-on, ungated from OS reduce-motion).
-fn wheat_field(fit: Fit) -> Element {
+fn wheat_field(fit: Fit, pending: bool) -> Element {
     let h = WheatHealth::from_fit(fit);
     let n = h.stalks;
     let stalks = (0..n).map(|i| wheat_stalk(i, n, &h)).collect::<Vec<_>>();
+    // While the reading is being fetched, the plot doubles as the loader: it washes red → green →
+    // gold (the owner-chosen loading beat) over the top of the sway, then settles to its health color.
+    let cls = if pending {
+        "wheat wheat--pending"
+    } else {
+        "wheat"
+    };
     rsx! {
         svg {
-            class: "wheat",
+            class: "{cls}",
             view_box: "0 0 104 92",
             "preserveAspectRatio": "xMidYMax meet",
             fill: "none",
@@ -350,7 +357,7 @@ pub fn FitCard(index: usize) -> Element {
                         {source_badge}
                     }
                 }
-                aside { class: "wheat-field", "aria-hidden": "true", {wheat_field(rec.fit)} }
+                aside { class: "wheat-field", "aria-hidden": "true", {wheat_field(rec.fit, is_pending)} }
             }
 
             Backstage { choice }

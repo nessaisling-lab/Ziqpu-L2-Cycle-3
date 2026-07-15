@@ -7,7 +7,7 @@
 //!   **red → green → gold** (the "working" beat; gold is reserved for done).
 //! - **Done** ([`WheatPhase::Done`]) — every stalk solid gold, still. Gold = resident in VRAM.
 //!
-//! The animation is pure CSS keyed off the container class (`.wheat--loading` / `.wheat--done`); this
+//! The animation is pure CSS keyed off the container class (`.wload--loading` / `.wload--done`); this
 //! component only decides how many stalks are grown (for the download percent) and the stagger delay.
 
 use dioxus::prelude::*;
@@ -31,42 +31,42 @@ pub enum WheatPhase {
 #[component]
 fn Stalk(index: usize, grown: bool) -> Element {
     let grow_class = if grown {
-        "wheat-grow wheat-grown"
+        "wload-grow wload-grown"
     } else {
-        "wheat-grow"
+        "wload-grow"
     };
     // Stagger the sway so the field ripples rather than moving as one board.
     let delay = format!("animation-delay:{:.2}s", index as f64 * 0.13);
     rsx! {
-        span { key: "{index}", class: "wheat-stalk", style: "{delay}",
+        span { key: "{index}", class: "wload-stalk", style: "{delay}",
             svg {
                 view_box: "0 0 20 80",
                 preserve_aspect_ratio: "none",
                 g { class: "{grow_class}",
-                    path { class: "stem", d: "M10 80 L10 26" }
+                    path { class: "wload-stem", d: "M10 80 L10 26" }
                     {(0..4).map(|k| {
                         let y = 30 + k * 8;
                         let base = y + 6;
                         let ctl = y + 2;
                         rsx! {
-                            path { key: "l{k}", class: "grain", d: "M10 {base} Q4 {ctl} 5 {y}" }
-                            path { key: "r{k}", class: "grain", d: "M10 {base} Q16 {ctl} 15 {y}" }
+                            path { key: "l{k}", class: "wload-grain", d: "M10 {base} Q4 {ctl} 5 {y}" }
+                            path { key: "r{k}", class: "wload-grain", d: "M10 {base} Q16 {ctl} 15 {y}" }
                         }
                     })}
-                    path { class: "grain", d: "M10 26 L10 15" }
+                    path { class: "wload-grain", d: "M10 26 L10 15" }
                 }
             }
         }
     }
 }
 
-/// The loader. Drop it in with a [`WheatPhase`]; the CSS in `ziqpu.css` (`.wheat*`) does the motion.
+/// The loader. Drop it in with a [`WheatPhase`]; the CSS in `ziqpu.css` (`.wload*`) does the motion.
 #[component]
 pub fn WheatLoader(phase: WheatPhase) -> Element {
     let container = match phase {
-        WheatPhase::Download(_) => "wheat",
-        WheatPhase::Loading => "wheat wheat--loading",
-        WheatPhase::Done => "wheat wheat--done",
+        WheatPhase::Download(_) => "wload",
+        WheatPhase::Loading => "wload wload--loading",
+        WheatPhase::Done => "wload wload--done",
     };
     // How many stalks are grown: the download percent → a left→right fill; full otherwise.
     let grown_count = match phase {

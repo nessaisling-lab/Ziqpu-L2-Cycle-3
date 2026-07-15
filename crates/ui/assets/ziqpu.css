@@ -826,32 +826,38 @@ td.b{color:var(--ink)}
 }
 
 /* ── Wheat loader — the loading indicator (owner-chosen over 4 other styles) ─────────────────────
+   Its own `.wload*` namespace so it never collides with the FitCard's living `.wheat` health plots.
    Download: stalks grow in left→right, a grown stalk turns gold. Loading into VRAM: the field sways
    and its color washes red→green→gold (gold reserved for done). Done: every stalk solid gold, still.
    Pure SVG + CSS, no runtime dependency — see components/wheat_loader.rs. */
-.wheat{display:flex;align-items:flex-end;justify-content:flex-start;gap:5px;height:30px;margin-top:2px}
-.wheat-stalk{height:30px;width:11px;display:flex;align-items:flex-end;transform-box:fill-box;transform-origin:bottom center}
-.wheat-stalk svg{display:block;height:30px;width:100%;overflow:visible}
-.wheat-grow{
+.wload{display:flex;align-items:flex-end;justify-content:flex-start;gap:6px;height:42px;margin-top:2px}
+.wload-stalk{height:42px;width:14px;display:flex;align-items:flex-end;transform-box:fill-box;transform-origin:bottom center}
+.wload-stalk svg{display:block;height:42px;width:100%;overflow:visible}
+.wload-grow{
   transform-box:fill-box;transform-origin:bottom center;
   transform:scaleY(.1) rotate(-14deg);opacity:.3;
   transition:transform .45s cubic-bezier(.34,1.4,.5,1),opacity .35s;
 }
-.wheat-grown{transform:scaleY(1) rotate(0);opacity:1}
-.wheat .stem,.wheat .grain{
+.wload-grown{transform:scaleY(1) rotate(0);opacity:1}
+.wload-stem,.wload-grain{
   fill:none;stroke:color-mix(in srgb,var(--ink-faint) 34%,transparent);
-  stroke-width:1.7;stroke-linecap:round;transition:stroke .18s linear;
+  stroke-width:1.9;stroke-linecap:round;transition:stroke .18s linear;
 }
-.wheat-grown .stem,.wheat-grown .grain{stroke:var(--gold)}
+.wload-grown .wload-stem,.wload-grown .wload-grain{stroke:var(--gold)}
 /* loading beat: the whole field sways + washes red → green → gold */
-.wheat--loading .wheat-grow{transform:scaleY(1) rotate(0);opacity:1}
-.wheat--loading .wheat-stalk{animation:wheat-sway 2.6s ease-in-out infinite}
-.wheat--loading .stem,.wheat--loading .grain{animation:wheat-wash 3.6s ease-in-out infinite}
-@keyframes wheat-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
-@keyframes wheat-wash{0%,100%{stroke:var(--carnelian)}38%{stroke:var(--malachite)}72%{stroke:var(--gold)}}
+.wload--loading .wload-grow{transform:scaleY(1) rotate(0);opacity:1}
+.wload--loading .wload-stalk{animation:wload-sway 2.6s ease-in-out infinite}
+.wload--loading .wload-stem,.wload--loading .wload-grain{animation:wload-wash 3.6s ease-in-out infinite}
+@keyframes wload-sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes wload-wash{0%,100%{stroke:var(--carnelian)}38%{stroke:var(--malachite)}72%{stroke:var(--gold)}}
 /* done beat: solid gold, still */
-.wheat--done .wheat-grow{transform:scaleY(1) rotate(0);opacity:1}
-.wheat--done .stem,.wheat--done .grain{stroke:var(--gold)}
+.wload--done .wload-grow{transform:scaleY(1) rotate(0);opacity:1}
+.wload--done .wload-stem,.wload--done .wload-grain{stroke:var(--gold)}
+/* FitCard's living wheat while ITS reading loads — washes red→green→gold over the health sway
+   (stems/leaves = stroke, grain heads = fill), then settles to the health color when the read lands. */
+.wheat--pending .stalk path{animation:wload-wash 3.2s ease-in-out infinite}
+.wheat--pending .stalk ellipse{animation:wload-wash-fill 3.2s ease-in-out infinite}
+@keyframes wload-wash-fill{0%,100%{fill:var(--carnelian)}38%{fill:var(--malachite)}72%{fill:var(--gold)}}
 .modelpanel-pick{
   font-size:14px;color:var(--ink);padding:9px 12px;border-radius:9px;
   background:color-mix(in srgb,var(--malachite) 10%,transparent);
