@@ -35,27 +35,34 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 jobs:
-  # ---- guard: only publish a tag that is on `main` (stable) or is a pre-release (nightfall) ----
+  # ---- guard: classify the tag as a stable (on-main) or nightfall (off-main) release ----
+  # A tag whose commit is an ancestor of `main` is a stable release → published as "Latest". Any other
+  # tag is a build-ahead **nightfall** release → published as a GitHub pre-release, never marked Latest,
+  # so it can never overtake the stable release even though the version is plain semver (v1.3.2, not a
+  # hyphenated -nightfall.N). This keeps the "no unmerged tag becomes Latest" safety without forcing the
+  # hyphen scheme. The classification is an output the bundle/publish job reads.
   guard:
-    name: guard (on main, or a pre-release)
+    name: guard (classify stable vs nightfall)
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.classify.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
-      - name: Tag must be on main, or be a hyphenated pre-release
+      - name: Classify the tag
+        id: classify
         run: |
           set -euo pipefail
           TAG="${RELEASE_TAG}"
           git fetch --quiet origin main
           if git merge-base --is-ancestor HEAD origin/main; then
-            echo "the commit for $TAG is an ancestor of main — stable release, ok"
-          elif [[ "$TAG" == *-* ]]; then
-            echo "$TAG is a hyphenated pre-release (nightfall) — ok"
+            echo "the commit for $TAG is an ancestor of main — STABLE release (Latest)"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::$TAG is neither on main nor a hyphenated pre-release; refusing to publish an unmerged, non-prerelease tag"
-            exit 1
+            echo "$TAG is off main — NIGHTFALL pre-release (never Latest)"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
   # ---- the full gauntlet (shared with CI): test/smoke/integration/security on the tagged code ----
@@ -66,7 +73,7 @@ jobs:
   # ---- bundle: build the Dioxus desktop app on each OS, package it, attach to the Release ----
   bundle:
     name: bundle (${{ matrix.os }})
-    needs: checks
+    needs: [guard, checks]
     permissions:
       contents: write
     strategy:
@@ -169,13 +176,17 @@ jobs:
           TAG="${RELEASE_TAG}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG not found; creating it"
-            # A hyphenated tag is a semver pre-release (e.g. v1.2.0-nightfall.1): publish it as a
-            # GitHub pre-release and never mark it "Latest", so a nightfall build never overtakes the
-            # stable release. `|| true` tolerates a create race between the three OS bundle jobs — the
-            # loser just attaches its asset to the winner's release.
+            # The guard classified this tag: off-main = a NIGHTFALL build-ahead release → publish it as
+            # a GitHub pre-release and never mark it "Latest", so it can't overtake the stable release
+            # (even though the version is plain semver). On-main = stable → Latest. `|| true` tolerates
+            # a create race between the three OS bundle jobs — the loser just attaches to the winner's.
             PRE=""
-            case "$TAG" in *-*) PRE="--prerelease --latest=false" ;; esac
-            gh release create "$TAG" --title "$TAG" --generate-notes $PRE || true
+            TITLE="$TAG"
+            if [ "${{ needs.guard.outputs.prerelease }}" = "true" ]; then
+              PRE="--prerelease --latest=false"
+              TITLE="Ziqpu Nightfall $TAG"
+            fi
+            gh release create "$TAG" --title "$TITLE" --generate-notes $PRE || true
           else
             echo "release $TAG already exists; attaching asset"
           fi
