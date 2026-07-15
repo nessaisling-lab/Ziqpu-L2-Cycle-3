@@ -38,6 +38,62 @@ fn free_local_port(start: u16) -> u16 {
         .unwrap_or(start)
 }
 
+/// The phases of a local serve, streamed to the UI so a long, silent operation (an 11 GB first-run
+/// download + a model load into VRAM) shows real progress instead of one static line.
+#[derive(Clone, PartialEq)]
+enum ServeProgress {
+    /// Spawning `llama-server`; nothing to report yet.
+    Preparing,
+    /// First-run model download, `0..=100` %. Parsed from `llama-server`'s stderr.
+    Downloading(u8),
+    /// Download done (or model cached); loading the weights into VRAM. Indeterminate.
+    Loading,
+    /// Live and serving — the success line (endpoint + runtime).
+    Serving(String),
+    /// Didn't come up — the reason (port busy, download failed, exited early).
+    Failed(String),
+}
+
+impl ServeProgress {
+    /// A terminal state clears the "starting…" spinner on the button.
+    fn is_done(&self) -> bool {
+        matches!(self, ServeProgress::Serving(_) | ServeProgress::Failed(_))
+    }
+}
+
+/// Pull a download percentage out of a `llama-server` stderr line, e.g.
+/// `Downloading gpt-oss-20b-Q6_K.gguf ─────╴ 73%` → `Some(73)`. `None` for any non-download line.
+fn parse_download_pct(line: &str) -> Option<u8> {
+    if !line.contains("Downloading") {
+        return None;
+    }
+    let idx = line.rfind('%')?;
+    let digits: String = line[..idx]
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
+    digits.parse::<u32>().ok().map(|n| n.min(100) as u8)
+}
+
+/// Is the just-spawned server ready to serve (model loaded)? Probes `/health` on the exact port —
+/// `llama-server` answers `{"status":"ok"}` only once the model is resident. Keyless, 3 s cap.
+fn port_ready(port: u16) -> bool {
+    std::process::Command::new("curl")
+        .args([
+            "-sS",
+            "--max-time",
+            "3",
+            &format!("http://127.0.0.1:{port}/health"),
+        ])
+        .output()
+        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
+        .unwrap_or(false)
+}
+
 #[component]
 pub fn ModelPanel() -> Element {
     let mut spec = use_signal(|| None::<DeviceSpec>);
@@ -90,13 +146,17 @@ pub fn ModelPanel() -> Element {
         },
     );
 
-    // Serve state — the in-app "download & serve" spawns llama-server off-thread and reports status.
+    // Serve state — the in-app "download & serve" spawns llama-server off-thread and streams its
+    // progress (download % → loading → serving) back here so the long silent steps show feedback.
     let mut serving = use_signal(|| false);
-    let mut serve_status = use_signal(|| None::<String>);
-    let server_co = use_coroutine(move |mut rx: UnboundedReceiver<String>| async move {
-        while let Some(msg) = rx.next().await {
-            serve_status.set(Some(msg));
-            serving.set(false);
+    let mut serve_status = use_signal(|| None::<ServeProgress>);
+    let server_co = use_coroutine(move |mut rx: UnboundedReceiver<ServeProgress>| async move {
+        while let Some(p) = rx.next().await {
+            // Keep the button spinner up until a terminal state (Serving/Failed).
+            if p.is_done() {
+                serving.set(false);
+            }
+            serve_status.set(Some(p));
         }
     });
 
@@ -177,24 +237,24 @@ pub fn ModelPanel() -> Element {
         };
         let Some(pick) = pick else { return };
         serving.set(true);
-        serve_status.set(Some("Preparing to serve…".to_string()));
+        serve_status.set(Some(ServeProgress::Preparing));
         let tx = server_co.tx();
         std::thread::spawn(move || {
             // Resolve the backend-correct llama-server (app-managed CUDA/Metal/ROCm build first, then
             // PATH/winget) — NOT the winget Vulkan build that binds a hybrid laptop's integrated GPU.
             let Some(bin) = resolve_llama_server() else {
-                let _ = tx.unbounded_send(format!(
+                let _ = tx.unbounded_send(ServeProgress::Failed(format!(
                     "llama.cpp not found — install it first ({}).",
                     llama_install_hint()
-                ));
+                )));
                 return;
             };
             let resolved =
                 plan_v.or_else(|| spec_v.and_then(|s| plan_serve(&pick, &s, gpu_v.as_ref())));
             let Some(plan) = resolved else {
-                let _ = tx.unbounded_send(
-                    "Couldn't list the repo's quants (offline?). Try again online.".to_string(),
-                );
+                let _ = tx.unbounded_send(ServeProgress::Failed(
+                    "Couldn't list the repo's quants (offline?). Try again online.".into(),
+                ));
                 return;
             };
             // Which GPU will this build actually serve on? Pin the discrete device so we never land on
@@ -224,30 +284,98 @@ pub fn ModelPanel() -> Element {
             ];
             // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
             args.extend(gpu_serve_args(device.as_ref()));
-            let msg = match std::process::Command::new(&bin).args(&args).spawn() {
-                Err(e) => format!("Failed to start llama-server: {e}"),
-                Ok(mut child) => {
-                    // Give it a moment; if it died immediately (busy port, download error), say so
-                    // truthfully instead of a false "serving".
-                    std::thread::sleep(std::time::Duration::from_millis(1800));
-                    match child.try_wait() {
-                        Ok(Some(status)) => format!(
-                            "llama-server exited early ({status}). Check the terminal — usually the port is busy or the download failed."
-                        ),
-                        _ => {
-                            std::env::set_var(
-                                "ZIQPU_LLM_URL",
-                                format!("http://127.0.0.1:{port}/v1"),
-                            );
-                            format!(
-                                "Serving {hf} (~{:.0} GB) on :{port} · {runtime_line}. Local mode now points here — first run downloads the model, so give it a minute, then switch the header toggle to Local.",
-                                plan.size_gb
-                            )
-                        }
-                    }
+
+            // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
+            let mut child = match std::process::Command::new(&bin)
+                .args(&args)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(e) => {
+                    let _ = tx.unbounded_send(ServeProgress::Failed(format!(
+                        "Failed to start llama-server: {e}"
+                    )));
+                    return;
                 }
             };
-            let _ = tx.unbounded_send(msg);
+
+            // Reader thread: parse `Downloading … NN%` from stderr. llama-server rewrites the % on ONE
+            // line with a carriage return (not newlines), so split on BOTH \r and \n or we'd only see
+            // the number after the download finished. `last_pct` (MAX = none yet) lets the poll loop
+            // below tell "downloading" from "loading" (a cached model prints no download line).
+            use std::sync::atomic::{AtomicU8, Ordering};
+            let last_pct = std::sync::Arc::new(AtomicU8::new(u8::MAX));
+            if let Some(mut stderr) = child.stderr.take() {
+                let tx2 = tx.clone();
+                let lp = last_pct.clone();
+                std::thread::spawn(move || {
+                    use std::io::Read;
+                    let mut buf = [0u8; 4096];
+                    let mut acc: Vec<u8> = Vec::new();
+                    let mut last_sent = u8::MAX;
+                    while let Ok(n) = stderr.read(&mut buf) {
+                        if n == 0 {
+                            break; // EOF — server stopped logging (or exited)
+                        }
+                        for &b in &buf[..n] {
+                            if b == b'\r' || b == b'\n' {
+                                let line = String::from_utf8_lossy(&acc);
+                                if let Some(pct) = parse_download_pct(&line) {
+                                    lp.store(pct, Ordering::Relaxed);
+                                    if pct != last_sent {
+                                        last_sent = pct;
+                                        let _ = tx2.unbounded_send(ServeProgress::Downloading(pct));
+                                    }
+                                }
+                                acc.clear();
+                            } else {
+                                acc.push(b);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Poll loop: watch for early exit, announce Loading once the download is done (or right
+            // away for a cached model), and flip to Serving when /health reports the model resident.
+            let started = std::time::Instant::now();
+            let mut announced_loading = false;
+            loop {
+                if let Ok(Some(status)) = child.try_wait() {
+                    let _ = tx.unbounded_send(ServeProgress::Failed(format!(
+                        "llama-server exited ({status}) — usually the port is busy or the download failed. Check the terminal."
+                    )));
+                    return;
+                }
+                if port_ready(port) {
+                    // Point Local mode here and report success. Dropping `child` now detaches the
+                    // server (Child::drop never kills the process) so it keeps serving.
+                    std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
+                    let _ = tx.unbounded_send(ServeProgress::Serving(format!(
+                        "Serving {hf} (~{:.0} GB) on :{port} · {runtime_line}. Switch the header toggle to Local.",
+                        plan.size_gb
+                    )));
+                    return;
+                }
+                let pct = last_pct.load(Ordering::Relaxed);
+                let downloading = pct != u8::MAX && pct < 100;
+                if !downloading
+                    && !announced_loading
+                    && (pct == 100 || started.elapsed() > std::time::Duration::from_secs(3))
+                {
+                    announced_loading = true;
+                    let _ = tx.unbounded_send(ServeProgress::Loading);
+                }
+                if started.elapsed() > std::time::Duration::from_secs(1800) {
+                    let _ = tx.unbounded_send(ServeProgress::Failed(
+                        "Timed out waiting for the model — check the terminal.".into(),
+                    ));
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(600));
+            }
         });
     };
 
@@ -298,7 +426,18 @@ pub fn ModelPanel() -> Element {
     let install_hint = llama_install_hint().to_string();
     let benched = s_opt.is_some();
     let serving_now = *serving.read();
-    let serve_msg = serve_status.read().clone();
+    // Serve progress → (label, bar %, kind). `bar % = None` means an indeterminate bar; `kind` drives
+    // the color (ok=green, fail=carnelian, else neutral gold).
+    let serve_view: Option<(String, Option<u8>, &'static str)> =
+        serve_status.read().as_ref().map(|p| match p {
+            ServeProgress::Preparing => ("Preparing…".to_string(), None, "prep"),
+            ServeProgress::Downloading(pct) => {
+                (format!("Downloading model… {pct}%"), Some(*pct), "dl")
+            }
+            ServeProgress::Loading => ("Loading model into VRAM…".to_string(), None, "load"),
+            ServeProgress::Serving(line) => (line.clone(), Some(100), "ok"),
+            ServeProgress::Failed(reason) => (reason.clone(), None, "fail"),
+        });
 
     rsx! {
         div { class: "modelpanel",
@@ -309,6 +448,13 @@ pub fn ModelPanel() -> Element {
                     r#type: "button",
                     onclick: run_bench,
                     if *running.read() { "Measuring…" } else { "Benchmark this machine" }
+                }
+            }
+
+            // While the benchmark runs (GPU probe + online quant lookup), show it's working.
+            if *running.read() {
+                div { class: "progress",
+                    div { class: "progress-fill progress-fill--indeterminate" }
                 }
             }
 
@@ -354,8 +500,22 @@ pub fn ModelPanel() -> Element {
                             },
                             if serving_now { "Starting…" } else { "Download & serve locally" }
                         }
-                        if let Some(msg) = serve_msg.clone() {
-                            p { class: "settings-hint", "{msg}" }
+                        if let Some((label, bar, kind)) = serve_view {
+                            div { class: "modelpanel-serve modelpanel-serve--{kind}",
+                                p { class: "modelpanel-serve-label", "{label}" }
+                                if kind != "fail" {
+                                    div { class: "progress",
+                                        match bar {
+                                            Some(pct) => rsx! {
+                                                div { class: "progress-fill", style: "width:{pct}%" }
+                                            },
+                                            None => rsx! {
+                                                div { class: "progress-fill progress-fill--indeterminate" }
+                                            },
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             p { class: "settings-hint",
                                 "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."

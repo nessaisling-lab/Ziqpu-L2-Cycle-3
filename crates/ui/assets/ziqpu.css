@@ -784,6 +784,43 @@ td.b{color:var(--ink)}
 }
 .modelpanel-runtime--warn .modelpanel-runtime-dot{background:var(--carnelian)}
 .modelpanel-runtime-note{color:var(--ink-soft);font-weight:500}
+/* Serve progress: a phase label + a bar. Determinate (download %) sets an explicit width; the
+   indeterminate bar (preparing / loading into VRAM) slides a short fill across the track. Colors:
+   neutral gold, ok = malachite, fail = carnelian (no bar). */
+.modelpanel-serve{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.modelpanel-serve-label{
+  margin:0;font:600 12.5px/1.45 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft);
+}
+.modelpanel-serve--ok .modelpanel-serve-label{color:var(--malachite)}
+.modelpanel-serve--fail .modelpanel-serve-label{color:var(--carnelian)}
+.progress{
+  height:7px;border-radius:6px;overflow:hidden;
+  background:color-mix(in srgb,var(--ink-faint) 16%,transparent);
+  border:1px solid var(--gold-line);
+}
+.progress-fill{
+  height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--gold-deep),var(--gold));
+  transition:width .3s ease;
+}
+.modelpanel-serve--ok .progress-fill{
+  width:100%;
+  background:linear-gradient(90deg,var(--malachite),color-mix(in srgb,var(--malachite) 60%,white));
+}
+.progress-fill--indeterminate{
+  width:40%;animation:progress-slide 1.2s ease-in-out infinite;
+}
+@keyframes progress-slide{
+  0%{transform:translateX(-110%)}
+  100%{transform:translateX(275%)}
+}
+/* Ranked-page "reading on your machine — N of M ready" cue while local reads land off-thread. */
+.local-progress{
+  display:flex;flex-direction:column;gap:6px;max-width:360px;margin:2px 0 14px;
+}
+.local-progress-label{
+  font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-faint);
+}
 .modelpanel-pick{
   font-size:14px;color:var(--ink);padding:9px 12px;border-radius:9px;
   background:color-mix(in srgb,var(--malachite) 10%,transparent);
