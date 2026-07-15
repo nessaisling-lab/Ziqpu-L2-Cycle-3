@@ -82,6 +82,8 @@ Both agents default to deterministic (CI-safe), with real models drop-in via tra
   an honesty ladder ([`GroundedRung`](src/interpret_llm.rs): Frontier → LocalGrounded → LocalUnsourced →
   Template) badged for how much reality backs it. See
   [docs/PRD-layered-grounding-pipeline.md](../../docs/PRD-layered-grounding-pipeline.md).
+  *(Direction: the local→frontier draft will move to a **compact handoff encoding** — structured
+  English + optional prompt compression — which also hardens the channel; see the repo `SECURITY.md`.)*
 - **Grounded tool** — `MockGroundedSource` (CI) or `EdgarSource` (`ZIQPU_LIVE=1`): real SEC EDGAR
   filings + industry **and** a keyless Wikipedia blurb, degrading cleanly if a source is blocked.
 - **Portable profile** ([`profile`](src/profile.rs)) — export/import birth data so the agent travels.

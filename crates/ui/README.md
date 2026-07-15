@@ -17,8 +17,13 @@ plain `cargo build` produces a fully-branded app with no external assets.
 - **The loop, visibly** — rank choices by fit → pick one → the human-in-the-loop **checkpoint** (the
   gate before the costed grounded pull) → the grounded briefing. A **Backstage** strip shows
   Hamun-ana's raw JSON beneath Ungasaga's prose.
-- **Reading-source toggle** — **Raw** (deterministic template) · **Local** (your LM Studio / llama.cpp
-  on `:1234`) · **Live** (OpenRouter → Anthropic). Each mode's prose is cached, so switching is instant.
+- **Reading-source toggle** — **Raw** (deterministic template) · **Local** (a model on your own GPU) ·
+  **Live** (OpenRouter → Anthropic). Each mode's prose is cached, so switching is instant.
+- **In-app model panel** (Settings + onboarding) — benchmark the machine (tier · GPU · RAM), search
+  Hugging Face (with an uncensored-model flag), and **download & serve** a local model with no CLI:
+  CUDA-first GPU pinning, quant-aware fit, single-active serve, reconnect-not-reload. The **wheat
+  loader** shows progress (download = stalks grow; VRAM load = sway, red→green→gold). See the
+  [`model`](../model/README.md) crate.
 - **Layered grounding** — at the checkpoint the local model drafts the frontier's brief; the grounded
   read is badged by rung (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` / `GROUNDED`).
   See [docs/PRD-layered-grounding-pipeline.md](../../docs/PRD-layered-grounding-pipeline.md).

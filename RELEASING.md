@@ -34,6 +34,17 @@ soak, then get **promoted** to `main` when green + audited.
 - **Protection** — `main` is protected (PR + owner approval). `nightfall` is the owner's integration
   branch: the owner pushes build-ahead work directly; contributors open PRs into it (CI-gated).
 
+## Version numbering & nightfall pre-releases
+Versions are **major.feature-phase.fix** — `v1.3.2` = major `1`, feature-phase `3`, fix `2`.
+- **Stable** tags on `main` publish as GitHub **"Latest"**.
+- **Nightfall** pre-releases tag **plain semver** (`vX.Y.Z`, *not* `-nightfall.N`). `release.yml`
+  classifies any tag whose commit is **not on `main`** as a pre-release
+  (`--prerelease --latest=false`), so a nightfall build ships Win/mac/Linux installers **without ever
+  overtaking the stable "Latest".**
+- Tag + push: `git tag -a vX.Y.Z -m "Ziqpu Nightfall vX.Y.Z" && git push origin vX.Y.Z` → the release
+  workflow runs guard → gauntlet → bundle → publish automatically (triggerable from the GitHub mobile app).
+- The macOS `.dmg` is **unsigned** (Gatekeeper: right-click → Open).
+
 ## Non-negotiables on BOTH tracks
 - The graded loop evals (`crates/agents/tests/loop.rs`) stay green: fixed tool order ·
   checkpoint blocks the grounded pull · advice refusal.
