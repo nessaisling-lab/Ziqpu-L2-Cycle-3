@@ -67,14 +67,41 @@ grounded tool) · **`model`** (local-LLM benchmark + runtime + serve) · `mcp` �
   visual artifact), never a single take. Owner records **voice reviews** as screen recordings —
   transcribe them with the **`/transcribe`** skill (local faster-whisper, `large-v3-turbo`) before
   acting; typed summaries are incomplete.
+- **Verifying HTML/UI mockups when screenshots hang:** the in-app browser's screenshot action can time
+  out. Instead serve the file (`python -m http.server` in a scratch dir) + `preview_start`/`navigate` to
+  **`localhost`** (NOT `file://` — blocked), then use `get_page_text` + `javascript_tool` **geometry +
+  interaction probes** (overflow/overlap/aria/commit) — deterministic, better than eyeballing. Add
+  `<meta charset=utf-8>` to locally-served pages or glyphs/em-dashes mojibake. Multi-widget pages are too
+  heavy to screenshot — one widget per page.
+
+## Design direction (2026-07-15) — see the internal `Ziqpu-Design/` folder + living PRD
+
+The brand crystallized this session (art-direction research workflow). Product/design thinking is
+**internal** (living PRD + `~/Documents/Ziqpu-Design/`), not the public tree.
+- **Art direction:** flat **mosaic-inlay** Sumerian language — cuneiform-wedge atom, ziggurat setbacks,
+  the **8-point star of Inanna = live/summit only**, guilloche, cylinder-seal frieze. **clay → shell →
+  gold = raw → local → live.** Ink-always-on-solid-substrate WCAG spine.
+- **Source-selector** (raw→local→live ladder + model selector): 6 WCAG-AA layouts built; owner finalists
+  **D (Rosette Dial) › B (Dawn-Horizon) › E (Register Strip)**; leaning to use more than one surface
+  (D compact + B/E fuller settings view).
+- **Rosette Dial review asks:** model list → **dropdown**; "raw" splits into **Hamun-ana** (literal
+  measure) vs **Ungasaga** (template); a **"prompt-ready" blue indicator** for the local→live handoff
+  draft; **split-glyph icon language** (identity ○◐✦ / capability / state); **DINGIR connect
+  micro-spinner** = inline **SVG** octagram at codepoint **U+1202D** (NOT U+12000), wheat loader stays
+  for long loads; **$/crossed-$** free/paid.
+- **Compact handoff encoding** (research-backed): the local→live handoff should be **structured English
+  + optional LLMLingua-2 compression** (NOT Chinese — tokenizer-dependent, backfires on the billed live
+  leg; NOT JSON/YAML — a token trap). Toggle = OFF / STRUCTURED / COMPRESSED. Security side-benefit:
+  obfuscation + reduced injection surface (defense-in-depth, **not** encryption). See `SECURITY.md`.
 
 ## Backlog — from the owner's 2026-07-14 review (priority order)
 
-1. **Persistent disclaimer.** Drop the per-reading `REMINDER: … not financial advice`; replace with ONE
-   always-visible banner. (Guardrail stays code-enforced — display only.)
-2. **Selected-choice indicator.** The card selected for grounding needs an obvious selected state.
-3. **RAW → LOCAL → LIVE as a clear escalation** in the mode toggle (template → local horsepower +
-   tool-calling → full APIs).
+1. ✅ **DONE (v-nightfall, unreleased).** Persistent disclaimer footer — one always-visible banner;
+   guardrail stays code-enforced (display only).
+2. ✅ **DONE (v-nightfall, unreleased).** Selected-choice "spotlight" + ranked cards made keyboard-
+   operable (role/aria-current/tabindex, Enter+Space, focus ring) — WCAG 2.1 A. Backlog #7 partly met.
+3. **RAW → LOCAL → LIVE as a clear escalation** in the mode toggle → superseded by the **source-selector
+   + model-ledger** design above (the Rosette Dial is this).
 4. **Model selector (offline)** — download tiered models: stable/light, medium, powerful web-scraping
    tool-caller. (The "model ledger.")
 5. **Settings as a card system**, no scrolling.
