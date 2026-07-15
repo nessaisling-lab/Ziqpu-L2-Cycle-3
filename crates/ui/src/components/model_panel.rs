@@ -39,6 +39,24 @@ fn free_local_port(start: u16) -> u16 {
         .unwrap_or(start)
 }
 
+/// Stop any running `llama-server` before starting a new one — SINGLE-ACTIVE serve. Each "serve"
+/// click spawns a detached server; without this they STACK (observed: 4 copies of a 14B, one on the
+/// GPU and three spilling to RAM, drove the commit charge to 99.6/100.7 GB and hung the machine). Also
+/// clears a stale server left running after the app was closed. Best-effort; ignores errors. Note this
+/// targets `llama-server` specifically, so LM Studio's own runtime (a different binary) is untouched.
+fn stop_prior_servers() {
+    #[cfg(windows)]
+    let _ = std::process::Command::new("taskkill")
+        .args(["/F", "/IM", "llama-server.exe"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    #[cfg(not(windows))]
+    let _ = std::process::Command::new("pkill")
+        .args(["-x", "llama-server"])
+        .status();
+}
+
 /// The phases of a local serve, streamed to the UI so a long, silent operation (an 11 GB first-run
 /// download + a model load into VRAM) shows real progress instead of one static line.
 #[derive(Clone, PartialEq)]
@@ -285,6 +303,12 @@ pub fn ModelPanel() -> Element {
             ];
             // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
             args.extend(gpu_serve_args(device.as_ref()));
+
+            // SINGLE-ACTIVE: stop any prior server first so serves don't stack (the machine-hang bug),
+            // then give the OS a moment to release its VRAM + committed memory before we load the new
+            // one onto the same GPU.
+            stop_prior_servers();
+            std::thread::sleep(std::time::Duration::from_millis(700));
 
             // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
             let mut child = match std::process::Command::new(&bin)
