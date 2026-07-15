@@ -301,15 +301,10 @@ pub fn FitCard(index: usize) -> Element {
         }
     };
 
-    // The card header already shows band + score + name, so strip a leading redundant
-    // "FIT: <band> (score) — name" line from the prose if the interpreter emitted one; keep the
-    // warm reading + why + REMINDER intact.
-    let reading = match source_text.split_once('\n') {
-        Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
-            rest.trim_start().to_string()
-        }
-        _ => source_text,
-    };
+    // Strip the display chrome: the redundant leading "FIT: … — name" line (the header shows it) and
+    // the trailing "REMINDER: … not financial advice" (now shown once in the persistent footer, not
+    // on every card). The disclaimer stays in the reading data + the guardrail — see strip_reading_chrome.
+    let reading = crate::state::strip_reading_chrome(&source_text);
     let card_cls = if is_selected {
         "card card--fit card--selected"
     } else {

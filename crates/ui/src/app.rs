@@ -495,6 +495,13 @@ pub fn App() -> Element {
             // The dictionary — a self-contained, always-available collapsible glossary of the
             // planets, aspects, flowing/friction, and the fit bands the engine speaks in.
             Legend {}
+
+            // The disclaimer — said ONCE, pinned to the bottom and always on screen, instead of
+            // closing every reading (owner's "say it once, always visible" ask). The no-advice
+            // guardrail stays enforced in the loop; this is the standing frame for what a reading is.
+            div { class: "disclaimer-bar", role: "note",
+                "A symbolic lens for reflection — measured, not fate, and never financial advice."
+            }
         }
         }
     }

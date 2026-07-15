@@ -308,6 +308,23 @@ pub fn run_recommend(mut ctx: AppCtx) {
     });
 }
 
+/// Trim a reading down to what a card should DISPLAY: drop a leading redundant `FIT: … — name` line
+/// (the card header already shows band/score/name), and drop the trailing `REMINDER: measured, not
+/// fate — not financial advice` (now shown ONCE in the persistent footer + carried by the rung badge,
+/// per the owner's "say it once" ask — no longer repeated on every reading). The disclaimer stays in
+/// the reading DATA (the no-advice guardrail and the interpreter tests are untouched); this only
+/// affects rendering.
+pub fn strip_reading_chrome(text: &str) -> String {
+    let body = match text.split_once('\n') {
+        Some((first, rest)) if first.trim_start().starts_with("FIT:") => rest.trim_start(),
+        _ => text,
+    };
+    match body.rfind("REMINDER") {
+        Some(i) => body[..i].trim_end().to_string(),
+        None => body.trim_end().to_string(),
+    }
+}
+
 /// Advance the display mode one step in the header toggle's cycle: **Raw → Local → Live → Raw**.
 pub fn next_mode(mode: ReadMode) -> ReadMode {
     match mode {

@@ -109,7 +109,16 @@ svg.i{width:1em;height:1em;vertical-align:-.14em;stroke-width:1.8;flex:none}
 .muted{color:var(--ink-soft);max-width:62ch}
 
 /* ---- layout wrap + sticky top bar ---- */
-.wrap{max-width:940px;margin:0 auto;padding:0 26px 64px}
+.wrap{max-width:940px;margin:0 auto;padding:0 26px 80px}
+/* The one persistent disclaimer — pinned to the bottom, always on screen (replaces the per-reading
+   REMINDER). Slim, gold-hairline top, page-tinted so it reads as chrome, not a card. */
+.disclaimer-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  padding:8px 20px;text-align:center;
+  font:600 11.5px/1.4 var(--f-mono);letter-spacing:.03em;color:var(--ink-soft);
+  background:color-mix(in srgb,var(--parchment) 88%,var(--gold));
+  border-top:1px solid var(--gold-line);
+}
 
 header{
   position:sticky;top:0;z-index:50;
