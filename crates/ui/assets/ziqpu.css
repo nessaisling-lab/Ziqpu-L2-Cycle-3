@@ -585,13 +585,53 @@ td.b{color:var(--ink)}
 .provider-card--on .pc-name{color:var(--gold-deep)}
 .provider-err{font:500 12px/1.5 var(--f-mono);color:#a1442e;margin:6px 0 0}
 
-/* ---- model picker (live catalog dropdown) ---- */
+/* ---- model picker (live catalog list) ---- */
 .picker{margin:2px 0 14px;text-align:left}
 .picker-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .picker-status{font:500 11px/1.4 var(--f-mono);color:var(--ink-faint)}
-/* A native <select> renders option text only, so badges ride as glyphs — keep the mono face so the
-   ✦/★ marks and the " — note" tails line up down the list. */
-.picker select.settings-input{font-family:var(--f-mono);font-size:13px}
+
+/* Built from ordinary elements, never a native <select>: the OS draws that popup OUTSIDE the page,
+   so it escaped the panel, ignored the theme, and covered the app. This expands INLINE instead —
+   it's just markup, so it stays inside its container by construction. */
+.combo{position:relative;text-align:left}
+.combo-trigger{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  font:400 13px/1.4 var(--f-mono);color:var(--ink);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:9px;padding:9px 11px;cursor:pointer;transition:.15s;
+}
+.combo-trigger:hover{border-color:var(--gold)}
+.combo-trigger:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.combo-trigger--busy{color:var(--ink-faint);cursor:default}
+/* The value can be long; let it ellipsize rather than blow out the panel width. */
+.combo-value{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo-caret{flex:none;color:var(--ink-faint);font-size:11px}
+.combo-panel{
+  margin-top:6px;border:1px solid var(--gold-line);border-radius:9px;
+  background:var(--parchment);overflow:hidden;
+}
+.combo-filter{
+  width:100%;font:400 13px/1.4 var(--f-mono);color:var(--ink);background:var(--parchment-2);
+  border:none;border-bottom:1px solid var(--gold-line);padding:9px 11px;
+}
+.combo-filter:focus{outline:none;background:var(--parchment)}
+/* Bounded height: the list scrolls WITHIN itself, so a 320-model catalog can never stretch the
+   panel past the frame. */
+.combo-list{max-height:240px;overflow-y:auto;margin:0;padding:4px;list-style:none}
+.combo-opt{
+  font:400 12.5px/1.45 var(--f-mono);color:var(--ink);
+  padding:7px 9px;border-radius:7px;cursor:pointer;transition:.1s;
+}
+.combo-opt:hover{background:var(--parchment-2)}
+.combo-opt--cursor{background:var(--parchment-2);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.combo-opt--on{color:var(--gold-deep);font-weight:600}
+/* Listed so its existence and its coming support are visible — but not choosable today. */
+.combo-opt--off{color:var(--ink-faint);cursor:not-allowed;opacity:.6}
+.combo-opt--off:hover{background:transparent}
+.combo-empty{font:400 12.5px/1.45 var(--f-mono);color:var(--ink-faint);padding:10px 9px}
+.combo-more{
+  font:400 11px/1.4 var(--f-mono);color:var(--ink-faint);
+  margin:0;padding:7px 11px;border-top:1px solid var(--gold-line);background:var(--parchment-2);
+}
 /* Collapsible sections. Everything past the everyday controls (provider + model) folds away, so the
    default modal stays short enough to never need scrolling at all — the benchmark panel alone is
    taller than the rest of the settings combined. */
