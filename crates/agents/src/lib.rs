@@ -19,6 +19,7 @@ pub mod interpret_llm;
 mod llm_http;
 pub mod measure;
 pub mod measure_llm;
+pub mod models;
 pub mod orchestrator;
 pub mod profile;
 pub mod score;

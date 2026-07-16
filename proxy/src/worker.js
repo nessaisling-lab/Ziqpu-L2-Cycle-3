@@ -45,16 +45,25 @@ async function handle(request, env) {
     return json({ error: "service_disabled" }, 503);
   }
 
-  // One method, one path. Everything else is 404/405 — no open relay surface.
+  // Two routes, nothing else — no open relay surface.
+  //   POST /v1/messages : the reading call
+  //   GET  /v1/models   : which models this proxy will actually serve (the allowlist)
   const url = new URL(request.url);
-  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  if (url.pathname !== "/v1/messages") return json({ error: "not_found" }, 404);
+  const isMessages = request.method === "POST" && url.pathname === "/v1/messages";
+  const isModels = request.method === "GET" && url.pathname === "/v1/models";
+  if (!isMessages && !isModels) {
+    // Distinguish "wrong verb on a real path" from "no such path", as clients expect.
+    const knownPath = url.pathname === "/v1/messages" || url.pathname === "/v1/models";
+    return json({ error: knownPath ? "method_not_allowed" : "not_found" }, knownPath ? 405 : 404);
+  }
 
-  // --- (3) App-token gate: timing-safe compare against the APP_TOKEN secret. ---
+  // --- (3) App-token gate: timing-safe compare against the APP_TOKEN secret. Both routes. ---
   const presented = bearer(request.headers.get("authorization"));
   if (!presented || !env.APP_TOKEN || !timingSafeEqual(presented, env.APP_TOKEN)) {
     return json({ error: "unauthorized" }, 401);
   }
+
+  if (isModels) return await listModels(env);
 
   // --- (6) Body-size limit before we read/parse. ---
   const raw = await request.text();
@@ -67,11 +76,8 @@ async function handle(request, env) {
     return json({ error: "invalid_json" }, 400);
   }
 
-  // --- (6) Model allowlist + max_tokens clamp. ---
-  const allowed = String(env.ALLOWED_MODELS ?? "claude-opus-4-8")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // --- (6) Model allowlist + max_tokens clamp. Same list GET /v1/models advertises. ---
+  const allowed = allowedModels(env);
   if (!allowed.includes(body.model)) {
     return json({ error: "model_not_allowed" }, 400);
   }
@@ -135,7 +141,43 @@ async function handle(request, env) {
   });
 }
 
+/**
+ * GET /v1/models — what the built-in tier can actually serve.
+ *
+ * Rather than hardcode names, ask Anthropic for the real catalog (with the server-side key) and
+ * return only the entries this proxy's ALLOWED_MODELS permits. The app gets true display names and
+ * context windows, and the list can never drift from what `/v1/messages` will accept — both read
+ * the same allowlist. The Anthropic key never leaves this Worker.
+ */
+async function listModels(env) {
+  const allowed = allowedModels(env);
+  const upstream = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+    headers: {
+      "x-api-key": env.ANTHROPIC_API_KEY,
+      "anthropic-version": ANTHROPIC_VERSION,
+    },
+  });
+  if (!upstream.ok) return json({ error: "upstream_unavailable" }, 502);
+
+  let catalog;
+  try {
+    catalog = JSON.parse(await upstream.text());
+  } catch (_e) {
+    return json({ error: "upstream_unreadable" }, 502);
+  }
+  const data = (catalog.data ?? []).filter((m) => allowed.includes(m.id));
+  return json({ data, has_more: false }, 200);
+}
+
 // ---- helpers ----
+
+/** The configured model allowlist, parsed once per request. */
+function allowedModels(env) {
+  return String(env.ALLOWED_MODELS ?? "claude-opus-4-8")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 /** Extract the token from an `Authorization: Bearer <token>` header, or null. */
 function bearer(header) {

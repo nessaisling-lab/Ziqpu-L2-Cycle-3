@@ -21,6 +21,21 @@ pub(crate) fn post_json(url: &str, headers: &[(&str, &str)], body: &str) -> Opti
     req.send_string(body).ok()?.into_string().ok()
 }
 
+/// One JSON GET over HTTPS. Same discipline as [`post_json`] — any key rides an in-process header,
+/// never a command line. Returns the response body as a string, or `None` on any transport /
+/// non-2xx / read error. Used for live provider model-catalog discovery (see [`crate::models`]);
+/// a 20s cap keeps a slow catalog from blocking a UI worker thread for long.
+pub(crate) fn get_json(url: &str, headers: &[(&str, &str)]) -> Option<String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(20))
+        .build();
+    let mut req = agent.get(url);
+    for (name, value) in headers {
+        req = req.set(name, value);
+    }
+    req.call().ok()?.into_string().ok()
+}
+
 /// One OpenAI-compatible `/chat/completions` round-trip. POSTs to `{base_url}/chat/completions`
 /// with a Bearer token and a system + user message (`stream:false`, no temperature), then parses
 /// `choices[0].message.content`. Returns `None` on any transport, HTTP, or parse error.
