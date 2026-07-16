@@ -43,22 +43,100 @@ fn free_local_port(start: u16) -> u16 {
         .unwrap_or(start)
 }
 
-/// Stop any running `llama-server` before starting a new one — SINGLE-ACTIVE serve. Each "serve"
-/// click spawns a detached server; without this they STACK (observed: 4 copies of a 14B, one on the
-/// GPU and three spilling to RAM, drove the commit charge to 99.6/100.7 GB and hung the machine). Also
-/// clears a stale server left running after the app was closed. Best-effort; ignores errors. Note this
-/// targets `llama-server` specifically, so LM Studio's own runtime (a different binary) is untouched.
-fn stop_prior_servers() {
+/// Where the PID of the `llama-server` **we** spawned is recorded, beside `settings.json` in the
+/// user's data dir.
+///
+/// It has to survive the process, not just live in memory: we detach each server deliberately
+/// (`Child::drop` never kills), so a server we started can outlive the app — and the next launch
+/// still has to be able to stop it. An in-memory handle would forget it and let servers stack.
+fn pid_path() -> Option<std::path::PathBuf> {
+    Some(crate::profile::data_dir()?.join("llama-server.pid"))
+}
+
+/// Remember the server we just started, so the next serve — or the next launch — can stop exactly
+/// that one. Best-effort.
+fn record_our_server(pid: u32) {
+    if let Some(path) = pid_path() {
+        let _ = std::fs::write(path, pid.to_string());
+    }
+}
+
+/// The PID of the last `llama-server` we started, if we started one.
+fn recorded_pid() -> Option<u32> {
+    std::fs::read_to_string(pid_path()?)
+        .ok()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+/// Forget the recorded server (it's stopped, or it was never ours).
+fn clear_recorded_pid() {
+    if let Some(path) = pid_path() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+/// Stop **the server we started** before starting another — SINGLE-ACTIVE serve.
+///
+/// Each "serve" click spawns a detached server; without this they STACK (observed: 4 copies of a
+/// 14B, one on the GPU and three spilling to RAM, drove the commit charge to 99.6/100.7 GB and hung
+/// the machine).
+///
+/// This used to be `taskkill /F /IM llama-server.exe` (and `pkill -x llama-server`) — kill *every*
+/// llama-server on the machine. That fixed stacking by breaking other people's work: a developer
+/// with their own llama-server running, or two Ziqpu windows open, would have it killed from under
+/// them with no warning and no consent. Ziqpu may only stop processes it started, so it now tracks
+/// its own child by PID.
+///
+/// **PID reuse is the hazard.** The OS recycles PIDs, so a recorded PID may name an unrelated
+/// process by the time we act — and `/F` doesn't ask. Both branches therefore verify the image is
+/// still `llama-server` before signalling, which is what makes "kill only ours" true rather than
+/// merely intended.
+///
+/// A server the *user* started keeps running: [`free_local_port`] already steps to the next free
+/// port, so the two coexist instead of fighting. Best-effort; ignores errors.
+fn stop_our_server() {
+    let Some(pid) = recorded_pid() else { return };
     #[cfg(windows)]
-    let _ = crate::no_window(std::process::Command::new("taskkill"))
-        .args(["/F", "/IM", "llama-server.exe"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+    {
+        // taskkill applies /FI before terminating, so a recycled PID simply doesn't match and
+        // nothing is killed — the guard and the kill are one atomic call.
+        let _ = crate::no_window(std::process::Command::new("taskkill"))
+            .args([
+                "/F",
+                "/PID",
+                &pid.to_string(),
+                "/FI",
+                "IMAGENAME eq llama-server.exe",
+            ])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
     #[cfg(not(windows))]
-    let _ = std::process::Command::new("pkill")
-        .args(["-x", "llama-server"])
-        .status();
+    {
+        // No equivalent atomic filter here, so check then signal. The race window (the PID dying
+        // and being reused between the two calls) is vanishingly small and the cost of losing it is
+        // one stray SIGTERM — versus killing every llama-server on the box, every time, by design.
+        let still_ours = std::process::Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "comm="])
+            .output()
+            .ok()
+            .is_some_and(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .ends_with("llama-server")
+            });
+        if still_ours {
+            // TERM, not KILL: llama-server releases VRAM on a clean exit, and the caller's pause
+            // before loading the next model exists precisely to let that land.
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .status();
+        }
+    }
+    clear_recorded_pid();
 }
 
 /// The phases of a local serve, streamed to the UI so a long, silent operation (an 11 GB first-run
@@ -325,10 +403,11 @@ pub fn ModelPanel() -> Element {
             // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
             args.extend(gpu_serve_args(device.as_ref()));
 
-            // SINGLE-ACTIVE: stop any prior server first so serves don't stack (the machine-hang bug),
-            // then give the OS a moment to release its VRAM + committed memory before we load the new
-            // one onto the same GPU.
-            stop_prior_servers();
+            // SINGLE-ACTIVE: stop OUR prior server first so serves don't stack (the machine-hang
+            // bug), then give the OS a moment to release its VRAM + committed memory before we load
+            // the new one onto the same GPU. A server someone else started is left alone — it isn't
+            // ours to kill, and `free_local_port` already routes around it.
+            stop_our_server();
             std::thread::sleep(std::time::Duration::from_millis(700));
 
             // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
@@ -338,7 +417,14 @@ pub fn ModelPanel() -> Element {
                 .stderr(std::process::Stdio::piped())
                 .spawn()
             {
-                Ok(c) => c,
+                // Claim it immediately — before the download, before the load, before any await.
+                // This PID is the ONLY handle that survives us: we detach the child on success, so
+                // if the app is closed (or crashes) between here and then, the record is what lets
+                // the next launch stop the server it left running.
+                Ok(c) => {
+                    record_our_server(c.id());
+                    c
+                }
                 Err(e) => {
                     let _ = tx.unbounded_send(ServeProgress::Failed(format!(
                         "Failed to start llama-server: {e}"
@@ -390,6 +476,11 @@ pub fn ModelPanel() -> Element {
             let mut announced_loading = false;
             loop {
                 if let Ok(Some(status)) = child.try_wait() {
+                    // It's dead, so the recorded PID now names nothing — and the OS is free to
+                    // recycle it onto an unrelated process. Drop the claim rather than leave a
+                    // stale one pointing at a stranger. (The timeout path below deliberately keeps
+                    // its record: a hung server is still running, and still ours to stop.)
+                    clear_recorded_pid();
                     let _ = tx.unbounded_send(ServeProgress::Failed(format!(
                         "llama-server exited ({status}) — usually the port is busy or the download failed. Check the terminal."
                     )));

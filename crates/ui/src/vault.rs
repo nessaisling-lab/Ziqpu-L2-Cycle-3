@@ -179,9 +179,18 @@ mod tests {
     #[test]
     fn no_ui_surface_reads_a_key_back() {
         let surfaces = [
-            ("components/key_field.rs", include_str!("components/key_field.rs")),
-            ("components/settings.rs", include_str!("components/settings.rs")),
-            ("components/onboarding.rs", include_str!("components/onboarding.rs")),
+            (
+                "components/key_field.rs",
+                include_str!("components/key_field.rs"),
+            ),
+            (
+                "components/settings.rs",
+                include_str!("components/settings.rs"),
+            ),
+            (
+                "components/onboarding.rs",
+                include_str!("components/onboarding.rs"),
+            ),
         ];
         for (name, src) in surfaces {
             for (n, line) in src.lines().enumerate() {
