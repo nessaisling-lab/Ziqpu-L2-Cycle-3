@@ -209,12 +209,20 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
     }
 
     /// CHECKPOINT: pause before the costed grounded pull and ask the human.
+    ///
+    /// The prompt must name **every** source the approval spends, because this is the only moment
+    /// the human gets to say no. It used to say "SEC EDGAR" alone while
+    /// [`EdgarSource::fetch`](crate::EdgarSource) also reaches Wikipedia — so the reading's own
+    /// output ("GROUNDED (SEC EDGAR + Wikipedia)") was more honest than the consent that authorized
+    /// it. Consent that understates its blast radius isn't consent. Keep this list in step with
+    /// what `fetch` actually calls.
     pub fn propose_grounding(&self, choice: &Choice) -> ApprovalRequest {
         ApprovalRequest {
             choice: choice.ticker.clone(),
             prompt: format!(
-                "Ground this read for {}? I'll pull real external signals (SEC EDGAR) — an \
-                 external, gated, costed call. Approve to proceed; decline to keep the symbolic read.",
+                "Ground this read for {}? I'll pull real external signals (SEC EDGAR filings and \
+                 Wikipedia) — external, gated, costed calls. Approve to proceed; decline to keep \
+                 the symbolic read.",
                 choice.ticker
             ),
         }
@@ -434,6 +442,29 @@ mod tests {
             ],
             "the three chart tools must be called in the fixed order"
         );
+    }
+
+    /// The checkpoint prompt must name **every** source the approval spends.
+    ///
+    /// This is the graded human-in-the-loop gate and the only moment a person can refuse, so an
+    /// understated prompt isn't a wording nit — it's consent obtained for less than what runs. It
+    /// shipped saying "SEC EDGAR" alone while `EdgarSource::fetch` also reached Wikipedia, which
+    /// the *reading* then disclosed ("GROUNDED (SEC EDGAR + Wikipedia)") — the output was more
+    /// honest than the consent. If `fetch` gains a source, this test should fail.
+    #[test]
+    fn the_proposal_names_every_source_it_spends() {
+        let s = session();
+        let choice = demo_choices().into_iter().next().unwrap();
+        let prompt = s.propose_grounding(&choice).prompt;
+        for source in ["SEC EDGAR", "Wikipedia"] {
+            assert!(
+                prompt.contains(source),
+                "the checkpoint spends {source} but never names it — consent must state its full \
+                 blast radius. Prompt: {prompt}"
+            );
+        }
+        // It must still say the pull is external and costed — that's *why* the gate exists.
+        assert!(prompt.contains("costed"), "prompt: {prompt}");
     }
 
     #[test]

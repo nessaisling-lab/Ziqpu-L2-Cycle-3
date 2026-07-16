@@ -34,17 +34,37 @@ impl GroundedSource for MockGroundedSource {
     }
 }
 
+/// The contact address sent to SEC EDGAR, overridable with `ZIQPU_EDGAR_UA`.
+///
+/// SEC's fair-access policy requires a User-Agent that reaches a human, and this string ships in
+/// the binary — so **every** grounded pull, by every person who installs Ziqpu, carries it. That
+/// makes it a *role* address by necessity, not a preference: a maintainer's personal or
+/// institutional address here would hand strangers' traffic a name that never consented to it, and
+/// would rot the moment that person moved on. Whoever answers this mailbox answers for the fleet.
+///
+/// Keep it a real, monitored address. A plausible-looking dead mailbox is worse than none: it
+/// satisfies the format while quietly breaking the policy's actual purpose, and SEC can block the
+/// User-Agent for the whole fleet at once.
+const DEFAULT_EDGAR_UA: &str = "Ziqpu research (nisaba.ziqpu@gmail.com)";
+
 /// Real, keyless SEC EDGAR submissions pull. Live only. SEC policy requires a contact
-/// User-Agent. Shells out to `curl` so no HTTP crate enters the dependency tree.
+/// User-Agent — see [`DEFAULT_EDGAR_UA`].
 pub struct EdgarSource {
     pub user_agent: String,
 }
 
 impl Default for EdgarSource {
+    /// Uses [`DEFAULT_EDGAR_UA`] unless `ZIQPU_EDGAR_UA` overrides it — so a fork, a partner
+    /// deployment, or a heavy researcher can identify as themselves (which SEC's policy actually
+    /// wants) without patching the source. Blank or whitespace is treated as unset: an empty
+    /// contact would be a policy violation dressed as a configuration.
     fn default() -> Self {
-        Self {
-            user_agent: "Ziqpu research (aisling.ld@pursuit.org)".to_string(),
-        }
+        let ua = std::env::var("ZIQPU_EDGAR_UA")
+            .map(|s| s.trim().to_string())
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| DEFAULT_EDGAR_UA.to_string());
+        Self { user_agent: ua }
     }
 }
 
@@ -237,4 +257,58 @@ mod tests {
         // Unknown tickers degrade honestly — no invented fixture.
         assert!(fixture_filings("ZZZZ").is_none());
     }
+
+    /// No maintainer's personal or institutional address may ship in the User-Agent.
+    ///
+    /// This string rides every SEC request every installed copy ever makes, so a personal address
+    /// here quietly attributes strangers' traffic to a named individual — and breaks when that
+    /// person moves on. The addresses below are the ones actually reachable from this project's
+    /// history, which is exactly why they're the ones worth naming: `aisling.ld@pursuit.org` was
+    /// hardcoded here and shipped.
+    #[test]
+    fn the_contact_address_is_a_role_not_a_person() {
+        for personal in ["pursuit.org", "aisling"] {
+            assert!(
+                !DEFAULT_EDGAR_UA.to_ascii_lowercase().contains(personal),
+                "DEFAULT_EDGAR_UA ships a personal address ({personal}): {DEFAULT_EDGAR_UA}. \
+                 Every user's SEC traffic carries this — use a role mailbox."
+            );
+        }
+        // SEC's policy is about reachability, so the format has to actually be a contact.
+        assert!(
+            DEFAULT_EDGAR_UA.contains('@'),
+            "SEC requires a contact in the User-Agent: {DEFAULT_EDGAR_UA}"
+        );
+    }
+
+    /// `ZIQPU_EDGAR_UA` overrides the default, and a blank value is treated as unset rather than
+    /// sending SEC an empty contact — a policy violation dressed as a configuration.
+    ///
+    /// Serialized with the test below: both mutate the same process-wide env var, and Rust runs
+    /// tests in parallel threads by default.
+    #[test]
+    fn env_override_wins_but_blank_does_not() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("ZIQPU_EDGAR_UA", "Acme research (ops@acme.example)");
+        assert_eq!(
+            EdgarSource::default().user_agent,
+            "Acme research (ops@acme.example)"
+        );
+        // Whitespace-only must fall back, not send an empty contact.
+        std::env::set_var("ZIQPU_EDGAR_UA", "   ");
+        assert_eq!(EdgarSource::default().user_agent, DEFAULT_EDGAR_UA);
+        std::env::remove_var("ZIQPU_EDGAR_UA");
+    }
+
+    /// With nothing set, the shipped default is what goes out.
+    #[test]
+    fn unset_falls_back_to_the_role_address() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("ZIQPU_EDGAR_UA");
+        assert_eq!(EdgarSource::default().user_agent, DEFAULT_EDGAR_UA);
+    }
+
+    /// Guards the two env tests against each other — `set_var`/`remove_var` are process-wide, so
+    /// without this they race and flake.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }
