@@ -149,7 +149,7 @@ impl EdgarSource {
     /// transport error or a non-2xx status (`curl` returns exit 0 on HTTP errors, so we don't rely
     /// on that alone — callers treat a non-JSON body as "unavailable").
     fn get(&self, url: &str) -> Option<Vec<u8>> {
-        let output = std::process::Command::new("curl")
+        let output = crate::no_window(std::process::Command::new("curl"))
             .args([
                 "-sS",
                 "--compressed",

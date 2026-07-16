@@ -15,8 +15,6 @@
 use crate::interpret::{Interpreter, TemplateInterpreter};
 use crate::llm_http::openai_chat;
 use crate::types::{Fit, GroundedSignals, Measures};
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 /// Ungasaga's charge (Doc 5), condensed — measure → meaning → reminder, warm steward, never advice,
 /// heritage as lineage not proof. The strict output contract keeps the reading clean and on-format.
@@ -102,32 +100,17 @@ impl AnthropicInterpreter {
         })
         .to_string();
 
-        // The key is passed to curl via a header arg. Fine for a local demo on the user's own
-        // machine; a hosted deployment should use a proper client that keeps the key off argv.
-        let mut child = Command::new("curl")
-            .args([
-                "-sS",
-                "https://api.anthropic.com/v1/messages",
-                "-H",
-                &format!("x-api-key: {}", self.api_key),
-                "-H",
-                "anthropic-version: 2023-06-01",
-                "-H",
-                "content-type: application/json",
-                "--data-binary",
-                "@-",
-            ])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .ok()?;
-        child.stdin.take()?.write_all(body.as_bytes()).ok()?;
-        let output = child.wait_with_output().ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+        // The x-api-key rides an in-process header (post_json), never a process command line.
+        let text = crate::llm_http::post_json(
+            "https://api.anthropic.com/v1/messages",
+            &[
+                ("x-api-key", &self.api_key),
+                ("anthropic-version", "2023-06-01"),
+                ("content-type", "application/json"),
+            ],
+            &body,
+        )?;
+        let value: serde_json::Value = serde_json::from_str(&text).ok()?;
         // Guard the error/refusal shapes before reading content.
         if value.get("type").and_then(|t| t.as_str()) == Some("error") {
             return None;
@@ -412,7 +395,7 @@ fn local_status() -> LocalStatus {
             .trim_end_matches("/v1")
             .trim_end_matches('/')
     );
-    match std::process::Command::new("curl")
+    match crate::no_window(std::process::Command::new("curl"))
         .args(["-sS", "--max-time", "3", &health])
         .output()
     {

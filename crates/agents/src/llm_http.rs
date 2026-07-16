@@ -1,10 +1,25 @@
-//! A tiny shared HTTP helper for OpenAI-compatible chat completions, called over a `curl`
-//! subprocess (the same no-new-dependency approach as the rest of the loop's live paths — no HTTP
-//! crate enters the dependency tree). Used by the OpenAI-compat / OpenRouter interpreter, and it
-//! mirrors the exact `curl` subprocess shape already used by `measure_llm.rs`.
+//! A tiny shared HTTPS helper for the live interpreter paths (OpenAI-compatible / OpenRouter here,
+//! Anthropic in `interpret_llm.rs`). Uses `ureq` (pure-Rust rustls TLS, bundled roots) so the request
+//! runs IN-PROCESS: no `curl.exe` dependency, and — the security point — the API key is sent as an
+//! in-process header and never touches a process command line (the old curl `-H` argv exposure).
 
-use std::io::Write;
-use std::process::{Command, Stdio};
+use std::time::Duration;
+
+/// One JSON POST over HTTPS. Sets each `(name, value)` header (this is where the secret Authorization
+/// header rides — in memory, never on argv) and sends `body`. Returns the response body as a string,
+/// or `None` on any transport / non-2xx / read error. A 60s timeout guards a hung provider.
+pub(crate) fn post_json(url: &str, headers: &[(&str, &str)], body: &str) -> Option<String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(60))
+        .build();
+    let mut req = agent.post(url);
+    for (name, value) in headers {
+        req = req.set(name, value);
+    }
+    // `send_string` errors on transport failure AND on a non-2xx status; `.ok()?` collapses both to
+    // `None`, matching the loop's "on any error, fall back to the template" contract.
+    req.send_string(body).ok()?.into_string().ok()
+}
 
 /// One OpenAI-compatible `/chat/completions` round-trip. POSTs to `{base_url}/chat/completions`
 /// with a Bearer token and a system + user message (`stream:false`, no temperature), then parses
@@ -34,30 +49,16 @@ pub(crate) fn openai_chat(
     })
     .to_string();
 
-    // The key is passed to curl via a header arg. Fine for a local demo on the user's own machine;
-    // a hosted deployment should use a proper client that keeps the key off argv.
-    let mut child = Command::new("curl")
-        .args([
-            "-sS",
-            &url,
-            "-H",
-            &format!("Authorization: Bearer {api_key}"),
-            "-H",
-            "content-type: application/json",
-            "--data-binary",
-            "@-",
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .ok()?;
-    child.stdin.take()?.write_all(body.as_bytes()).ok()?;
-    let output = child.wait_with_output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    // The Bearer key rides an in-process header (post_json), never a command line.
+    let text = post_json(
+        &url,
+        &[
+            ("Authorization", &format!("Bearer {api_key}")),
+            ("content-type", "application/json"),
+        ],
+        &body,
+    )?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let content = value["choices"][0]["message"]["content"].as_str()?;
     let content = strip_reasoning(content);
     (!content.is_empty()).then_some(content)

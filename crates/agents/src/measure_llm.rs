@@ -139,7 +139,7 @@ impl LocalMeasurer {
 
 /// POST a JSON body to a local model via `curl` and return the raw response bytes.
 fn curl_post(url: &str, body: &str) -> Option<Vec<u8>> {
-    let mut child = Command::new("curl")
+    let mut child = crate::no_window(Command::new("curl"))
         .args([
             "-sS",
             url,

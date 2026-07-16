@@ -24,6 +24,22 @@ pub mod profile;
 pub mod score;
 pub mod types;
 
+/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
+/// elsewhere. Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this
+/// crate in-process) so no console flashes. The remaining subprocesses here are `curl` health/probe
+/// calls; the live LLM HTTPS now rides in-process via `ureq` (see `llm_http`). Two cfg'd defs keep it
+/// warning-clean on non-Windows.
+#[cfg(windows)]
+pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
+}
+#[cfg(not(windows))]
+pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+    cmd
+}
+
 pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};

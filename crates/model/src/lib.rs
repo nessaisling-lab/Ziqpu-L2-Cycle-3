@@ -18,6 +18,21 @@
 //! / [`detect_gpu`] read the real machine; that thin I/O is kept out of the tested core. Layer 2 (the
 //! online best-GGUF check) and the fetch/serve step build on top.
 
+/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
+/// elsewhere. Wrap every `Command::new(...)` this crate spawns from the GUI so a windowless release
+/// build stays windowless (the CLI binary `model/src/main.rs` intentionally does NOT use it). Two
+/// cfg'd defs keep it warning-clean on non-Windows.
+#[cfg(windows)]
+pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
+}
+#[cfg(not(windows))]
+pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+    cmd
+}
+
 /// The five capability tiers, weakest→strongest. The *same* tier name maps to different models
 /// across device classes in the hierarchy; this crate implements the **Desktop** class (the desktop
 /// agent's home), which also covers laptops running llama.cpp.
@@ -453,7 +468,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
     use std::process::{Command, Stdio};
     use std::time::Duration;
     use wait_timeout::ChildExt;
-    let mut child = Command::new(cmd)
+    let mut child = no_window(Command::new(cmd))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -481,7 +496,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
     use std::process::Command;
     let url = hf_api_url(term);
-    let Ok(out) = Command::new(system_cmd("curl.exe", "curl"))
+    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "--max-time",
@@ -619,7 +634,7 @@ pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
 pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
     use std::process::Command;
     let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
-    let Ok(out) = Command::new(system_cmd("curl.exe", "curl"))
+    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "--max-time",
@@ -962,7 +977,7 @@ pub fn llama_server_path() -> Option<std::path::PathBuf> {
         "llama-server"
     };
     // 1. On PATH? (a spawn that succeeds — the exit code doesn't matter).
-    let on_path = std::process::Command::new(bin)
+    let on_path = no_window(std::process::Command::new(bin))
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -1048,7 +1063,7 @@ pub fn model_cached(repo: &str, quant: &str) -> bool {
 /// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
 pub fn running_server_port() -> Option<u16> {
     (1234u16..=1245).find(|&p| {
-        std::process::Command::new("curl")
+        no_window(std::process::Command::new("curl"))
             .args([
                 "-sS",
                 "--max-time",

@@ -50,7 +50,7 @@ fn free_local_port(start: u16) -> u16 {
 /// targets `llama-server` specifically, so LM Studio's own runtime (a different binary) is untouched.
 fn stop_prior_servers() {
     #[cfg(windows)]
-    let _ = std::process::Command::new("taskkill")
+    let _ = crate::no_window(std::process::Command::new("taskkill"))
         .args(["/F", "/IM", "llama-server.exe"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -105,7 +105,7 @@ fn parse_download_pct(line: &str) -> Option<u8> {
 /// Is the just-spawned server ready to serve (model loaded)? Probes `/health` on the exact port —
 /// `llama-server` answers `{"status":"ok"}` only once the model is resident. Keyless, 3 s cap.
 fn port_ready(port: u16) -> bool {
-    std::process::Command::new("curl")
+    crate::no_window(std::process::Command::new("curl"))
         .args([
             "-sS",
             "--max-time",
@@ -332,7 +332,7 @@ pub fn ModelPanel() -> Element {
             std::thread::sleep(std::time::Duration::from_millis(700));
 
             // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
-            let mut child = match std::process::Command::new(&bin)
+            let mut child = match crate::no_window(std::process::Command::new(&bin))
                 .args(&args)
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::piped())
