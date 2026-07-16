@@ -167,16 +167,33 @@ header{
   border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
 }
 .gear:hover{color:var(--gold-deep);border-color:var(--gold)}
+/* The modal is a fixed frame with ONE scrolling region in the middle. Everything a seeker needs to
+   leave (×) or commit (Save) is pinned outside that region, so it can never scroll out of reach.
+   `overflow:auto` on the backdrop is the backstop: if the frame ever exceeds the window, centering
+   would otherwise push its top ABOVE the viewport where nothing can scroll to it. */
 .settings-backdrop{
-  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;
+  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;overflow:auto;
   background:rgba(15,10,7,.42);backdrop-filter:blur(2px);
 }
 .settings-modal{
-  width:min(460px,100%);max-height:90vh;overflow:auto;
+  width:min(520px,100%);max-height:min(86vh,760px);
+  display:flex;flex-direction:column;overflow:hidden; /* children scroll, never the frame */
   background:var(--parchment);border:1px solid var(--gold-line);border-radius:14px;
-  box-shadow:var(--shadow);padding:22px 22px 18px;
+  box-shadow:var(--shadow);
 }
-.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+/* Pinned. `flex:none` keeps it from being squeezed when the body is long. */
+.settings-head{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:18px 22px 12px;border-bottom:1px solid var(--gold-line);
+}
+/* The only scrolling region. `min-height:0` is load-bearing — without it a flex child refuses to
+   shrink below its content and the whole frame grows instead of scrolling. */
+.settings-body{flex:1;min-height:0;overflow-y:auto;padding:16px 22px 4px}
+/* Pinned, so Save is always one click away no matter how far down you are. */
+.settings-modal .settings-foot{
+  flex:none;padding:12px 22px 16px;border-top:1px solid var(--gold-line);
+  background:var(--parchment);
+}
 .settings-title{font-family:var(--f-display);font-weight:600;font-size:20px;line-height:1}
 .settings-x{
   font-size:20px;line-height:1;color:var(--ink-faint);background:transparent;cursor:pointer;
@@ -575,10 +592,17 @@ td.b{color:var(--ink)}
 /* A native <select> renders option text only, so badges ride as glyphs — keep the mono face so the
    ✦/★ marks and the " — note" tails line up down the list. */
 .picker select.settings-input{font-family:var(--f-mono);font-size:13px}
-/* The Advanced disclosure sits between the picker and the key fields — a quiet, full-width row. */
+/* Collapsible sections. Everything past the everyday controls (provider + model) folds away, so the
+   default modal stays short enough to never need scrolling at all — the benchmark panel alone is
+   taller than the rest of the settings combined. */
 .settings-advanced{
-  display:block;width:100%;text-align:left;margin:2px 0 10px;
+  display:block;width:100%;text-align:left;margin:4px 0 10px;
   font:600 11px/1.4 var(--f-mono);letter-spacing:.04em;
+}
+.settings-advanced:hover{border-color:var(--gold);color:var(--gold-deep)}
+/* Give the folded-out contents a hairline so it reads as belonging to its section. */
+.settings-drawer{
+  border-left:2px solid var(--gold-line);padding-left:12px;margin:0 0 14px;
 }
 .provider-saved{font:600 11px/1.4 var(--f-mono);letter-spacing:.06em;color:var(--gold-deep);margin:6px 0 0}
 

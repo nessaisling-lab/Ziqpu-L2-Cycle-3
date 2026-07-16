@@ -49,6 +49,8 @@ pub fn SettingsButton() -> Element {
     let mut catalog_reload = use_signal(|| 0u32);
     // The raw key fields live behind this — the picker is the everyday control.
     let mut advanced = use_signal(|| false);
+    // So does the local-model benchmark panel, which is the tallest thing in here.
+    let mut local_open = use_signal(|| false);
 
     // UI-only state: per-key reveal toggles (default masked), whether Save landed, and a key-free
     // error line if the keystore couldn't be reached.
@@ -139,6 +141,7 @@ pub fn SettingsButton() -> Element {
                         }
                     },
 
+                    // Pinned: the way out is always visible, however long the body gets.
                     div { class: "settings-head",
                         h2 { class: "settings-title", "Settings" }
                         button {
@@ -150,9 +153,14 @@ pub fn SettingsButton() -> Element {
                         }
                     }
 
+                    // The one scrolling region. Everything below is optional detail; the two
+                    // controls a seeker actually came for (provider, model) sit at the top of it and
+                    // fit without scrolling.
+                    div { class: "settings-body",
+
                     p { class: "settings-lede",
-                        "Paste a hosted-provider API key to get live readings — no environment variables, "
-                        "no files to edit. Keys are kept in this device's secure keychain."
+                        "Choose who writes your readings, and which model. Keys are optional — "
+                        "they live under Advanced, in this device's secure keychain."
                     }
 
                     // ---- Preferred provider ----
@@ -288,9 +296,28 @@ pub fn SettingsButton() -> Element {
 
                     } // end Advanced
 
-                    hr { class: "settings-sep" }
-                    ModelPanel {}
+                    // ---- Local model (folded) ----
+                    // The benchmark/download panel is taller than everything else combined, and
+                    // almost nobody opens Settings to use it. Folded away, the default modal fits
+                    // without scrolling at all.
+                    button {
+                        class: "settings-reveal settings-advanced",
+                        r#type: "button",
+                        "aria-expanded": if *local_open.read() { "true" } else { "false" },
+                        onclick: move |_| local_open.toggle(),
+                        if *local_open.read() {
+                            "▾ Local model — run readings on this machine"
+                        } else {
+                            "▸ Local model — run readings on this machine"
+                        }
+                    }
+                    if *local_open.read() {
+                        div { class: "settings-drawer", ModelPanel {} }
+                    }
 
+                    } // end scrolling body
+
+                    // Pinned: Save never scrolls out of reach.
                     div { class: "settings-foot",
                         span { class: "settings-active",
                             "Active: "
