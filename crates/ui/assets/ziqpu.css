@@ -167,32 +167,23 @@ header{
   border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
 }
 .gear:hover{color:var(--gold-deep);border-color:var(--gold)}
-/* The modal is a fixed frame with ONE scrolling region in the middle. Everything a seeker needs to
-   leave (×) or commit (Save) is pinned outside that region, so it can never scroll out of reach.
-   `overflow:auto` on the backdrop is the backstop: if the frame ever exceeds the window, centering
-   would otherwise push its top ABOVE the viewport where nothing can scroll to it. */
-.settings-backdrop{
-  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;overflow:auto;
-  background:rgba(15,10,7,.42);backdrop-filter:blur(2px);
-}
-.settings-modal{
-  width:min(520px,100%);max-height:min(86vh,760px);
-  display:flex;flex-direction:column;overflow:hidden; /* children scroll, never the frame */
-  background:var(--parchment);border:1px solid var(--gold-line);border-radius:14px;
-  box-shadow:var(--shadow);
-}
-/* Pinned. `flex:none` keeps it from being squeezed when the body is long. */
+/* Settings is a PAGE, not an overlay.
+   No `position:fixed` (an ancestor can trap it — that collapsed the modal into the header row), no
+   backdrop, no grid centering (a too-tall item overflows ABOVE the viewport, unreachable), no
+   height cap (nothing to clip), no z-index. It's ordinary content in ordinary flow, and it scrolls
+   with the document like every other page. There is nothing left to misbehave. */
+.settings-page{display:block;max-width:640px;margin:0 auto;padding:8px 0 24px;animation:rise .18s ease-out}
 .settings-head{
-  flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:18px 22px 12px;border-bottom:1px solid var(--gold-line);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 0 12px;border-bottom:1px solid var(--gold-line);margin-bottom:16px;
 }
-/* The only scrolling region. `min-height:0` is load-bearing — without it a flex child refuses to
-   shrink below its content and the whole frame grows instead of scrolling. */
-.settings-body{flex:1;min-height:0;overflow-y:auto;padding:16px 22px 4px}
-/* Pinned, so Save is always one click away no matter how far down you are. */
-.settings-modal .settings-foot{
-  flex:none;padding:12px 22px 16px;border-top:1px solid var(--gold-line);
-  background:var(--parchment);
+.settings-body{display:block}
+/* Sticky, not fixed: laid out by its own scroll container, so no ancestor can trap it. Save stays
+   reachable however far down the page you are. */
+.settings-page .settings-foot{
+  position:sticky;bottom:0;margin-top:18px;padding:12px 0;
+  border-top:1px solid var(--gold-line);
+  background:linear-gradient(to bottom, transparent, var(--alabaster) 40%);
 }
 .settings-title{font-family:var(--f-display);font-weight:600;font-size:20px;line-height:1}
 .settings-x{

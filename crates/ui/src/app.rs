@@ -10,7 +10,8 @@ use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use crate::components::{
-    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, Setup,
+    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, SettingsPage,
+    Setup,
 };
 use crate::settings::{dev_build_default, save_dev_build};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
@@ -53,6 +54,9 @@ pub fn App() -> Element {
     // The Raw → Local → Live display mode. Pulled out here (rather than inline in the `AppCtx`
     // literal) so the header button can both read it for its label and cycle it on click. Default
     // Live. The Local-mode reading store + its off-thread fill live alongside it.
+    // Settings is a full page rather than an overlay, so its open-state lives here at the root and
+    // swaps the main view — see `components::settings` for why an overlay kept fighting the owner.
+    let mut settings_open = use_signal(|| false);
     let mut mode = use_signal(|| ReadMode::Live);
     let mut local_readings = use_signal(HashMap::<String, String>::new);
     let mut local_sources = use_signal(HashMap::<String, Option<String>>::new);
@@ -411,9 +415,9 @@ pub fn App() -> Element {
                         },
                         "{dev_glyph} {dev_word}"
                     }
-                    // In-app credentials: paste an OpenRouter key (stored locally) for live readings
-                    // without touching env vars. Opens a masked settings modal.
-                    SettingsButton {}
+                    // In-app credentials + model choice. Opens the Settings PAGE (rendered at the
+                    // app root below) rather than an overlay born inside this header cluster.
+                    SettingsButton { on_open: move |_| settings_open.set(true) }
                     button {
                         class: "theme",
                         r#type: "button",
@@ -429,6 +433,14 @@ pub fn App() -> Element {
                     }
                 }
             }
+
+            // Settings takes over the view while it's open — its own tab, in effect. The reading
+            // flow's steps rail hides with it so there's exactly one thing on screen and nothing
+            // overlapping anything. Every signal below stays alive; "← done" returns to the same
+            // phase, mid-reading and all.
+            if *settings_open.read() {
+                SettingsPage { on_close: move |_| settings_open.set(false) }
+            } else {
 
             nav { class: "steps", role: "tablist", "aria-label": "Reading flow",
                 {STEPS.iter().enumerate().map(|(i, label)| {
@@ -495,6 +507,8 @@ pub fn App() -> Element {
             // The dictionary — a self-contained, always-available collapsible glossary of the
             // planets, aspects, flowing/friction, and the fit bands the engine speaks in.
             Legend {}
+
+            } // end: reading flow (hidden while Settings has the view)
 
             // The disclaimer — said ONCE, pinned to the bottom and always on screen, instead of
             // closing every reading (owner's "say it once, always visible" ask). The no-advice

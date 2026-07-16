@@ -1,12 +1,24 @@
-//! The in-app **Settings** panel — a downloader can paste their own hosted-provider API key here and
-//! get live readings with **no env vars and no `.env` file**. Keys are stored in the OS credential
-//! vault (Windows Credential Manager / macOS Keychain / Linux Secret Service — see [`crate::vault`]),
-//! masked in the UI by default, and applied to the environment live on Save so they take effect
-//! without a restart.
+//! The in-app **Settings** surface — a downloader can paste their own hosted-provider API key here
+//! and get live readings with **no env vars and no `.env` file**. Keys are stored in the OS
+//! credential vault (Windows Credential Manager / macOS Keychain / Linux Secret Service — see
+//! [`crate::vault`]) and applied to the environment live on Save, so they take effect without a
+//! restart.
 //!
-//! One self-contained component: it renders the gear button that belongs in the header cluster and,
-//! when open, a modal over a dim backdrop. It owns its own open/field/`saved` signals, so `app.rs`
-//! only has to drop `SettingsButton {}` into the header.
+//! ## Why this is a page, not a modal
+//!
+//! It was a modal, twice, and it fought the owner both times: the header scrolled out of reach, then
+//! the whole frame collapsed into a ~40px strip in the header row — no backdrop, no centering, the
+//! controls crushed. The cause is structural. The trigger lives inside the header's flex cluster, so
+//! the overlay was born deep in the tree and depended on `position:fixed` escaping every ancestor,
+//! plus grid centering, plus `max-height`, plus nested scroll containers all behaving at once. Each
+//! fix moved the failure somewhere else.
+//!
+//! A page has none of those moving parts. It renders at the app root, in normal flow, and scrolls
+//! like any other page — no fixed positioning to be trapped, no backdrop, no centering to overflow,
+//! no height cap to clip, no z-index. There is nothing left to go wrong, which is the whole point:
+//! the owner's standard was "reliably accessible, does not fight me".
+//!
+//! Two pieces: [`SettingsButton`] is just the header trigger; [`SettingsPage`] is the surface.
 
 use dioxus::prelude::*;
 
@@ -29,10 +41,25 @@ fn provider_choices() -> Vec<(&'static str, &'static str, &'static str)> {
     v
 }
 
+/// The header trigger. Owns no state — it just asks `app.rs` to show the page, so the surface can
+/// render at the app root instead of being born inside the header's flex cluster.
 #[component]
-pub fn SettingsButton() -> Element {
-    let mut open = use_signal(|| false);
+pub fn SettingsButton(on_open: EventHandler<()>) -> Element {
+    rsx! {
+        button {
+            class: "gear",
+            r#type: "button",
+            title: "Settings — provider, model, and keys (kept in this device's keychain)",
+            "aria-label": "Open settings",
+            onclick: move |_| on_open.call(()),
+            "⚙ settings"
+        }
+    }
+}
 
+/// The Settings surface, rendered as a full page in normal flow.
+#[component]
+pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
     // Seed the fields once. Provider keys come from the vault; model + local URL from settings.json.
     let initial = use_hook(load_settings);
     let mut anthropic_key = use_signal(|| vault::get_key(Provider::Anthropic).unwrap_or_default());
@@ -107,56 +134,30 @@ pub fn SettingsButton() -> Element {
     };
 
     rsx! {
-        button {
-            class: "gear",
-            r#type: "button",
-            title: "Settings — your Anthropic / OpenRouter key, model, and local URL (kept in this device's keychain)",
-            "aria-label": "Open settings",
-            onclick: move |_| {
-                saved.set(false);
-                open.toggle();
+        // A page: normal flow, no overlay, no fixed positioning, scrolls with the document. Nothing
+        // here can be trapped by an ancestor or clipped by a height cap, because none are involved.
+        section {
+            class: "settings-page",
+            "aria-label": "Settings",
+            // Esc still leaves, for the keyboard-first.
+            onkeydown: move |e| {
+                if e.key() == Key::Escape {
+                    on_close.call(());
+                }
             },
-            "⚙ settings"
-        }
 
-        if *open.read() {
-            // The dim backdrop — click it (outside the card) to dismiss.
-            div {
-                class: "settings-backdrop",
-                onclick: move |_| open.set(false),
+            div { class: "settings-head",
+                h2 { class: "settings-title", "Settings" }
+                button {
+                    class: "btn btn--ghost",
+                    r#type: "button",
+                    "aria-label": "Close settings",
+                    onclick: move |_| on_close.call(()),
+                    "← done"
+                }
+            }
 
-                // The card itself — stop clicks from bubbling to the backdrop's dismiss.
-                div {
-                    class: "settings-modal",
-                    role: "dialog",
-                    "aria-modal": "true",
-                    "aria-label": "Settings",
-                    tabindex: "-1",
-                    autofocus: true,
-                    onclick: move |e| e.stop_propagation(),
-                    // Esc closes — a keyboard escape hatch alongside the × and the backdrop click.
-                    onkeydown: move |e| {
-                        if e.key() == Key::Escape {
-                            open.set(false);
-                        }
-                    },
-
-                    // Pinned: the way out is always visible, however long the body gets.
-                    div { class: "settings-head",
-                        h2 { class: "settings-title", "Settings" }
-                        button {
-                            class: "settings-x",
-                            r#type: "button",
-                            "aria-label": "Close settings",
-                            onclick: move |_| open.set(false),
-                            "×"
-                        }
-                    }
-
-                    // The one scrolling region. Everything below is optional detail; the two
-                    // controls a seeker actually came for (provider, model) sit at the top of it and
-                    // fit without scrolling.
-                    div { class: "settings-body",
+            div { class: "settings-body",
 
                     p { class: "settings-lede",
                         "Choose who writes your readings, and which model. Keys are optional — "
@@ -298,8 +299,8 @@ pub fn SettingsButton() -> Element {
 
                     // ---- Local model (folded) ----
                     // The benchmark/download panel is taller than everything else combined, and
-                    // almost nobody opens Settings to use it. Folded away, the default modal fits
-                    // without scrolling at all.
+                    // almost nobody opens Settings to use it. Folded, the page opens on just the
+                    // controls you came for.
                     button {
                         class: "settings-reveal settings-advanced",
                         r#type: "button",
@@ -315,27 +316,27 @@ pub fn SettingsButton() -> Element {
                         div { class: "settings-drawer", ModelPanel {} }
                     }
 
-                    } // end scrolling body
+            } // end body
 
-                    // Pinned: Save never scrolls out of reach.
-                    div { class: "settings-foot",
-                        span { class: "settings-active",
-                            "Active: "
-                            strong { "{mode_label}" }
-                        }
-                        div { class: "settings-actions",
-                            if let Some(err) = save_err.read().clone() {
-                                span { class: "provider-err", "{err}" }
-                            } else if *saved.read() {
-                                span { class: "settings-saved", "Saved ✓" }
-                            }
-                            button {
-                                class: "btn btn--go",
-                                r#type: "button",
-                                onclick: save,
-                                "Save"
-                            }
-                        }
+            // Sticks to the bottom of the window while the page scrolls behind it, so Save is
+            // always one click away. `position:sticky` (unlike `fixed`) is laid out by its own
+            // scroll container, so no ancestor can trap it — the trap that broke the modal.
+            div { class: "settings-foot",
+                span { class: "settings-active",
+                    "Active: "
+                    strong { "{mode_label}" }
+                }
+                div { class: "settings-actions",
+                    if let Some(err) = save_err.read().clone() {
+                        span { class: "provider-err", "{err}" }
+                    } else if *saved.read() {
+                        span { class: "settings-saved", "Saved ✓" }
+                    }
+                    button {
+                        class: "btn btn--go",
+                        r#type: "button",
+                        onclick: save,
+                        "Save"
                     }
                 }
             }
