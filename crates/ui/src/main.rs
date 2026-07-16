@@ -14,6 +14,7 @@ mod components;
 mod profile;
 mod settings;
 mod state;
+mod vault;
 
 /// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
 /// elsewhere. Wrap every `Command::new(...)` the GUI reaches so a windowless release build stays
@@ -33,9 +34,13 @@ use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
 use dioxus::LaunchBuilder;
 
 fn main() {
-    // Load the downloader's saved credentials into the environment BEFORE anything reads it
-    // (`build_session` / `build_interpreter` run inside `App`). This only fills vars that are not
-    // already set, so an exported env var still overrides the file for power users and CI.
+    // Upgrade any pre-vault install first: move a plaintext OpenRouter key out of settings.json and
+    // into the OS credential vault BEFORE we read settings into the environment.
+    settings::migrate_plaintext_keys_to_vault();
+
+    // Load the downloader's saved prefs + vaulted provider keys into the environment BEFORE anything
+    // reads it (`build_session` / `build_interpreter` run inside `App`). This only fills vars that
+    // are not already set, so an exported env var still overrides for power users and CI.
     settings::apply_settings_to_env(&settings::load_settings());
 
     // If a local model server is already running — this machine's serve left alive from a prior

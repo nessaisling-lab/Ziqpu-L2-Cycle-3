@@ -549,6 +549,26 @@ td.b{color:var(--ink)}
 .onboarding-card .setup{text-align:left}
 .onboarding-card .identity{text-align:left;margin-bottom:0}
 
+/* ---- provider chooser (onboarding "live readings" step + Settings) ---- */
+.provider-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 14px;text-align:left}
+@media (max-width:440px){.provider-grid{grid-template-columns:1fr}}
+.provider-card{
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;
+  padding:13px 15px;border:1px solid var(--gold-line);border-radius:12px;
+  background:var(--parchment-2);color:var(--ink);cursor:pointer;transition:.15s;
+}
+.provider-card:hover{border-color:var(--gold);transform:translateY(-1px)}
+.provider-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.provider-card--on{
+  border-color:var(--gold);background:var(--parchment);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+}
+.provider-card .pc-name{font:600 14px/1.2 var(--f-body);color:var(--ink)}
+.provider-card .pc-sub{font:400 11.5px/1.4 var(--f-mono);color:var(--ink-faint)}
+.provider-card--on .pc-name{color:var(--gold-deep)}
+.provider-err{font:500 12px/1.5 var(--f-mono);color:#a1442e;margin:6px 0 0}
+.provider-saved{font:600 11px/1.4 var(--f-mono);letter-spacing:.06em;color:var(--gold-deep);margin:6px 0 0}
+
 /* ---- birth-input form ---- */
 .birth-title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 /* The "chart saved" / "Saved ✓" affirmation — a small gold pill, never shouting. */

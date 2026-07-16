@@ -1,14 +1,20 @@
-//! Persist the downloader's **own** model credentials so they never have to touch an env var or a
-//! `.env` file. A single, best-effort JSON file — `<data_dir>/settings.json` (see
-//! [`crate::profile::data_dir`]) — holds an OpenRouter API key, an optional model id, and an
-//! optional local-model URL. All three feed the same env vars the `agents` crate already reads
+//! Persist the downloader's **own** model preferences so they never have to touch an env var or a
+//! `.env` file. Two stores, split by sensitivity:
+//! - **Secrets** — hosted-provider API keys (Anthropic / OpenRouter) — live in the OS credential
+//!   vault (see [`crate::vault`]), never on disk in the clear.
+//! - **Non-secrets** — the model id and local-model URL — live in a best-effort JSON file,
+//!   `<data_dir>/settings.json` (see [`crate::profile::data_dir`]).
+//!
+//! Both feed the same env vars the `agents` crate already reads
 //! ([`build_interpreter`](agents::build_interpreter) / [`reading_for`](agents::reading_for)), so
-//! nothing downstream changes: the file just fills the environment.
+//! nothing downstream changes: startup just fills the environment from the vault + the file.
 //!
 //! ## Security
-//! - The file lives in the user's OS data dir, **outside the repo** — never committed.
-//! - On Unix it is chmod'd to `0o600` (owner read/write only) right after each write.
-//! - The key is **never logged** and never printed; the UI masks it (a password field).
+//! - Keys never touch `settings.json` — they go to the OS keychain. A pre-vault install's plaintext
+//!   key is migrated out on startup (see [`migrate_plaintext_keys_to_vault`]).
+//! - The JSON lives in the user's OS data dir, **outside the repo** — never committed. On Unix it is
+//!   chmod'd to `0o600` (owner read/write only) right after each write.
+//! - Keys are **never logged** and never printed; the UI masks them (a password field).
 //!
 //! ## Precedence — env wins
 //! [`apply_settings_to_env`] only sets a var that is **not already present**, so a power user or CI
@@ -21,11 +27,15 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::vault::{self, Provider};
+
 /// The on-disk settings schema. Every field is optional so a partially-filled file (or one written
-/// by an older build) still loads. `openrouter_key` → `OPENROUTER_API_KEY`, `model` → `ZIQPU_MODEL`,
-/// `local_url` → `ZIQPU_LLM_URL`.
+/// by an older build) still loads. `model` → `ZIQPU_MODEL`, `local_url` → `ZIQPU_LLM_URL`.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SettingsFile {
+    /// **Legacy** — hosted-provider keys now live in the OS vault ([`crate::vault`]). Retained only
+    /// so a pre-vault file still deserializes; [`migrate_plaintext_keys_to_vault`] moves any value
+    /// here into the keychain and nulls it out. New writes always leave this `None`.
     #[serde(default)]
     pub openrouter_key: Option<String>,
     #[serde(default)]
@@ -127,9 +137,65 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
             }
         }
     }
+    // Non-secret prefs still live in the JSON. `openrouter_key` is kept only as a back-compat path
+    // for a file written before the vault migration ran; normally it's `None` (see
+    // [`migrate_plaintext_keys_to_vault`]).
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_absent("ZIQPU_MODEL", &settings.model);
     set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
+
+    // Hosted-provider keys live in the OS credential vault now. Fill each provider's env var from the
+    // vault only when the environment doesn't already carry it — an exported key (shell/CI) still
+    // wins. This is what makes a vaulted key "always available": every startup re-homes it into the
+    // env the `agents` interpreter reads.
+    fill_env_from_vault(Provider::Anthropic);
+    fill_env_from_vault(Provider::OpenRouter);
+}
+
+/// Copy `provider`'s vaulted key into its env var, but only if the env doesn't already have one
+/// (env — shell/CI — wins). No-op when the vault has no key or can't be read.
+fn fill_env_from_vault(provider: Provider) {
+    if std::env::var_os(provider.env_var()).is_none() {
+        if let Some(key) = vault::get_key(provider) {
+            std::env::set_var(provider.env_var(), key);
+        }
+    }
+}
+
+/// One-time, best-effort migration: move a plaintext OpenRouter key out of `settings.json` and into
+/// the OS credential vault, then scrub it from the JSON. Older builds wrote that key to disk in the
+/// clear; this upgrades those installs in place. Call once at startup, **before**
+/// [`apply_settings_to_env`]. If the vault write fails (no keystore available), the plaintext key is
+/// **left in place** so Live still works — we never drop a key we can't re-home.
+pub fn migrate_plaintext_keys_to_vault() {
+    let mut settings = load_settings();
+    let Some(key) = settings
+        .openrouter_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .map(str::to_string)
+    else {
+        return;
+    };
+    if vault::set_key(Provider::OpenRouter, &key).is_ok() {
+        settings.openrouter_key = None;
+        save_settings(&settings);
+    }
+}
+
+/// Apply a provider key to the **live** process environment right now (called after a vault write on
+/// Save) so the next reading uses it without a restart — `agents::reading_for` reads the env fresh
+/// per call. An empty `key` removes the var: unlike the credential-preserving [`apply_settings_live`],
+/// clearing a provider key here is an explicit user action (the Settings field is seeded from the
+/// vault, so blank means "clear this provider"), so we honor it.
+pub fn apply_provider_key_live(provider: Provider, key: &str) {
+    let key = key.trim();
+    if key.is_empty() {
+        std::env::remove_var(provider.env_var());
+    } else {
+        std::env::set_var(provider.env_var(), key);
+    }
 }
 
 /// Apply the settings to the live environment on Save so a new value takes effect on the next
