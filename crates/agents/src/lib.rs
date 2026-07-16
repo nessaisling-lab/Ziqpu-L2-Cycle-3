@@ -23,6 +23,7 @@ pub mod models;
 pub mod orchestrator;
 pub mod profile;
 pub mod score;
+pub mod traction;
 pub mod types;
 
 /// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op

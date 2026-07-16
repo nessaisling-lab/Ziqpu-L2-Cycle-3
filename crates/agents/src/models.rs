@@ -17,8 +17,12 @@
 //!
 //! Every fetch is a blocking `ureq` call — callers must run it off the UI thread.
 
+use std::collections::HashMap;
+use std::path::Path;
+
 use crate::interpret_llm::DEFAULT_ANTHROPIC_MODEL;
 use crate::llm_http::get_json;
+use crate::traction::Traction;
 
 /// How well a model suits **this** job: writing Ungasaga's reading — a warm 4–7 sentence narrative
 /// that obeys a fixed shape, names no jargon, gives no advice, and fits a 1536-token cap.
@@ -96,19 +100,23 @@ pub struct ModelOption {
     pub top_quality: bool,
     /// Suitability for writing a Ziqpu reading.
     pub fit: Fit,
+    /// The model's Hugging Face repo, when it's an open model — the key for its traction lookup.
+    /// `None` for closed vendor models (Anthropic, OpenAI, Gemini), which is itself the signal that
+    /// they're commercially supported and exempt from the abandonment check.
+    pub hf_id: Option<String>,
 }
 
 /// Fetch the catalog for a provider slug (`"anthropic"` / `"openrouter"` / `"built_in"`), reading
 /// the credentials it needs from the environment. `Err` carries a short, **key-free** reason fit to
 /// show in the UI.
-pub fn list_for_provider(slug: &str) -> Result<Vec<ModelOption>, String> {
+pub fn list_for_provider(slug: &str, cache_dir: Option<&Path>) -> Result<Vec<ModelOption>, String> {
     match slug {
         "anthropic" => {
             let key = env_nonempty("ANTHROPIC_API_KEY")
                 .ok_or("Add your Anthropic key to see its models.")?;
             list_anthropic(&key)
         }
-        "openrouter" => list_openrouter(),
+        "openrouter" => list_openrouter(cache_dir),
         "built_in" => {
             let url = env_nonempty("ZIQPU_PROXY_URL")
                 .ok_or("The built-in reader isn't configured in this build.")?;
@@ -134,10 +142,42 @@ pub fn list_anthropic(api_key: &str) -> Result<Vec<ModelOption>, String> {
 
 /// OpenRouter's catalog. **Keyless** — the model list is public, so this populates before a key is
 /// entered (the key is only needed to actually run a reading).
-pub fn list_openrouter() -> Result<Vec<ModelOption>, String> {
+///
+/// Two passes: the catalog says what exists, then Hugging Face says which of the open ones are
+/// still alive (see [`crate::traction`]). The traction sweep is cached, so it costs ~3s once a week
+/// rather than on every open of the picker. `cache_dir` of `None` skips persistence, not the sweep.
+pub fn list_openrouter(cache_dir: Option<&Path>) -> Result<Vec<ModelOption>, String> {
     let text = get_json("https://openrouter.ai/api/v1/models", &[])
         .ok_or("Couldn't reach OpenRouter — check your connection.")?;
-    parse_openrouter(&text)
+    // Parse first so we know which repos to ask about — only the open models have one.
+    let listed = parse_openrouter(&text)?;
+    let ids: Vec<String> = listed.iter().filter_map(|m| m.hf_id.clone()).collect();
+    let traction = crate::traction::for_ids(&ids, cache_dir);
+    Ok(apply_traction(listed, &traction))
+}
+
+/// Drop the abandoned, then re-rank. Runs after parsing because the badges must be awarded from the
+/// surviving field — a dead model should never take a pick slot from a live one.
+fn apply_traction(
+    listed: Vec<ModelOption>,
+    traction: &HashMap<String, Traction>,
+) -> Vec<ModelOption> {
+    let mut out: Vec<ModelOption> = listed
+        .into_iter()
+        .filter(
+            |m| match m.hf_id.as_deref().and_then(|id| traction.get(id)) {
+                // An open model the Hub says is unused, unloved and untouched.
+                Some(t) => !t.abandoned(),
+                // Closed vendor model, or a repo the Hub wouldn't answer for. Both keep their place:
+                // one is commercially supported, the other is merely unknown — and we never drop on
+                // missing data.
+                None => true,
+            },
+        )
+        .collect();
+    mark_best(&mut out);
+    sort_catalog(&mut out);
+    out
 }
 
 /// The built-in tier's allowlist, straight from the proxy. Derives `/v1/models` from the configured
@@ -202,6 +242,9 @@ fn parse_anthropic(body: &str) -> Result<Vec<ModelOption>, String> {
                 intelligence: None,
                 top_quality: false,
                 fit,
+                // Anthropic's models are closed and vendor-supported — there's no Hub repo to ask
+                // about, and no abandonment check to run.
+                hf_id: None,
             })
         })
         .collect();
@@ -266,6 +309,11 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
                 .and_then(|a| a.get("intelligence_index"))
                 .and_then(|s| s.as_f64());
             let fit = score_openrouter_fit(m);
+            let hf_id = m
+                .get("hugging_face_id")
+                .and_then(|h| h.as_str())
+                .filter(|h| !h.is_empty())
+                .map(str::to_string);
             Some(ModelOption {
                 id,
                 label,
@@ -274,6 +322,7 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
                 intelligence,
                 top_quality: false,
                 fit,
+                hf_id,
             })
         })
         // Retiring / incapable models are dropped; not-yet-supported ones stay, marked.
@@ -283,11 +332,16 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
         return Err("No models available.".to_string());
     }
     mark_best(&mut out);
-    // Picks first, then free, then strongest-first, then alphabetical — the catalog runs to ~325
-    // models, so neither our recommendations nor the zero-cost options should be buried mid-scroll,
-    // and within each tier the better model still leads. Two deliberate sinks: models we can't drive
-    // yet go last (present for awareness, not in the way), and unscored models sort after scored
-    // ones rather than jumping the queue on a missing number.
+    sort_catalog(&mut out);
+    Ok(out)
+}
+
+/// Picks first, then free, then strongest-first, then alphabetical — the catalog runs to ~325
+/// models, so neither our recommendations nor the zero-cost options should be buried mid-scroll, and
+/// within each tier the better model still leads. Two deliberate sinks: models we can't drive yet go
+/// last (present for awareness, not in the way), and unscored models sort after scored ones rather
+/// than jumping the queue on a missing number.
+fn sort_catalog(out: &mut [ModelOption]) {
     out.sort_by(|a, b| {
         a.fit
             .selectable()
@@ -304,7 +358,6 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
             })
             .then_with(|| a.label.cmp(&b.label))
     });
-    Ok(out)
 }
 
 /// How many models earn the "best for readings" badge. Small enough that the badge means something.
@@ -407,6 +460,17 @@ fn score_openrouter_fit(m: &serde_json::Value) -> Fit {
 /// small models leak the planet/aspect names the brief forbids, larger ones hold the shape. A model
 /// with no published score is never promoted (we won't guess on its behalf) — it stays selectable.
 fn mark_best(out: &mut [ModelOption]) {
+    // Idempotent by construction: clear any badges from a previous pass first. This runs twice —
+    // once on the raw catalog, then again on the survivors of the traction filter — and the ranking
+    // below only considers `Fit::Ok`, so without the reset the second pass would skip the already-
+    // badged models and award a fresh set *on top of* them (observed live: six picks, not three).
+    for m in out.iter_mut() {
+        if m.fit.is_pick() {
+            m.fit = Fit::Ok;
+        }
+        m.top_quality = false;
+    }
+
     if let Some(top) = out
         .iter()
         .filter_map(|m| m.intelligence)
@@ -787,6 +851,118 @@ mod tests {
         assert_eq!(got[1].fit, Fit::Ok);
     }
 
+    /// The traction pass drops the abandoned, exempts closed vendor models, and never punishes a
+    /// model just because the Hub didn't answer for it.
+    #[test]
+    fn traction_drops_abandoned_but_spares_vendors_and_unknowns() {
+        let body = r#"{"data":[
+            {"id":"vendor/closed","name":"Closed Vendor","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":59.0}}},
+            {"id":"open/alive","name":"Open Alive","pricing":{"prompt":"0"},
+             "hugging_face_id":"org/Alive",
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":30.0}}},
+            {"id":"open/dead","name":"Open Dead","pricing":{"prompt":"0"},
+             "hugging_face_id":"org/Dead",
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":40.0}}},
+            {"id":"open/unknown","name":"Open Unknown","pricing":{"prompt":"0"},
+             "hugging_face_id":"org/NeverAnswered",
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"]}
+        ]}"#;
+        let listed = parse_openrouter(body).expect("valid");
+        assert_eq!(listed.len(), 4);
+
+        let old = (chrono::Utc::now().date_naive() - chrono::Duration::days(700))
+            .format("%Y-%m-%d")
+            .to_string();
+        let mut traction = HashMap::new();
+        traction.insert(
+            "org/Alive".to_string(),
+            Traction {
+                downloads: 900_000,
+                likes: 100,
+                last_modified: Some(old.clone()),
+            },
+        );
+        traction.insert(
+            "org/Dead".to_string(),
+            Traction {
+                downloads: 300,
+                likes: 12,
+                last_modified: Some(old),
+            },
+        );
+        // org/NeverAnswered is deliberately absent — the Hub didn't answer.
+
+        let got = apply_traction(listed, &traction);
+        let ids: Vec<&str> = got.iter().map(|m| m.id.as_str()).collect();
+        assert!(!ids.contains(&"open/dead"), "abandoned model survived");
+        assert!(ids.contains(&"open/alive"), "heavily-used model dropped");
+        assert!(
+            ids.contains(&"vendor/closed"),
+            "closed vendor model must be exempt — it has no Hub repo to judge"
+        );
+        assert!(
+            ids.contains(&"open/unknown"),
+            "must not drop on missing data"
+        );
+
+        // Badges are re-awarded from the SURVIVING field. open/dead outscored open/alive (40 vs 30)
+        // and would have taken a pick slot had it been ranked before the traction pass; with it
+        // gone, the badge lands on a model that's actually alive.
+        let alive = got.iter().find(|m| m.id == "open/alive").unwrap();
+        assert!(
+            alive.fit.is_pick(),
+            "badge should fall to a live model, got {:?}",
+            alive.fit
+        );
+    }
+
+    /// Regression: the catalog is ranked once on parse and again after the traction filter. Because
+    /// ranking only considers `Fit::Ok`, a non-idempotent `mark_best` skipped the already-badged
+    /// models and awarded a *second* set on top — six picks instead of three, live.
+    #[test]
+    fn re_ranking_replaces_badges_rather_than_accumulating_them() {
+        // Enough scored models that both passes have candidates to spare.
+        let entries: Vec<String> = (0..8)
+            .map(|i| {
+                format!(
+                    r#"{{"id":"v/m{i}","name":"M{i}","pricing":{{"prompt":"0"}},
+                        "architecture":{{"output_modalities":["text"]}},
+                        "supported_parameters":["max_tokens"],
+                        "benchmarks":{{"artificial_analysis":{{"intelligence_index":{}.0}}}}}}"#,
+                    50 - i
+                )
+            })
+            .collect();
+        let body = format!(r#"{{"data":[{}]}}"#, entries.join(","));
+
+        let listed = parse_openrouter(&body).expect("valid");
+        assert_eq!(
+            listed.iter().filter(|m| m.fit == Fit::Best).count(),
+            BEST_PICKS
+        );
+
+        // Second ranking pass, nothing dropped — counts must hold, not double.
+        let got = apply_traction(listed, &HashMap::new());
+        assert_eq!(
+            got.iter().filter(|m| m.fit == Fit::Best).count(),
+            BEST_PICKS,
+            "re-ranking accumulated picks instead of replacing them"
+        );
+        assert_eq!(
+            got.iter().filter(|m| m.fit == Fit::BestFree).count(),
+            BEST_FREE_PICKS
+        );
+        assert_eq!(
+            got.iter().filter(|m| m.top_quality).count(),
+            1,
+            "top-quality mark must stay unique across passes"
+        );
+    }
+
     #[test]
     fn unguarded_variants_are_spotted_by_name() {
         assert!(is_unguarded_variant("vendor/llama-abliterated"));
@@ -821,7 +997,26 @@ mod tests {
     #[test]
     #[ignore = "network: hits the live OpenRouter catalog"]
     fn live_openrouter_catalog_parses() {
-        let got = list_openrouter().expect("live catalog");
+        // Use a scratch cache dir so the run also exercises the sweep→cache→reuse path.
+        let cache = std::env::temp_dir().join(format!("ziqpu-live-cat-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&cache);
+        let t0 = std::time::Instant::now();
+        let got = list_openrouter(Some(&cache)).expect("live catalog");
+        let cold = t0.elapsed();
+        let t1 = std::time::Instant::now();
+        let again = list_openrouter(Some(&cache)).expect("live catalog (cached)");
+        let warm = t1.elapsed();
+        eprintln!(
+            "cold sweep {:.1}s -> warm (cached) {:.1}s",
+            cold.as_secs_f64(),
+            warm.as_secs_f64()
+        );
+        assert_eq!(
+            got.len(),
+            again.len(),
+            "cached run must agree with the sweep"
+        );
+        let _ = std::fs::remove_dir_all(&cache);
         assert!(got.len() > 50, "expected a real catalog, got {}", got.len());
         assert_eq!(got[0].fit, Fit::Best, "our picks must lead the list");
         assert!(
@@ -862,6 +1057,18 @@ mod tests {
         assert!(got.iter().any(|m| m.fit == Fit::Best), "no picks");
         assert!(got.iter().any(|m| m.fit == Fit::BestFree), "no free pick");
         assert!(got.iter().any(|m| m.top_quality), "no top-quality mark");
+        // ...and a badge only means something if it stays scarce. The catalog is re-ranked after
+        // the traction filter, so this also guards the double-marking regression.
+        assert_eq!(
+            got.iter().filter(|m| m.fit == Fit::Best).count(),
+            BEST_PICKS,
+            "pick count drifted"
+        );
+        assert_eq!(
+            got.iter().filter(|m| m.fit == Fit::BestFree).count(),
+            BEST_FREE_PICKS,
+            "free-pick count drifted"
+        );
         // The retiring filter must be PRECISE, not broad. The catalog carries two Llama 3.2 3B
         // variants: the `:free` one declares an end-of-life days away (and read as a strong free
         // pick on every other signal), while the paid sibling has no expiry and should stay.

@@ -79,8 +79,11 @@ pub fn ModelPicker(
         };
         status.set(Status::Loading);
         let tx = results.tx();
+        // The seeker's data dir doubles as the traction cache, so the Hugging Face sweep behind the
+        // OpenRouter catalog is paid once a week rather than on every open of this panel.
+        let cache = crate::profile::data_dir();
         std::thread::spawn(move || {
-            let _ = tx.unbounded_send(agents::models::list_for_provider(&slug));
+            let _ = tx.unbounded_send(agents::models::list_for_provider(&slug, cache.as_deref()));
         });
     });
 
