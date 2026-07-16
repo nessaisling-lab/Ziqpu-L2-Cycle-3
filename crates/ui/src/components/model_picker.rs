@@ -126,17 +126,26 @@ pub fn ModelPicker(
                             option {
                                 key: "{m.id}",
                                 value: "{m.id}",
+                                // Listed so you can see it exists and that support is coming —
+                                // but not pickable, because choosing it today would just fail.
+                                disabled: !m.fit.selectable(),
                                 "{option_text(m)}"
                             }
                         }
                     }
                     // Legend for whatever badges are actually present, so the marks aren't cryptic.
-                    if options.read().iter().any(|m| m.fit == Fit::Best) {
+                    if options.read().iter().any(|m| m.fit.is_pick()) {
                         p { class: "settings-hint",
                             "✦ best for readings — follows a careful brief, respects our length "
                             "limit, and won't write its reasoning into your reading."
+                            if options.read().iter().any(|m| m.fit == Fit::BestFree) {
+                                " ✧ best free — the strongest that costs nothing."
+                            }
                             if options.read().iter().any(|m| m.top_quality) {
-                                " ★ marks the catalog's highest-scoring model, which isn't always the best fit here."
+                                " ★ the catalog's highest-scoring model, which isn't always the best fit here."
+                            }
+                            if options.read().iter().any(|m| !m.fit.selectable()) {
+                                " Greyed-out models can't be driven yet — support is planned."
                             }
                         }
                     }
@@ -150,18 +159,19 @@ pub fn ModelPicker(
 /// markup — so the badges ride as glyphs and the whole line stays type-ahead searchable.
 fn option_text(m: &ModelOption) -> String {
     let mut marks = String::new();
-    if m.fit == Fit::Best {
-        marks.push_str("✦ ");
+    match m.fit {
+        Fit::Best => marks.push_str("✦ "),
+        Fit::BestFree => marks.push_str("✧ "),
+        _ => {}
     }
     if m.top_quality {
         marks.push_str("★ ");
     }
-    // A caveat ("always shows its work", "unguarded variant") is the one thing a seeker most needs
-    // before choosing, so it goes in the line rather than a tooltip they'd never open.
-    let tail = match (
-        m.fit.badge().filter(|_| m.fit != Fit::Best),
-        m.note.is_empty(),
-    ) {
+    // The reason a model is caveated or greyed out ("always shows its work", "image/audio — not
+    // supported yet") is the one thing a seeker most needs before choosing, so it rides in the line
+    // rather than a tooltip they'd never open. The two pick badges already speak via their glyph.
+    let why = m.fit.badge().filter(|_| !m.fit.is_pick());
+    let tail = match (why, m.note.is_empty()) {
         (Some(why), true) => format!(" — {why}"),
         (Some(why), false) => format!(" — {} · {why}", m.note),
         (None, true) => String::new(),

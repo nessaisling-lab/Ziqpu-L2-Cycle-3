@@ -31,11 +31,21 @@ pub enum Fit {
     /// published intelligence benchmark (our closest live proxy for "follows a careful brief and
     /// writes good prose" — borne out in testing, where small models leak jargon the brief forbids).
     Best,
+    /// The strongest of the **free** models. A separate badge because the free tier tops out well
+    /// below the paid frontier (≈38 vs ≈59 on the catalog's index today), so the outright picks all
+    /// cost money — a seeker who doesn't want a bill still deserves a pointed recommendation rather
+    /// than being told to scroll.
+    BestFree,
     /// Usable, no known caveat.
     Ok,
     /// Usable, but the seeker should know something first.
     Caution(&'static str),
-    /// Can't do this job.
+    /// **Shown and marked, but not selectable yet.** The model is real and worth knowing about — we
+    /// just can't drive it today (image/audio generation, and other tool-shaped work the agent will
+    /// grow into). Listing it keeps the catalog honest about what exists and flags what's coming,
+    /// rather than pretending these models don't exist.
+    Unsupported(&'static str),
+    /// Hidden — actively going away, or can't honor the limits a reading depends on.
     Unfit(&'static str),
 }
 
@@ -44,15 +54,27 @@ impl Fit {
     pub fn badge(&self) -> Option<&'static str> {
         match self {
             Fit::Best => Some("best for readings"),
-            Fit::Caution(why) => Some(why),
-            Fit::Unfit(why) => Some(why),
+            Fit::BestFree => Some("best free"),
+            Fit::Caution(why) | Fit::Unsupported(why) | Fit::Unfit(why) => Some(why),
             Fit::Ok => None,
         }
     }
 
-    /// Is this model selectable at all?
-    pub fn usable(&self) -> bool {
+    /// Should this model appear in the list at all? Everything except the actively-retiring and the
+    /// outright incapable — including [`Fit::Unsupported`], which is listed precisely so the seeker
+    /// can see it's coming.
+    pub fn listed(&self) -> bool {
         !matches!(self, Fit::Unfit(_))
+    }
+
+    /// Can the seeker actually pick it today?
+    pub fn selectable(&self) -> bool {
+        !matches!(self, Fit::Unfit(_) | Fit::Unsupported(_))
+    }
+
+    /// Is this one of the two recommendation badges?
+    pub fn is_pick(&self) -> bool {
+        matches!(self, Fit::Best | Fit::BestFree)
     }
 }
 
@@ -208,26 +230,6 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
 
     let mut out: Vec<ModelOption> = data
         .iter()
-        .filter(|m| {
-            // Keep only models whose output is text and NOTHING BUT text.
-            //
-            // "contains text" is the trap: the media models list `text` alongside their real
-            // output — Lyria (music) is `["text","audio"]`, the Gemini/GPT image models are
-            // `["image","text"]`, `gpt-audio` is `["text","audio"]`. A contains-check lets a
-            // music generator into a list of "models that can write your reading". Requiring
-            // text-only keeps every vision-input→text model (their output is `["text"]`) while
-            // dropping the ~14 image/audio generators and the auto-router.
-            //
-            // Absent modality info → assume text (the field is newer than some entries).
-            m.get("architecture")
-                .and_then(|a| a.get("output_modalities"))
-                .and_then(|o| o.as_array())
-                .map(|mods| {
-                    let out: Vec<&str> = mods.iter().filter_map(|x| x.as_str()).collect();
-                    !out.is_empty() && out.iter().all(|m| *m == "text")
-                })
-                .unwrap_or(true)
-        })
         .filter_map(|m| {
             let id = m.get("id")?.as_str()?.to_string();
             let label = m
@@ -274,20 +276,25 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
                 fit,
             })
         })
-        // A model that can't do the job shouldn't be offered at all.
-        .filter(|m| m.fit.usable())
+        // Retiring / incapable models are dropped; not-yet-supported ones stay, marked.
+        .filter(|m| m.fit.listed())
         .collect();
     if out.is_empty() {
         return Err("No models available.".to_string());
     }
     mark_best(&mut out);
-    // Picks first, then free, then strongest-first, then alphabetical. The catalog is ~325 models,
-    // so neither our recommendation nor the zero-cost options should be buried mid-scroll — and
-    // within each of those tiers the better model should still come first. Unscored models sort
-    // after scored ones rather than jumping the queue on a missing number.
+    // Picks first, then free, then strongest-first, then alphabetical — the catalog runs to ~325
+    // models, so neither our recommendations nor the zero-cost options should be buried mid-scroll,
+    // and within each tier the better model still leads. Two deliberate sinks: models we can't drive
+    // yet go last (present for awareness, not in the way), and unscored models sort after scored
+    // ones rather than jumping the queue on a missing number.
     out.sort_by(|a, b| {
-        (b.fit == Fit::Best)
-            .cmp(&(a.fit == Fit::Best))
+        a.fit
+            .selectable()
+            .cmp(&b.fit.selectable())
+            .reverse()
+            .then_with(|| b.fit.is_pick().cmp(&a.fit.is_pick()))
+            .then_with(|| (b.fit == Fit::Best).cmp(&(a.fit == Fit::Best)))
             .then_with(|| b.free.cmp(&a.free))
             .then_with(|| {
                 b.intelligence
@@ -302,6 +309,39 @@ fn parse_openrouter(body: &str) -> Result<Vec<ModelOption>, String> {
 
 /// How many models earn the "best for readings" badge. Small enough that the badge means something.
 const BEST_PICKS: usize = 3;
+/// How many free models earn the "best free" badge.
+const BEST_FREE_PICKS: usize = 2;
+/// A declared end-of-life this close counts as retiring — don't offer it. Generous enough to catch
+/// the real sunsets (several land within days) without hiding a model over a far-future placeholder
+/// date some providers publish (one lists 2098).
+const RETIRING_WITHIN_DAYS: i64 = 120;
+
+/// Days until a model's declared end-of-life, or `None` when it publishes no date (the common case)
+/// or the date is unparseable. Dates arrive as plain `YYYY-MM-DD`.
+fn days_until_expiry(m: &serde_json::Value) -> Option<i64> {
+    let raw = m.get("expiration_date")?.as_str()?;
+    let date = chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d").ok()?;
+    Some((date - chrono::Utc::now().date_naive()).num_days())
+}
+
+/// Does this model emit text and nothing but text?
+///
+/// "Contains text" is the trap: the media models list `text` alongside their real output — Lyria
+/// (music) is `["text","audio"]`, the Gemini/GPT image models are `["image","text"]`. A
+/// contains-check reads a music generator as a writer. Requiring text-only keeps every
+/// vision-INPUT→text model, since what those emit is text.
+///
+/// Absent modality info → assume text (the field is newer than some entries).
+fn outputs_only_text(m: &serde_json::Value) -> bool {
+    m.get("architecture")
+        .and_then(|a| a.get("output_modalities"))
+        .and_then(|o| o.as_array())
+        .map(|mods| {
+            let out: Vec<&str> = mods.iter().filter_map(|x| x.as_str()).collect();
+            !out.is_empty() && out.iter().all(|m| *m == "text")
+        })
+        .unwrap_or(true)
+}
 
 /// Rate one OpenRouter model against what a Ziqpu reading actually needs. Pure — every input is a
 /// live catalog field, so this can't rot into a stale opinion. Each rule maps to a failure we have
@@ -319,6 +359,21 @@ const BEST_PICKS: usize = 3;
 ///
 /// Everything else is `Ok`; [`mark_best`] then promotes the strongest of them.
 fn score_openrouter_fit(m: &serde_json::Value) -> Fit {
+    // Declared end-of-life beats everything: a model that stops answering next week is not a choice
+    // worth offering, however good it looks today. 16 of ~344 carry a date — including a free Llama
+    // that expires within days while still reading as a strong free pick on every other signal.
+    if let Some(days) = days_until_expiry(m) {
+        if days <= RETIRING_WITHIN_DAYS {
+            return Fit::Unfit("retiring");
+        }
+    }
+
+    // Emits something other than text (image / audio generation). Not hidden — the seeker should
+    // see these exist, and the agent is expected to grow into driving them; it just can't today.
+    if !outputs_only_text(m) {
+        return Fit::Unsupported("image/audio — not supported yet");
+    }
+
     let supports_max_tokens = m
         .get("supported_parameters")
         .and_then(|p| p.as_array())
@@ -364,16 +419,26 @@ fn mark_best(out: &mut [ModelOption]) {
         }
     }
 
-    // Rank only the clean, scored models — a caveated or unscored model never wins the badge.
-    let mut ranked: Vec<(usize, f64)> = out
-        .iter()
-        .enumerate()
-        .filter(|(_, m)| m.fit == Fit::Ok)
-        .filter_map(|(i, m)| m.intelligence.map(|s| (i, s)))
-        .collect();
-    ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    for (i, _) in ranked.into_iter().take(BEST_PICKS) {
+    // Rank only the clean, scored models — a caveated or unscored model never wins a badge.
+    let ranked = |out: &[ModelOption], free_only: bool| -> Vec<usize> {
+        let mut v: Vec<(usize, f64)> = out
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.fit == Fit::Ok && (!free_only || m.free))
+            .filter_map(|(i, m)| m.intelligence.map(|s| (i, s)))
+            .collect();
+        v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        v.into_iter().map(|(i, _)| i).collect()
+    };
+
+    // Outright picks first, so a free model strong enough to place overall wins the better badge
+    // rather than being filed under "best free".
+    for i in ranked(out, false).into_iter().take(BEST_PICKS) {
         out[i].fit = Fit::Best;
+    }
+    // Then the best of what's left among the free tier.
+    for i in ranked(out, true).into_iter().take(BEST_FREE_PICKS) {
+        out[i].fit = Fit::BestFree;
     }
 }
 
@@ -468,9 +533,20 @@ mod tests {
             ]
         }"#;
         let got = parse_openrouter(body).expect("valid catalog");
-        // The image-output model can't write a reading — excluded.
-        assert_eq!(got.len(), 2);
-        assert!(!got.iter().any(|m| m.id == "vendor/image-only"));
+        // The image-output model is LISTED (so its existence is visible and its future support is
+        // flagged) but marked and not selectable, and it sinks below the real writers.
+        assert_eq!(got.len(), 3);
+        let img = got
+            .iter()
+            .find(|m| m.id == "vendor/image-only")
+            .expect("listed");
+        assert_eq!(img.fit, Fit::Unsupported("image/audio — not supported yet"));
+        assert!(!img.fit.selectable());
+        assert_eq!(
+            got.last().unwrap().id,
+            "vendor/image-only",
+            "sinks to the bottom"
+        );
         // Free leads, even though "Nemotron" sorts after "Zebra"... no: free-first is the rule.
         assert_eq!(got[0].id, "nvidia/nemotron-3-super-120b-a12b:free");
         assert!(got[0].free);
@@ -501,10 +577,112 @@ mod tests {
             ]
         }"#;
         let got = parse_openrouter(body).expect("valid catalog");
-        // Only the text-only model survives — but a vision-INPUT model still qualifies, because
-        // what it emits is text.
-        assert_eq!(got.len(), 1, "got: {got:?}");
-        assert_eq!(got[0].id, "vendor/writer");
+        // All four are listed, but only the text-only writer is selectable — and a vision-INPUT
+        // model still qualifies, because what it emits is text.
+        assert_eq!(got.len(), 4, "got: {got:?}");
+        let selectable: Vec<&str> = got
+            .iter()
+            .filter(|m| m.fit.selectable())
+            .map(|m| m.id.as_str())
+            .collect();
+        assert_eq!(selectable, vec!["vendor/writer"]);
+        for id in ["google/lyria-3-clip-preview", "openai/gpt-audio"] {
+            let m = got.iter().find(|m| m.id == id).expect("listed");
+            assert!(matches!(m.fit, Fit::Unsupported(_)), "{id}: {:?}", m.fit);
+        }
+    }
+
+    /// A declared end-of-life outranks every other signal — including a very strong score.
+    /// Regression: a free Llama with 2.1M HF downloads read as a top free pick while expiring
+    /// within days.
+    #[test]
+    fn retiring_models_are_dropped_but_far_future_dates_are_not() {
+        let soon = (chrono::Utc::now().date_naive() + chrono::Duration::days(3))
+            .format("%Y-%m-%d")
+            .to_string();
+        let never = "2098-12-31";
+        let body = format!(
+            r#"{{"data":[
+                {{"id":"vendor/dying","name":"Dying","pricing":{{"prompt":"0"}},
+                 "architecture":{{"output_modalities":["text"]}},
+                 "supported_parameters":["max_tokens"],
+                 "expiration_date":"{soon}",
+                 "benchmarks":{{"artificial_analysis":{{"intelligence_index":99.0}}}}}},
+                {{"id":"vendor/evergreen","name":"Evergreen","pricing":{{"prompt":"0.1"}},
+                 "architecture":{{"output_modalities":["text"]}},
+                 "supported_parameters":["max_tokens"],
+                 "expiration_date":"{never}",
+                 "benchmarks":{{"artificial_analysis":{{"intelligence_index":50.0}}}}}}
+            ]}}"#
+        );
+        let got = parse_openrouter(&body).expect("valid");
+        // Gone despite scoring 99 — it stops answering in 3 days.
+        assert!(!got.iter().any(|m| m.id == "vendor/dying"));
+        // A far-future placeholder is not a sunset.
+        assert!(got.iter().any(|m| m.id == "vendor/evergreen"));
+    }
+
+    /// The free tier tops out far below the paid frontier, so "best free" must be its own badge or
+    /// a cost-conscious seeker gets no recommendation at all.
+    #[test]
+    fn best_free_is_awarded_separately_from_the_outright_picks() {
+        // Catalog-shaped: enough paid models to fill the three outright picks, mirroring the real
+        // catalog where the frontier (≈55-59) sits well above the best free model (≈38).
+        let body = r#"{"data":[
+            {"id":"paid/strong","name":"Paid Strong","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":59.0}}},
+            {"id":"paid/b","name":"Paid B","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":58.0}}},
+            {"id":"paid/c","name":"Paid C","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":57.0}}},
+            {"id":"free/best","name":"Free Best","pricing":{"prompt":"0"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":38.0}}},
+            {"id":"free/weaker","name":"Free Weaker","pricing":{"prompt":"0"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":20.0}}},
+            {"id":"free/weakest","name":"Free Weakest","pricing":{"prompt":"0"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":10.0}}}
+        ]}"#;
+        let got = parse_openrouter(body).expect("valid");
+        let fit = |id: &str| got.iter().find(|m| m.id == id).unwrap().fit.clone();
+        // The paid model takes the outright badge...
+        assert_eq!(fit("paid/strong"), Fit::Best);
+        // ...and the free tier still gets a pointed recommendation of its own.
+        assert_eq!(fit("free/best"), Fit::BestFree);
+        assert_eq!(fit("free/weaker"), Fit::BestFree); // BEST_FREE_PICKS = 2
+        assert_eq!(fit("free/weakest"), Fit::Ok);
+    }
+
+    /// A free model strong enough to place overall should win the better badge, not be filed under
+    /// "best free".
+    #[test]
+    fn a_free_model_that_places_overall_wins_the_outright_badge() {
+        // The three outright picks are the monster + two paid models, so the weaker free model
+        // can't back into `Best` just by filling an empty slot.
+        let body = r#"{"data":[
+            {"id":"free/monster","name":"Free Monster","pricing":{"prompt":"0"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":99.0}}},
+            {"id":"paid/a","name":"Paid A","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":80.0}}},
+            {"id":"paid/b","name":"Paid B","pricing":{"prompt":"0.1"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":70.0}}},
+            {"id":"free/second","name":"Free Second","pricing":{"prompt":"0"},
+             "architecture":{"output_modalities":["text"]},"supported_parameters":["max_tokens"],
+             "benchmarks":{"artificial_analysis":{"intelligence_index":10.0}}}
+        ]}"#;
+        let got = parse_openrouter(body).expect("valid");
+        assert_eq!(got[0].id, "free/monster");
+        assert_eq!(got[0].fit, Fit::Best, "not demoted to best-free");
+        let second = got.iter().find(|m| m.id == "free/second").unwrap();
+        assert_eq!(second.fit, Fit::BestFree);
     }
 
     /// Each fit rule maps to a real failure mode; lock them all in one catalog.
@@ -657,24 +835,46 @@ mod tests {
                 m.label, m.note, m.id, m.intelligence
             );
         }
+        eprintln!("Best FREE:");
+        for m in got.iter().filter(|m| m.fit == Fit::BestFree) {
+            eprintln!(
+                "  ✧ {} — {} [{}] intelligence={:?}",
+                m.label, m.note, m.id, m.intelligence
+            );
+        }
         eprintln!("Top quality (catalog's own highest score):");
         for m in got.iter().filter(|m| m.top_quality) {
             eprintln!("  ★ {} [{}] {:?}", m.label, m.id, m.intelligence);
         }
-        eprintln!("First 3 free:");
-        for m in got.iter().filter(|m| m.free).take(3) {
-            eprintln!("  {} — {} [{}]", m.label, m.note, m.id);
+        eprintln!("Listed but not drivable yet (support planned):");
+        for m in got.iter().filter(|m| !m.fit.selectable()).take(4) {
+            eprintln!("  ▪ {} [{}] — {:?}", m.label, m.id, m.fit.badge());
         }
         eprintln!(
-            "caveated: {}, of which unguarded: {}",
+            "caveated: {}, unguarded: {}, not-yet-supported: {}",
             got.iter()
                 .filter(|m| matches!(m.fit, Fit::Caution(_)))
                 .count(),
-            got.iter().filter(|m| is_unguarded_variant(&m.id)).count()
+            got.iter().filter(|m| is_unguarded_variant(&m.id)).count(),
+            got.iter().filter(|m| !m.fit.selectable()).count()
         );
-        // The badge must actually land on something, or it's decoration.
+        // Every badge must land on something real, or it's decoration.
         assert!(got.iter().any(|m| m.fit == Fit::Best), "no picks");
+        assert!(got.iter().any(|m| m.fit == Fit::BestFree), "no free pick");
         assert!(got.iter().any(|m| m.top_quality), "no top-quality mark");
+        // The retiring filter must be PRECISE, not broad. The catalog carries two Llama 3.2 3B
+        // variants: the `:free` one declares an end-of-life days away (and read as a strong free
+        // pick on every other signal), while the paid sibling has no expiry and should stay.
+        assert!(
+            !got.iter()
+                .any(|m| m.id == "meta-llama/llama-3.2-3b-instruct:free"),
+            "an expiring model is still being offered"
+        );
+        assert!(
+            got.iter()
+                .any(|m| m.id == "meta-llama/llama-3.2-3b-instruct"),
+            "the non-expiring sibling was dropped — the filter is too broad"
+        );
     }
 
     #[test]
