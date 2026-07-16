@@ -10,7 +10,7 @@
 
 use dioxus::prelude::*;
 
-use crate::components::ModelPanel;
+use crate::components::{ModelPanel, ModelPicker};
 use crate::settings::{
     active_mode_label, apply_provider_key_live, apply_settings_live, built_in_available,
     load_settings, save_settings, SettingsFile,
@@ -38,10 +38,17 @@ pub fn SettingsButton() -> Element {
     let mut anthropic_key = use_signal(|| vault::get_key(Provider::Anthropic).unwrap_or_default());
     let mut openrouter_key =
         use_signal(|| vault::get_key(Provider::OpenRouter).unwrap_or_default());
-    let mut model = use_signal(|| initial.model.clone().unwrap_or_default());
     let mut local_url = use_signal(|| initial.local_url.clone().unwrap_or_default());
     // The explicit provider choice (slug), or None when the seeker never picked one.
     let mut provider = use_signal(|| initial.provider.clone());
+    // Per-provider model picks, seeded from the saved settings.
+    let anthropic_model = use_signal(|| initial.anthropic_model.clone().unwrap_or_default());
+    let openrouter_model = use_signal(|| initial.openrouter_model.clone().unwrap_or_default());
+    // Bumped after a key is saved: the Anthropic catalog only becomes reachable once a key exists,
+    // so the picker needs a nudge to try again.
+    let mut catalog_reload = use_signal(|| 0u32);
+    // The raw key fields live behind this — the picker is the everyday control.
+    let mut advanced = use_signal(|| false);
 
     // UI-only state: per-key reveal toggles (default masked), whether Save landed, and a key-free
     // error line if the keystore couldn't be reached.
@@ -56,8 +63,9 @@ pub fn SettingsButton() -> Element {
     let save = move |_| {
         let ak = anthropic_key.read().trim().to_string();
         let ok = openrouter_key.read().trim().to_string();
-        let m = model.read().trim().to_string();
         let u = local_url.read().trim().to_string();
+        let am = anthropic_model.read().trim().to_string();
+        let om = openrouter_model.read().trim().to_string();
 
         // Provider keys → OS vault (an emptied field clears that provider). Keep the first keystore
         // error, if any, to surface as a soft warning — the key is still applied live below so Live
@@ -75,8 +83,12 @@ pub fn SettingsButton() -> Element {
         // Non-secret prefs → settings.json (+ live env). Keys never touch the JSON now.
         let file = SettingsFile {
             openrouter_key: None,
-            model: (!m.is_empty()).then_some(m),
+            // Legacy shared field — the picker writes the scoped ones below. Preserve whatever a
+            // pre-picker install had rather than silently dropping it.
+            model: load_settings().model,
             local_url: (!u.is_empty()).then_some(u),
+            anthropic_model: (!am.is_empty()).then_some(am),
+            openrouter_model: (!om.is_empty()).then_some(om),
             provider: provider.read().clone(),
             // Preserve the developer-build switch — this modal only edits credentials, and a bare
             // literal would silently reset the entitlement to its default on Save.
@@ -87,6 +99,9 @@ pub fn SettingsButton() -> Element {
 
         save_err.set(err);
         saved.set(true);
+        // A key may have just landed — the Anthropic catalog is only reachable with one, so give
+        // the picker a reason to try again.
+        catalog_reload.with_mut(|n| *n += 1);
     };
 
     rsx! {
@@ -165,6 +180,37 @@ pub fn SettingsButton() -> Element {
                         }
                     }
 
+                    // ---- Model (live catalog) ----
+                    // The everyday control. `built_in` serves Anthropic ids through the proxy, so
+                    // it writes the same scoped setting Anthropic does.
+                    if provider.read().as_deref() == Some(Provider::OpenRouter.slug()) {
+                        ModelPicker {
+                            provider,
+                            chosen: openrouter_model,
+                            reload: catalog_reload,
+                        }
+                    } else {
+                        ModelPicker {
+                            provider,
+                            chosen: anthropic_model,
+                            reload: catalog_reload,
+                        }
+                    }
+
+                    // ---- Advanced: raw keys + local endpoint ----
+                    // Pasting a key is the exception, not the everyday path, so it lives behind a
+                    // disclosure — and a key is what makes the Anthropic catalog reachable, so
+                    // saving one reloads the picker above.
+                    button {
+                        class: "settings-reveal settings-advanced",
+                        r#type: "button",
+                        "aria-expanded": if *advanced.read() { "true" } else { "false" },
+                        onclick: move |_| advanced.toggle(),
+                        if *advanced.read() { "▾ Advanced — API keys" } else { "▸ Advanced — API keys" }
+                    }
+
+                    if *advanced.read() {
+
                     // ---- Anthropic API key (masked) ----
                     label { class: "settings-field",
                         span { class: "settings-label", "Anthropic API key " span { class: "settings-opt", "(Claude · recommended)" } }
@@ -217,23 +263,6 @@ pub fn SettingsButton() -> Element {
                         }
                     }
 
-                    // ---- Model ----
-                    label { class: "settings-field",
-                        span { class: "settings-label", "Model" }
-                        input {
-                            class: "settings-input",
-                            r#type: "text",
-                            autocomplete: "off",
-                            spellcheck: "false",
-                            placeholder: "claude-opus-4-8",
-                            value: "{model}",
-                            oninput: move |e| {
-                                model.set(e.value());
-                                saved.set(false);
-                            },
-                        }
-                    }
-
                     // ---- Optional local model URL ----
                     label { class: "settings-field",
                         span { class: "settings-label", "Local model URL " span { class: "settings-opt", "(optional)" } }
@@ -256,6 +285,8 @@ pub fn SettingsButton() -> Element {
                         "outside the app folder. Sent only to the model API you configure — never logged, "
                         "never shared."
                     }
+
+                    } // end Advanced
 
                     hr { class: "settings-sep" }
                     ModelPanel {}

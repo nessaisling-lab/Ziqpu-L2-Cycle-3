@@ -10,8 +10,8 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{BirthInputForm, Identity, ModelPanel};
-use crate::settings::{apply_provider_key_live, built_in_available, save_provider};
+use crate::components::{BirthInputForm, Identity, ModelPanel, ModelPicker};
+use crate::settings::{apply_provider_key_live, built_in_available, save_model_for, save_provider};
 use crate::vault::{self, Provider};
 
 /// The beats of the gate.
@@ -35,6 +35,13 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
     let mut key_field = use_signal(String::new);
     let mut reveal = use_signal(|| false);
     let mut status = use_signal(|| None::<String>);
+    // The provider as a slug, mirroring `provider` — the picker keys off this, and it's set in the
+    // same click that sets `provider`, so the two can't drift.
+    let mut slug = use_signal(|| None::<String>);
+    // Per-provider model pick from the live catalog, and a nudge to refetch once a key exists
+    // (Anthropic's catalog needs one).
+    let model_pick = use_signal(String::new);
+    let mut catalog_reload = use_signal(|| 0u32);
 
     // Save the pasted key to the OS vault and apply it live, then advance. On a vault failure (no
     // keystore) the key is still applied to the session so Live works now — we just warn that it
@@ -52,12 +59,16 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                 // Record the CHOICE too, not just the key — otherwise a key that merely happens to
                 // be exported for the other provider would keep winning the interpreter's ordering.
                 save_provider(p.slug());
+                save_model_for(p, &model_pick.read());
                 step.set(Step::Birth);
             }
             Err(_) => {
                 // Couldn't reach the keystore — use the key for this session only.
                 apply_provider_key_live(p, &k);
                 save_provider(p.slug());
+                save_model_for(p, &model_pick.read());
+                // The key is live now even though it didn't persist, so the catalog is reachable.
+                catalog_reload.with_mut(|n| *n += 1);
                 status.set(Some(
                     "Saved for this session only — this device's keychain wasn't reachable. \
                      Use “Continue” to go on."
@@ -132,6 +143,7 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                     "aria-pressed": if *provider.read() == Some(p) { "true" } else { "false" },
                                     onclick: move |_| {
                                         provider.set(Some(p));
+                                        slug.set(Some(p.slug().to_string()));
                                         status.set(None);
                                     },
                                     span { class: "pc-name", "{p.label()}" }
@@ -142,6 +154,14 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                             }
                         }
                         if let Some(p) = *provider.read() {
+                            // The live catalog for the chosen provider. OpenRouter's is public, so
+                            // it fills in immediately; Anthropic's needs the key below first, and
+                            // saying so is the picker's job (it shows the reason inline).
+                            ModelPicker {
+                                provider: slug,
+                                chosen: model_pick,
+                                reload: catalog_reload,
+                            }
                             label { class: "settings-field",
                                 span { class: "settings-label", "{p.label()} API key" }
                                 div { class: "settings-keyrow",

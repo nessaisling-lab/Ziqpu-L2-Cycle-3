@@ -68,6 +68,11 @@ strongest thread is a tense one, between your drive and its caution'>
   [this is what reality says: <one or two plain sentences setting the real signals beside the symbolic read — no buy/sell/hold, no price, no direction>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
+/// The Anthropic model used when the seeker hasn't chosen one. Also what the model picker marks as
+/// Ziqpu's pick (see [`crate::models`]) — one constant so the default and the recommendation can
+/// never disagree.
+pub const DEFAULT_ANTHROPIC_MODEL: &str = "claude-opus-4-8";
+
 /// Read an env var, treating empty as unset.
 fn env_nonempty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
@@ -87,7 +92,7 @@ fn anthropic_model() -> String {
             return m;
         }
     }
-    "claude-opus-4-8".to_string()
+    DEFAULT_ANTHROPIC_MODEL.to_string()
 }
 
 /// The mirror of [`anthropic_model`] for the OpenAI-compatible path. OpenRouter ids are namespaced

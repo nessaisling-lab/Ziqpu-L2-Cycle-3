@@ -567,6 +567,19 @@ td.b{color:var(--ink)}
 .provider-card .pc-sub{font:400 11.5px/1.4 var(--f-mono);color:var(--ink-faint)}
 .provider-card--on .pc-name{color:var(--gold-deep)}
 .provider-err{font:500 12px/1.5 var(--f-mono);color:#a1442e;margin:6px 0 0}
+
+/* ---- model picker (live catalog dropdown) ---- */
+.picker{margin:2px 0 14px;text-align:left}
+.picker-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.picker-status{font:500 11px/1.4 var(--f-mono);color:var(--ink-faint)}
+/* A native <select> renders option text only, so badges ride as glyphs — keep the mono face so the
+   ✦/★ marks and the " — note" tails line up down the list. */
+.picker select.settings-input{font-family:var(--f-mono);font-size:13px}
+/* The Advanced disclosure sits between the picker and the key fields — a quiet, full-width row. */
+.settings-advanced{
+  display:block;width:100%;text-align:left;margin:2px 0 10px;
+  font:600 11px/1.4 var(--f-mono);letter-spacing:.04em;
+}
 .provider-saved{font:600 11px/1.4 var(--f-mono);letter-spacing:.06em;color:var(--gold-deep);margin:6px 0 0}
 
 /* ---- birth-input form ---- */

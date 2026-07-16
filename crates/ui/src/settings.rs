@@ -38,6 +38,15 @@ pub struct SettingsFile {
     /// here into the keychain and nulls it out. New writes always leave this `None`.
     #[serde(default)]
     pub openrouter_key: Option<String>,
+    /// The model chosen for Anthropic, as picked from its live catalog → `ZIQPU_ANTHROPIC_MODEL`.
+    /// `None` = use the app's default. Per-provider because model ids are provider-specific: a
+    /// single shared setting is what let an OpenRouter id reach Anthropic and silently degrade the
+    /// reading to the template.
+    #[serde(default)]
+    pub anthropic_model: Option<String>,
+    /// The model chosen for OpenRouter → `ZIQPU_OPENROUTER_MODEL`. See [`Self::anthropic_model`].
+    #[serde(default)]
+    pub openrouter_model: Option<String>,
     /// The seeker's **explicit** live-provider choice — `"anthropic"`, `"openrouter"`, or
     /// `"built_in"` — as picked in onboarding / Settings. Exported as `ZIQPU_PROVIDER` so the
     /// interpreter honors it instead of silently defaulting to whatever key happens to be exported
@@ -150,6 +159,10 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_absent("ZIQPU_MODEL", &settings.model);
     set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
+    // Per-provider model picks. Scoped, so an id chosen for one provider can never be sent to the
+    // other (see `agents::interpret_llm::anthropic_model`).
+    set_if_absent("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
+    set_if_absent("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
     // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
     // attempts so the seeker's pick wins over a merely-present key.
     set_if_absent("ZIQPU_PROVIDER", &settings.provider);
@@ -205,6 +218,30 @@ pub fn save_provider(provider: &str) {
     std::env::set_var("ZIQPU_PROVIDER", provider);
 }
 
+/// Persist the model chosen for `provider` from its live catalog, and apply it to the live
+/// environment so the very next reading uses it. An empty `model` means "use Ziqpu's default" and
+/// clears both the setting and the env var. Scoped per provider — a single shared model setting is
+/// what let an OpenRouter id reach Anthropic and silently degrade the reading to the template.
+/// Best-effort (a failed read/write is swallowed — never panics).
+pub fn save_model_for(provider: Provider, model: &str) {
+    let model = model.trim();
+    let mut settings = load_settings();
+    let value = (!model.is_empty()).then(|| model.to_string());
+    match provider {
+        Provider::Anthropic => settings.anthropic_model = value.clone(),
+        Provider::OpenRouter => settings.openrouter_model = value.clone(),
+    }
+    save_settings(&settings);
+    let var = match provider {
+        Provider::Anthropic => "ZIQPU_ANTHROPIC_MODEL",
+        Provider::OpenRouter => "ZIQPU_OPENROUTER_MODEL",
+    };
+    match value {
+        Some(m) => std::env::set_var(var, m),
+        None => std::env::remove_var(var),
+    }
+}
+
 /// Apply a provider key to the **live** process environment right now (called after a vault write on
 /// Save) so the next reading uses it without a restart — `agents::reading_for` reads the env fresh
 /// per call. An empty `key` removes the var: unlike the credential-preserving [`apply_settings_live`],
@@ -239,6 +276,8 @@ pub fn apply_settings_live(settings: &SettingsFile) {
     set_if_present("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_present("ZIQPU_MODEL", &settings.model);
     set_if_present("ZIQPU_LLM_URL", &settings.local_url);
+    set_if_present("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
+    set_if_present("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
     set_if_present("ZIQPU_PROVIDER", &settings.provider);
 }
 
