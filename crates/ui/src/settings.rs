@@ -220,10 +220,17 @@ pub fn apply_settings_live(settings: &SettingsFile) {
     set_if_present("ZIQPU_LLM_URL", &settings.local_url);
 }
 
+/// Whether the **built-in free tier** is configured in this build — both the proxy URL and the app
+/// token are present (baked in at release time; see `main.rs` + `proxy/README.md`). When true, a
+/// seeker with no key of their own still gets live readings through the Ziqpu key proxy.
+pub fn built_in_available() -> bool {
+    std::env::var_os("ZIQPU_PROXY_URL").is_some() && std::env::var_os("ZIQPU_PROXY_TOKEN").is_some()
+}
+
 /// A short, human-readable label for which interpreter the **current environment** selects — shown
 /// in the Settings panel so Save gives immediate, truthful feedback about what a reading will use.
-/// Mirrors [`agents::build_interpreter`]'s precedence (OpenAI-compat/OpenRouter → Anthropic →
-/// template). Reads only presence, never the key value.
+/// Mirrors [`agents::build_interpreter`]'s precedence (OpenAI-compat/OpenRouter → Anthropic own key →
+/// built-in proxy → template). Reads only presence, never the key value.
 pub fn active_mode_label() -> &'static str {
     if std::env::var_os("OPENROUTER_API_KEY").is_some()
         || std::env::var_os("OPENAI_API_KEY").is_some()
@@ -231,6 +238,8 @@ pub fn active_mode_label() -> &'static str {
         "Live · OpenRouter / OpenAI-compatible"
     } else if std::env::var_os("ANTHROPIC_API_KEY").is_some() {
         "Live · Anthropic (Claude)"
+    } else if built_in_available() {
+        "Live · Ziqpu built-in (Claude)"
     } else {
         "Offline template · no key set"
     }

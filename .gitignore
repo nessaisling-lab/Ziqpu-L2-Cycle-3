@@ -32,6 +32,11 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Cloudflare Worker key proxy — local dev secrets + tooling (real secrets go via `wrangler secret put`)
+proxy/.dev.vars
+**/node_modules/
+.wrangler/
+
 # route-3 enrichment working dir (temp)
 /route3/
 

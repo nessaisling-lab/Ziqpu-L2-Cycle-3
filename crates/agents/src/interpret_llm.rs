@@ -68,26 +68,75 @@ strongest thread is a tense one, between your drive and its caution'>
   [this is what reality says: <one or two plain sentences setting the real signals beside the symbolic read — no buy/sell/hold, no price, no direction>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
-/// Claude-backed interpreter. Falls back to the deterministic template on any failure.
+/// Claude-backed interpreter over the Anthropic Messages API wire shape. Falls back to the
+/// deterministic template on any failure. Two ways to reach Claude, same body + parsing:
+/// - **direct** ([`Self::from_env`]) — the user's own `ANTHROPIC_API_KEY`, posted to Anthropic with
+///   `x-api-key`;
+/// - **built-in proxy** ([`Self::proxy_from_env`]) — the Ziqpu key proxy (`ZIQPU_PROXY_URL`), posted
+///   with the app token; the real Anthropic key lives server-side, never in this binary.
+///
+/// The endpoint + auth headers are the only difference, so they're fields rather than two structs.
 pub struct AnthropicInterpreter {
-    api_key: String,
+    endpoint: String,
+    /// Auth (+ version) headers sent with every request. Direct: `x-api-key` + `anthropic-version`.
+    /// Proxy: `Authorization: Bearer <app-token>` (the proxy injects the real key + version itself).
+    headers: Vec<(String, String)>,
     model: String,
     fallback: TemplateInterpreter,
+    /// Short, key-free label for the banner / "who wrote this" — e.g. "Claude" or "Ziqpu built-in".
+    source_label: &'static str,
 }
 
 impl AnthropicInterpreter {
-    /// Build from `ANTHROPIC_API_KEY` (and optional `ZIQPU_MODEL`). Returns `None` when no key is
-    /// set — the demo then uses the deterministic interpreter, and CI never needs a key.
+    /// Build from the user's own `ANTHROPIC_API_KEY` (and optional `ZIQPU_MODEL`). Returns `None`
+    /// when no key is set — the demo then uses the deterministic interpreter, and CI never needs a
+    /// key.
     pub fn from_env() -> Option<Self> {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
             .ok()
             .filter(|k| !k.is_empty())?;
         let model = std::env::var("ZIQPU_MODEL").unwrap_or_else(|_| "claude-opus-4-8".to_string());
         Some(Self {
-            api_key,
+            endpoint: "https://api.anthropic.com/v1/messages".to_string(),
+            headers: vec![
+                ("x-api-key".to_string(), api_key),
+                ("anthropic-version".to_string(), "2023-06-01".to_string()),
+                ("content-type".to_string(), "application/json".to_string()),
+            ],
             model,
             fallback: TemplateInterpreter,
+            source_label: "Claude",
         })
+    }
+
+    /// Build the **built-in free tier**: post to the Ziqpu key proxy (`ZIQPU_PROXY_URL`) with the app
+    /// token (`ZIQPU_PROXY_TOKEN`). The real Anthropic key lives on the proxy, server-side — never in
+    /// this binary — so a fully reverse-engineered client still can't leak it. Returns `None` unless
+    /// BOTH are set, so a build with no configured proxy simply omits the tier (users bring their own
+    /// key). See `proxy/README.md`.
+    pub fn proxy_from_env() -> Option<Self> {
+        let url = std::env::var("ZIQPU_PROXY_URL")
+            .ok()
+            .filter(|u| !u.is_empty())?;
+        let token = std::env::var("ZIQPU_PROXY_TOKEN")
+            .ok()
+            .filter(|t| !t.is_empty())?;
+        let model = std::env::var("ZIQPU_MODEL").unwrap_or_else(|_| "claude-opus-4-8".to_string());
+        Some(Self {
+            endpoint: url,
+            headers: vec![
+                ("authorization".to_string(), format!("Bearer {token}")),
+                ("content-type".to_string(), "application/json".to_string()),
+            ],
+            model,
+            fallback: TemplateInterpreter,
+            source_label: "Ziqpu built-in",
+        })
+    }
+
+    /// Short, key-free source label — "Claude" (own key) or "Ziqpu built-in" (proxy).
+    pub fn source_label(&self) -> &'static str {
+        self.source_label
     }
 
     /// One Messages API round-trip. `None` on transport error, HTTP error body, or empty text.
@@ -100,16 +149,14 @@ impl AnthropicInterpreter {
         })
         .to_string();
 
-        // The x-api-key rides an in-process header (post_json), never a process command line.
-        let text = crate::llm_http::post_json(
-            "https://api.anthropic.com/v1/messages",
-            &[
-                ("x-api-key", &self.api_key),
-                ("anthropic-version", "2023-06-01"),
-                ("content-type", "application/json"),
-            ],
-            &body,
-        )?;
+        // Auth rides an in-process header (post_json), never a process command line. Same for both
+        // the direct key and the proxy app-token.
+        let headers: Vec<(&str, &str)> = self
+            .headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let text = crate::llm_http::post_json(&self.endpoint, &headers, &body)?;
         let value: serde_json::Value = serde_json::from_str(&text).ok()?;
         // Guard the error/refusal shapes before reading content.
         if value.get("type").and_then(|t| t.as_str()) == Some("error") {
@@ -280,10 +327,19 @@ impl Interpreter for OpenAiCompatInterpreter {
     }
 }
 
-/// Select the live interpreter by precedence — OpenAI-compat / OpenRouter, then Anthropic, then the
-/// deterministic template — and print a one-line banner (to stderr, so it never corrupts the MCP
-/// server's stdout JSON-RPC stream) naming the choice. With no keys set this always resolves to
-/// [`TemplateInterpreter`], so CI and the offline demo stay deterministic.
+/// The Anthropic-family interpreter for the Live tier, in precedence order: the user's **own**
+/// `ANTHROPIC_API_KEY` first, else the **built-in** key-proxy tier (`ZIQPU_PROXY_URL`/`_TOKEN`), else
+/// `None`. Centralizing this keeps the "a user's own key beats the free built-in" rule in one place;
+/// every Live path calls it instead of `AnthropicInterpreter::from_env()` directly.
+fn anthropic_live() -> Option<AnthropicInterpreter> {
+    AnthropicInterpreter::from_env().or_else(AnthropicInterpreter::proxy_from_env)
+}
+
+/// Select the live interpreter by precedence — OpenAI-compat / OpenRouter, then Anthropic (own key,
+/// then the built-in proxy), then the deterministic template — and print a one-line banner (to
+/// stderr, so it never corrupts the MCP server's stdout JSON-RPC stream) naming the choice. With no
+/// keys and no proxy configured this always resolves to [`TemplateInterpreter`], so CI and the
+/// offline demo stay deterministic.
 pub fn build_interpreter() -> Box<dyn Interpreter> {
     // The banner prints AT MOST ONCE per process (via `Once`) — `build_interpreter` runs on every
     // throwaway session, so an un-gated `eprintln!` spammed the terminal on every reading. It names
@@ -297,8 +353,8 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
             )
         });
         Box::new(o)
-    } else if let Some(a) = AnthropicInterpreter::from_env() {
-        BANNER.call_once(|| eprintln!("[interpreter: Ungasaga = Claude — live]"));
+    } else if let Some(a) = anthropic_live() {
+        BANNER.call_once(|| eprintln!("[interpreter: Ungasaga = {} — live]", a.source_label()));
         Box::new(a)
     } else {
         BANNER.call_once(|| {
@@ -331,7 +387,7 @@ pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> (String, Option
             return (prose, Some(interp.model().to_string()));
         }
     }
-    if let Some(interp) = AnthropicInterpreter::from_env() {
+    if let Some(interp) = anthropic_live() {
         if let Some(prose) = interp.try_fit_read(measures, fit, name) {
             return (prose, Some(interp.model().to_string()));
         }
@@ -492,7 +548,7 @@ pub fn grounded_brief_for(
                     return (prose, Some(interp.model().to_string()));
                 }
             }
-            if let Some(interp) = AnthropicInterpreter::from_env() {
+            if let Some(interp) = anthropic_live() {
                 if let Some(prose) = interp.try_grounded_brief(measures, fit, name, grounded) {
                     return (prose, Some(interp.model().to_string()));
                 }
@@ -703,7 +759,7 @@ fn frontier_grounded(
             return Some((prose, interp.model().to_string()));
         }
     }
-    if let Some(interp) = AnthropicInterpreter::from_env() {
+    if let Some(interp) = anthropic_live() {
         if let Some(prose) = interp.complete(&user) {
             return Some((prose, interp.model().to_string()));
         }
@@ -891,6 +947,8 @@ mod tests {
             "OPENAI_BASE_URL",
             "ZIQPU_MODEL",
             "ANTHROPIC_API_KEY",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
         ] {
             std::env::remove_var(k);
         }
@@ -922,11 +980,54 @@ mod tests {
     }
 
     #[test]
+    fn proxy_tier_is_built_in_and_yields_to_a_user_key() {
+        let _env = env_guard();
+        for k in [
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
+            std::env::remove_var(k);
+        }
+
+        // No key, no proxy → no Anthropic-family interpreter at all.
+        assert!(anthropic_live().is_none());
+
+        // A configured proxy needs BOTH url + token; one alone is not enough.
+        std::env::set_var("ZIQPU_PROXY_URL", "https://proxy.example/v1/messages");
+        assert!(AnthropicInterpreter::proxy_from_env().is_none());
+        std::env::set_var("ZIQPU_PROXY_TOKEN", "app-token-not-real");
+
+        // With both set (and no user key), the Live tier is the built-in proxy.
+        let interp = anthropic_live().expect("proxy configured → Some");
+        assert_eq!(interp.source_label(), "Ziqpu built-in");
+        assert_eq!(interp.endpoint, "https://proxy.example/v1/messages");
+
+        // A user's OWN Anthropic key takes precedence over the free built-in.
+        std::env::set_var("ANTHROPIC_API_KEY", "sk-ant-not-real");
+        let interp = anthropic_live().expect("user key → Some");
+        assert_eq!(interp.source_label(), "Claude");
+        assert_eq!(interp.endpoint, "https://api.anthropic.com/v1/messages");
+
+        for k in ["ANTHROPIC_API_KEY", "ZIQPU_PROXY_URL", "ZIQPU_PROXY_TOKEN"] {
+            std::env::remove_var(k);
+        }
+    }
+
+    #[test]
     fn reading_for_matches_template_with_no_keys() {
         let _env = env_guard();
         // The Send-safe UI entry point must be byte-identical to the deterministic template when
         // no live model is configured — so the background thread produces the same offline read.
-        for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+        for k in [
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
             std::env::remove_var(k);
         }
         let m = measures();
@@ -944,7 +1045,13 @@ mod tests {
     #[test]
     fn raw_mode_and_no_keys_live_are_byte_identical_template() {
         let _env = env_guard();
-        for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+        for k in [
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
             std::env::remove_var(k);
         }
         let m = measures();
@@ -1055,7 +1162,13 @@ mod tests {
     /// so the pipeline deterministically lands on the local/template fallback. Caller holds the
     /// env guard for the duration.
     fn silence_all_backends() {
-        for k in ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+        for k in [
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
             std::env::remove_var(k);
         }
         // An unroutable local endpoint → local_complete/try_* fail fast, never a live call.

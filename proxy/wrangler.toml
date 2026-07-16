@@ -1,0 +1,23 @@
+# Cloudflare Worker config for the Ziqpu key proxy.
+#
+# SECRETS ARE NOT IN THIS FILE. `ANTHROPIC_API_KEY` and `APP_TOKEN` are set with
+# `wrangler secret put <NAME>` (encrypted at rest, never in the repo). Only non-secret tuning lives
+# in [vars] below. See README.md for the full deploy runbook.
+
+name = "ziqpu-key-proxy"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Non-secret tuning knobs. Adjust to taste; changes take effect on the next `wrangler deploy`.
+[vars]
+ENABLED = "true"                    # kill switch — set "false" to disable the free tier instantly
+ALLOWED_MODELS = "claude-opus-4-8"  # comma-separated allowlist; requests for anything else are refused
+MAX_TOKENS_CAP = "1536"             # per-request output ceiling (matches the app's reading budget)
+PER_CLIENT_DAILY_REQUESTS = "50"    # per-IP daily request cap
+MONTHLY_TOKEN_BUDGET = "2000000"    # soft monthly token spend cap; refuse once exceeded
+
+# Rate-limit + spend counters. Create the namespace once, then paste its id here:
+#   wrangler kv namespace create ZIQPU_RL
+[[kv_namespaces]]
+binding = "ZIQPU_RL"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

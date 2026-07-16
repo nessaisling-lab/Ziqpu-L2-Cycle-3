@@ -34,6 +34,22 @@ use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
 use dioxus::LaunchBuilder;
 
 fn main() {
+    // Bake the built-in free-tier proxy config into the runtime env. `ZIQPU_PROXY_URL`/`_TOKEN` are
+    // set at RELEASE BUILD time (via the release workflow's env) and captured by `option_env!` here —
+    // so the shipped binary carries the proxy URL + the (revocable, rate-limited) app token, but
+    // NEVER the Anthropic key (that lives only on the proxy). A dev build with neither set simply
+    // omits the built-in tier. An explicit runtime env var still wins.
+    if let Some(url) = option_env!("ZIQPU_PROXY_URL") {
+        if !url.is_empty() && std::env::var_os("ZIQPU_PROXY_URL").is_none() {
+            std::env::set_var("ZIQPU_PROXY_URL", url);
+        }
+    }
+    if let Some(token) = option_env!("ZIQPU_PROXY_TOKEN") {
+        if !token.is_empty() && std::env::var_os("ZIQPU_PROXY_TOKEN").is_none() {
+            std::env::set_var("ZIQPU_PROXY_TOKEN", token);
+        }
+    }
+
     // Upgrade any pre-vault install first: move a plaintext OpenRouter key out of settings.json and
     // into the OS credential vault BEFORE we read settings into the environment.
     settings::migrate_plaintext_keys_to_vault();

@@ -11,7 +11,7 @@
 use dioxus::prelude::*;
 
 use crate::components::{BirthInputForm, Identity, ModelPanel};
-use crate::settings::apply_provider_key_live;
+use crate::settings::{apply_provider_key_live, built_in_available};
 use crate::vault::{self, Provider};
 
 /// The beats of the gate.
@@ -91,10 +91,26 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                             "Power your readings"
                         }
                         p { class: "onboarding-lede",
-                            "Ziqpu can write each reading with a hosted model. Choose a provider and paste "
-                            "your API key — it's kept in this device's secure keychain, never in a file. "
-                            "Prefer to explore first? Skip — Ziqpu still runs offline, and you can add a key "
-                            "any time from Settings."
+                            "Ziqpu can write each reading with a hosted model. "
+                            if built_in_available() {
+                                "Use the built-in reader — free, no key, no setup — or connect your own provider below."
+                            } else {
+                                "Choose a provider and paste your API key — it's kept in this device's secure keychain, never in a file. Prefer to explore first? Skip — Ziqpu still runs offline, and you can add a key any time from Settings."
+                            }
+                        }
+                        // The recommended zero-setup path: Ziqpu's built-in free tier (the key proxy).
+                        // Shown only when this build ships a configured proxy.
+                        if built_in_available() {
+                            button {
+                                class: "btn btn--go",
+                                style: "width:100%;margin:2px 0 6px",
+                                r#type: "button",
+                                onclick: move |_| step.set(Step::Birth),
+                                "Use Ziqpu's built-in reader — free ✦"
+                            }
+                            p { class: "onboarding-lede onboarding-lede--muted", style: "margin:2px 0 14px",
+                                "Recommended. Or bring your own key:"
+                            }
                         }
                         div { class: "provider-grid",
                             for p in [Provider::Anthropic, Provider::OpenRouter] {

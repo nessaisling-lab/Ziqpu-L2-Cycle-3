@@ -1,0 +1,4 @@
+# Local-dev secrets for `wrangler dev`. Copy to `.dev.vars` (gitignored) and fill in real values.
+# In production these are set with `wrangler secret put`, NOT from a file.
+ANTHROPIC_API_KEY = "REPLACE_WITH_YOUR_ANTHROPIC_KEY"
+APP_TOKEN = "REPLACE_WITH_A_LONG_RANDOM_STRING"
