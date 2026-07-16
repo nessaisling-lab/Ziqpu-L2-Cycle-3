@@ -10,9 +10,9 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{BirthInputForm, Identity, ModelPanel, ModelPicker};
-use crate::settings::{apply_provider_key_live, built_in_available, save_model_for, save_provider};
-use crate::vault::{self, Provider};
+use crate::components::{BirthInputForm, Identity, KeyField, ModelPanel, ModelPicker};
+use crate::settings::{built_in_available, save_model_for, save_provider};
+use crate::vault::{self, KeySource, Provider};
 
 /// The beats of the gate.
 #[derive(Clone, Copy, PartialEq)]
@@ -29,12 +29,10 @@ enum Step {
 pub fn Onboarding(on_done: EventHandler<()>) -> Element {
     let mut step = use_signal(|| Step::Welcome);
 
-    // Connect-step state: the chosen provider (None until a card is picked), the masked key field,
-    // whether the key is revealed, and a short, key-free status line (error or "saved").
+    // Connect-step state: the chosen provider (None until a card is picked). The key itself is
+    // [`KeyField`]'s business — it saves on paste and never hands a value back, so nothing here
+    // holds one.
     let mut provider = use_signal(|| None::<Provider>);
-    let mut key_field = use_signal(String::new);
-    let mut reveal = use_signal(|| false);
-    let mut status = use_signal(|| None::<String>);
     // The provider as a slug, mirroring `provider` — the picker keys off this, and it's set in the
     // same click that sets `provider`, so the two can't drift.
     let mut slug = use_signal(|| None::<String>);
@@ -43,39 +41,27 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
     let model_pick = use_signal(String::new);
     let mut catalog_reload = use_signal(|| 0u32);
 
-    // Save the pasted key to the OS vault and apply it live, then advance. On a vault failure (no
-    // keystore) the key is still applied to the session so Live works now — we just warn that it
-    // won't persist, and the "Continue" path below still lets them proceed.
-    let save_key = move |_| {
+    // What's already on this machine, detected once when the wizard mounts: a key Ziqpu saved on a
+    // previous run, or one exported by a shell/CI/launcher. Presence and origin only — this never
+    // touches a key's value. Someone who already has a key set up should be told so, not asked to
+    // dig it out and paste it again.
+    let detected = use_hook(|| {
+        [Provider::Anthropic, Provider::OpenRouter]
+            .into_iter()
+            .map(|p| (p, vault::key_source(p)))
+            .filter(|(_, src)| src.present())
+            .collect::<Vec<_>>()
+    });
+
+    // Record the provider CHOICE + model pick, then advance. The key (if any) has already saved
+    // itself in [`KeyField`]. Saving the choice matters independently of the key: without it, a key
+    // that merely happens to be exported for the *other* provider keeps winning the interpreter's
+    // ordering — which is the bug where picking Anthropic still read through OpenRouter.
+    let save_choice = move |_| {
         let Some(p) = *provider.read() else { return };
-        let k = key_field.read().trim().to_string();
-        if k.is_empty() {
-            status.set(Some("Paste a key first, or skip.".to_string()));
-            return;
-        }
-        match vault::set_key(p, &k) {
-            Ok(()) => {
-                apply_provider_key_live(p, &k);
-                // Record the CHOICE too, not just the key — otherwise a key that merely happens to
-                // be exported for the other provider would keep winning the interpreter's ordering.
-                save_provider(p.slug());
-                save_model_for(p, &model_pick.read());
-                step.set(Step::Birth);
-            }
-            Err(_) => {
-                // Couldn't reach the keystore — use the key for this session only.
-                apply_provider_key_live(p, &k);
-                save_provider(p.slug());
-                save_model_for(p, &model_pick.read());
-                // The key is live now even though it didn't persist, so the catalog is reachable.
-                catalog_reload.with_mut(|n| *n += 1);
-                status.set(Some(
-                    "Saved for this session only — this device's keychain wasn't reachable. \
-                     Use “Continue” to go on."
-                        .to_string(),
-                ));
-            }
-        }
+        save_provider(p.slug());
+        save_model_for(p, &model_pick.read());
+        step.set(Step::Birth);
     };
 
     rsx! {
@@ -113,6 +99,27 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                 "Choose a provider and paste your API key — it's kept in this device's secure keychain, never in a file. Prefer to explore first? Skip — Ziqpu still runs offline, and you can add a key any time from Settings."
                             }
                         }
+                        // Anything Ziqpu can already see. Presence and origin, never a value — and
+                        // a reason not to make someone hunt down a key they've already set up.
+                        if !detected.is_empty() {
+                            div { class: "detected",
+                                p { class: "detected-head", "Found on this machine" }
+                                for (p, src) in detected.iter().copied() {
+                                    div { class: "detected-row",
+                                        key: "{p.slug()}",
+                                        span {
+                                            class: if src == KeySource::Env { "key-dot key-dot--env" } else { "key-dot key-dot--on" },
+                                            "aria-hidden": "true",
+                                        }
+                                        span { class: "detected-name", "{p.label()}" }
+                                        span { class: "detected-line", "{src.line()}" }
+                                    }
+                                }
+                                p { class: "settings-hint", style: "margin:8px 0 0",
+                                    "Pick that provider below and continue — no pasting needed."
+                                }
+                            }
+                        }
                         // The recommended zero-setup path: Ziqpu's built-in free tier (the key proxy).
                         // Shown only when this build ships a configured proxy.
                         if built_in_available() {
@@ -144,7 +151,6 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                     onclick: move |_| {
                                         provider.set(Some(p));
                                         slug.set(Some(p.slug().to_string()));
-                                        status.set(None);
                                     },
                                     span { class: "pc-name", "{p.label()}" }
                                     span { class: "pc-sub",
@@ -162,32 +168,13 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                 chosen: model_pick,
                                 reload: catalog_reload,
                             }
-                            label { class: "settings-field",
-                                span { class: "settings-label", "{p.label()} API key" }
-                                div { class: "settings-keyrow",
-                                    input {
-                                        class: "settings-input",
-                                        r#type: if *reveal.read() { "text" } else { "password" },
-                                        autocomplete: "off",
-                                        spellcheck: "false",
-                                        placeholder: "{p.key_hint()}",
-                                        value: "{key_field}",
-                                        oninput: move |e| {
-                                            key_field.set(e.value());
-                                            status.set(None);
-                                        },
-                                    }
-                                    button {
-                                        class: "settings-reveal",
-                                        r#type: "button",
-                                        "aria-label": if *reveal.read() { "Hide key" } else { "Show key" },
-                                        onclick: move |_| reveal.toggle(),
-                                        if *reveal.read() { "hide" } else { "show" }
-                                    }
-                                }
-                            }
-                            if let Some(msg) = status.read().clone() {
-                                p { class: "provider-err", "{msg}" }
+                            // Saves on paste, straight to the keychain — and a key already present
+                            // shows as installed rather than as an empty box demanding it again.
+                            // The reload nudge matters here: Anthropic's catalog is unreachable
+                            // until a key exists, so the picker above must retry once one lands.
+                            KeyField {
+                                provider: p,
+                                on_change: move |_| catalog_reload.with_mut(|n| *n += 1),
                             }
                         }
                         div { class: "onboarding-actions",
@@ -201,15 +188,16 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                 button {
                                     class: "btn btn--go",
                                     r#type: "button",
-                                    onclick: save_key,
-                                    "Save & continue →"
+                                    onclick: save_choice,
+                                    "Continue →"
                                 }
-                            }
-                            button {
-                                class: "btn btn--ghost",
-                                r#type: "button",
-                                onclick: move |_| step.set(Step::Birth),
-                                if provider.read().is_some() { "Continue →" } else { "Skip for now →" }
+                            } else {
+                                button {
+                                    class: "btn btn--ghost",
+                                    r#type: "button",
+                                    onclick: move |_| step.set(Step::Birth),
+                                    "Skip for now →"
+                                }
                             }
                         }
                     },

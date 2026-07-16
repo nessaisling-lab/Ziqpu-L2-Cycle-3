@@ -22,12 +22,12 @@
 
 use dioxus::prelude::*;
 
-use crate::components::{ModelPanel, ModelPicker};
+use crate::components::{KeyField, ModelPanel, ModelPicker};
 use crate::settings::{
-    active_mode_label, apply_provider_key_live, apply_settings_live, built_in_available,
-    load_settings, save_settings, SettingsFile,
+    active_mode_label, apply_settings_live, built_in_available, load_settings, save_settings,
+    SettingsFile,
 };
-use crate::vault::{self, Provider};
+use crate::vault::Provider;
 
 /// The provider cards offered in Settings: `(slug, label, sub-label)`. The built-in tier is only
 /// listed when this build ships a configured proxy.
@@ -60,11 +60,10 @@ pub fn SettingsButton(on_open: EventHandler<()>) -> Element {
 /// The Settings surface, rendered as a full page in normal flow.
 #[component]
 pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
-    // Seed the fields once. Provider keys come from the vault; model + local URL from settings.json.
+    // Seed the fields once, from `settings.json` only. **No key is read here** — a key that reaches
+    // a signal is a key that has been shown. `KeyField` owns that surface and asks the vault for
+    // presence, never for a value.
     let initial = use_hook(load_settings);
-    let mut anthropic_key = use_signal(|| vault::get_key(Provider::Anthropic).unwrap_or_default());
-    let mut openrouter_key =
-        use_signal(|| vault::get_key(Provider::OpenRouter).unwrap_or_default());
     let mut local_url = use_signal(|| initial.local_url.clone().unwrap_or_default());
     // The explicit provider choice (slug), or None when the seeker never picked one.
     let mut provider = use_signal(|| initial.provider.clone());
@@ -79,37 +78,23 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
     // So does the local-model benchmark panel, which is the tallest thing in here.
     let mut local_open = use_signal(|| false);
 
-    // UI-only state: per-key reveal toggles (default masked), whether Save landed, and a key-free
-    // error line if the keystore couldn't be reached.
-    let mut reveal_anthropic = use_signal(|| false);
-    let mut reveal_openrouter = use_signal(|| false);
+    // UI-only state: whether Save landed. Keys are saved by `KeyField` the moment they're pasted,
+    // so Save no longer has a credential path — and there are no reveal toggles, by design.
     let mut saved = use_signal(|| false);
-    let mut save_err = use_signal(|| None::<String>);
 
     // Recomputed each render — reads only env-var *presence*, so it reflects the live mode after Save.
     let mode_label = active_mode_label();
 
     let save = move |_| {
-        let ak = anthropic_key.read().trim().to_string();
-        let ok = openrouter_key.read().trim().to_string();
         let u = local_url.read().trim().to_string();
         let am = anthropic_model.read().trim().to_string();
         let om = openrouter_model.read().trim().to_string();
 
-        // Provider keys → OS vault (an emptied field clears that provider). Keep the first keystore
-        // error, if any, to surface as a soft warning — the key is still applied live below so Live
-        // works this session regardless.
-        let mut err = None;
-        if let Err(e) = vault::set_key(Provider::Anthropic, &ak) {
-            err = Some(e);
-        }
-        if let Err(e) = vault::set_key(Provider::OpenRouter, &ok) {
-            err.get_or_insert(e);
-        }
-        apply_provider_key_live(Provider::Anthropic, &ak);
-        apply_provider_key_live(Provider::OpenRouter, &ok);
-
-        // Non-secret prefs → settings.json (+ live env). Keys never touch the JSON now.
+        // **Non-secrets only.** Keys go straight from the paste field to the vault in [`KeyField`],
+        // so Save has no credential path left to get wrong. It used to have one, and it was a trap:
+        // the key fields were seeded from the vault, so an unreachable keystore rendered them blank
+        // — and a blank field meant "clear this provider", making an innocent Save silently delete
+        // a working key.
         let file = SettingsFile {
             openrouter_key: None,
             // Legacy shared field — the picker writes the scoped ones below. Preserve whatever a
@@ -125,12 +110,7 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
         };
         save_settings(&file);
         apply_settings_live(&file);
-
-        save_err.set(err);
         saved.set(true);
-        // A key may have just landed — the Anthropic catalog is only reachable with one, so give
-        // the picker a reason to try again.
-        catalog_reload.with_mut(|n| *n += 1);
     };
 
     rsx! {
@@ -220,56 +200,19 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
 
                     if *advanced.read() {
 
-                    // ---- Anthropic API key (masked) ----
-                    label { class: "settings-field",
-                        span { class: "settings-label", "Anthropic API key " span { class: "settings-opt", "(Claude · recommended)" } }
-                        div { class: "settings-keyrow",
-                            input {
-                                class: "settings-input",
-                                r#type: if *reveal_anthropic.read() { "text" } else { "password" },
-                                autocomplete: "off",
-                                spellcheck: "false",
-                                placeholder: "sk-ant-…",
-                                value: "{anthropic_key}",
-                                oninput: move |e| {
-                                    anthropic_key.set(e.value());
-                                    saved.set(false);
-                                },
-                            }
-                            button {
-                                class: "settings-reveal",
-                                r#type: "button",
-                                "aria-label": if *reveal_anthropic.read() { "Hide key" } else { "Show key" },
-                                onclick: move |_| reveal_anthropic.toggle(),
-                                if *reveal_anthropic.read() { "hide" } else { "show" }
-                            }
-                        }
+                    // ---- Provider keys: presence only, never the value ----
+                    // Each row reports whether a key exists and where it came from — including one
+                    // exported in the environment, which Ziqpu detects and uses but didn't store.
+                    // Adding, replacing, and removing all happen inside `KeyField`, which saves on
+                    // paste; nothing here can read a key back out.
+                    span { class: "settings-label", "API keys" }
+                    KeyField {
+                        provider: Provider::Anthropic,
+                        on_change: move |_| catalog_reload.with_mut(|n| *n += 1),
                     }
-
-                    // ---- OpenRouter API key (masked) ----
-                    label { class: "settings-field",
-                        span { class: "settings-label", "OpenRouter API key " span { class: "settings-opt", "(optional)" } }
-                        div { class: "settings-keyrow",
-                            input {
-                                class: "settings-input",
-                                r#type: if *reveal_openrouter.read() { "text" } else { "password" },
-                                autocomplete: "off",
-                                spellcheck: "false",
-                                placeholder: "sk-or-v1-…",
-                                value: "{openrouter_key}",
-                                oninput: move |e| {
-                                    openrouter_key.set(e.value());
-                                    saved.set(false);
-                                },
-                            }
-                            button {
-                                class: "settings-reveal",
-                                r#type: "button",
-                                "aria-label": if *reveal_openrouter.read() { "Hide key" } else { "Show key" },
-                                onclick: move |_| reveal_openrouter.toggle(),
-                                if *reveal_openrouter.read() { "hide" } else { "show" }
-                            }
-                        }
+                    KeyField {
+                        provider: Provider::OpenRouter,
+                        on_change: move |_| catalog_reload.with_mut(|n| *n += 1),
                     }
 
                     // ---- Optional local model URL ----
@@ -327,9 +270,7 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
                     strong { "{mode_label}" }
                 }
                 div { class: "settings-actions",
-                    if let Some(err) = save_err.read().clone() {
-                        span { class: "provider-err", "{err}" }
-                    } else if *saved.read() {
+                    if *saved.read() {
                         span { class: "settings-saved", "Saved ✓" }
                     }
                     button {

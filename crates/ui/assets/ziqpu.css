@@ -430,6 +430,10 @@ td.b{color:var(--ink)}
 .btn--go{background:var(--carnelian);color:#fff8f0;border-color:transparent;box-shadow:var(--shadow)}
 .btn--go:hover{background:var(--carnelian-deep);color:#fff8f0;border-color:transparent;transform:translateY(-2px)}
 .btn--go:disabled{background:color-mix(in srgb,var(--carnelian) 45%,var(--parchment));color:#fff8f0}
+/* Destructive confirm only — deliberately NOT the carnelian "go" red, so the eye can't mistake
+   "delete this key forever" for the ordinary primary action sitting next to it. */
+.btn--danger{background:#8f3120;color:#fff3ee;border-color:transparent;box-shadow:var(--shadow)}
+.btn--danger:hover{background:#7a2919;color:#fff3ee;border-color:transparent;transform:translateY(-2px)}
 .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:6px}
 
 /* ---- checkpoint — the seal ---- */
@@ -575,6 +579,52 @@ td.b{color:var(--ink)}
 .provider-card .pc-sub{font:400 11.5px/1.4 var(--f-mono);color:var(--ink-faint)}
 .provider-card--on .pc-name{color:var(--gold-deep)}
 .provider-err{font:500 12px/1.5 var(--f-mono);color:#a1442e;margin:6px 0 0}
+
+/* ---- API key: proof of presence, never the value ---- */
+/* There is deliberately no reveal control here. The row states THAT a key exists and where it
+   lives; the value has no path back to any screen. See components/key_field.rs. */
+.keyfield{
+  margin:0 0 10px;padding:11px 13px;text-align:left;
+  border:1px solid var(--gold-line);border-radius:12px;background:var(--parchment-2);
+}
+.keyfield-status{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.keyfield-name{font:600 13px/1.2 var(--f-body);color:var(--ink)}
+.keyfield-line{font:500 11px/1.4 var(--f-mono);color:var(--ink-faint)}
+.keyfield-line--on{color:var(--ink-soft)}
+/* The dot carries the state in form as well as in words — lit means a key is there. Green = ours,
+   in this device's keychain. Gold = detected in the environment, used but not ours to manage. */
+.key-dot{flex:none;width:8px;height:8px;border-radius:50%;background:transparent;border:1.5px solid var(--ink-faint)}
+.key-dot--on{background:#3f7d4e;border-color:#3f7d4e;box-shadow:0 0 0 3px color-mix(in srgb,#3f7d4e 18%,transparent)}
+.key-dot--env{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 20%,transparent)}
+.keyfield-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.settings-reveal--add{color:var(--gold-deep);border-color:var(--gold)}
+.keyfield-hint{margin:8px 0 0}
+.keyfield-hint code{font:500 11px/1 var(--f-mono);color:var(--ink-soft)}
+.keyfield-confirm{
+  margin:10px 0 0;padding:10px 12px;border:1px solid #c9705c;border-radius:10px;
+  background:color-mix(in srgb,#a1442e 7%,var(--parchment));
+}
+.keyfield-warn{font:500 12px/1.55 var(--f-body);color:#8f3120;margin:0 0 9px}
+.keyfield-confirm .keyfield-actions{margin-left:0;justify-content:flex-end}
+.keyfield-add{display:flex;gap:8px;align-items:stretch;margin:10px 0 0;flex-wrap:wrap}
+.keyfield-add .settings-input{flex:1;min-width:180px}
+.keyfield-add .keyfield-actions{margin-left:0}
+
+/* ---- onboarding: what's already on this machine ---- */
+/* Someone arriving with a key already configured shouldn't be asked to hunt it down and paste it
+   again. This states what was found, and where — never a value. */
+.detected{
+  margin:4px 0 16px;padding:11px 13px;text-align:left;
+  border:1px solid var(--gold-line);border-radius:12px;
+  background:color-mix(in srgb,var(--gold) 6%,var(--parchment-2));
+}
+.detected-head{
+  font:600 10px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 8px;
+}
+.detected-row{display:flex;align-items:center;gap:9px;padding:3px 0;flex-wrap:wrap}
+.detected-name{font:600 12.5px/1.2 var(--f-body);color:var(--ink)}
+.detected-line{font:500 11px/1.4 var(--f-mono);color:var(--ink-soft);margin-left:auto}
 
 /* ---- model picker (live catalog list) ---- */
 .picker{margin:2px 0 14px;text-align:left}
