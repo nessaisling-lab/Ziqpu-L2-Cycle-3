@@ -68,6 +68,44 @@ strongest thread is a tense one, between your drive and its caution'>
   [this is what reality says: <one or two plain sentences setting the real signals beside the symbolic read — no buy/sell/hold, no price, no direction>]      <- include this line only if grounded signals are provided
   REMINDER: measured, not fate — not financial advice.";
 
+/// Read an env var, treating empty as unset.
+fn env_nonempty(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|v| !v.is_empty())
+}
+
+/// Anthropic model ids are all `claude-*`. A shared [`ZIQPU_MODEL`] holding a *foreign* id (e.g. the
+/// OpenRouter id `nvidia/nemotron-3-super-120b-a12b:free`) must NOT be forwarded to
+/// `api.anthropic.com` — it 400s, and the interpreter then falls back to the template, so the seeker
+/// silently gets a basic reading instead of Claude. So: an explicit `ZIQPU_ANTHROPIC_MODEL` wins;
+/// else the shared `ZIQPU_MODEL` **only if it looks like a Claude id**; else the safe default.
+fn anthropic_model() -> String {
+    if let Some(m) = env_nonempty("ZIQPU_ANTHROPIC_MODEL") {
+        return m;
+    }
+    if let Some(m) = env_nonempty("ZIQPU_MODEL") {
+        if m.starts_with("claude-") {
+            return m;
+        }
+    }
+    "claude-opus-4-8".to_string()
+}
+
+/// The mirror of [`anthropic_model`] for the OpenAI-compatible path. OpenRouter ids are namespaced
+/// (`vendor/model`), so a BARE Anthropic id (`claude-opus-4-8`) isn't routable there — OpenRouter
+/// wants `anthropic/claude-…`. An explicit `ZIQPU_OPENROUTER_MODEL` wins; else the shared
+/// `ZIQPU_MODEL` unless it's a bare Claude id; else the default.
+fn openai_compat_model() -> String {
+    if let Some(m) = env_nonempty("ZIQPU_OPENROUTER_MODEL") {
+        return m;
+    }
+    if let Some(m) = env_nonempty("ZIQPU_MODEL") {
+        if !m.starts_with("claude-") {
+            return m;
+        }
+    }
+    "anthropic/claude-3.5-sonnet".to_string()
+}
+
 /// Claude-backed interpreter over the Anthropic Messages API wire shape. Falls back to the
 /// deterministic template on any failure. Two ways to reach Claude, same body + parsing:
 /// - **direct** ([`Self::from_env`]) — the user's own `ANTHROPIC_API_KEY`, posted to Anthropic with
@@ -95,7 +133,7 @@ impl AnthropicInterpreter {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
             .ok()
             .filter(|k| !k.is_empty())?;
-        let model = std::env::var("ZIQPU_MODEL").unwrap_or_else(|_| "claude-opus-4-8".to_string());
+        let model = anthropic_model();
         Some(Self {
             endpoint: "https://api.anthropic.com/v1/messages".to_string(),
             headers: vec![
@@ -121,7 +159,7 @@ impl AnthropicInterpreter {
         let token = std::env::var("ZIQPU_PROXY_TOKEN")
             .ok()
             .filter(|t| !t.is_empty())?;
-        let model = std::env::var("ZIQPU_MODEL").unwrap_or_else(|_| "claude-opus-4-8".to_string());
+        let model = anthropic_model();
         Some(Self {
             endpoint: url,
             headers: vec![
@@ -238,8 +276,8 @@ pub struct OpenAiCompatInterpreter {
 
 impl OpenAiCompatInterpreter {
     /// Build from `OPENROUTER_API_KEY` (preferred) or `OPENAI_API_KEY`. Returns `None` when neither
-    /// is set. `base_url` from `OPENAI_BASE_URL`, else OpenRouter; `model` from `ZIQPU_MODEL`, else
-    /// `anthropic/claude-3.5-sonnet`.
+    /// is set. `base_url` from `OPENAI_BASE_URL`, else OpenRouter; `model` via
+    /// [`openai_compat_model`] (provider-scoped, so a bare Claude id can't leak in here).
     pub fn from_env() -> Option<Self> {
         let api_key = std::env::var("OPENROUTER_API_KEY")
             .ok()
@@ -253,10 +291,7 @@ impl OpenAiCompatInterpreter {
             .ok()
             .filter(|u| !u.is_empty())
             .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
-        let model = std::env::var("ZIQPU_MODEL")
-            .ok()
-            .filter(|m| !m.is_empty())
-            .unwrap_or_else(|| "anthropic/claude-3.5-sonnet".to_string());
+        let model = openai_compat_model();
         Some(Self {
             fallback: TemplateInterpreter,
             base_url,
@@ -335,6 +370,48 @@ fn anthropic_live() -> Option<AnthropicInterpreter> {
     AnthropicInterpreter::from_env().or_else(AnthropicInterpreter::proxy_from_env)
 }
 
+/// Does the seeker's **explicit** provider choice point at Anthropic? `ZIQPU_PROVIDER` is set by the
+/// UI from the saved setting (onboarding / Settings), so an in-app choice is honored instead of being
+/// silently overridden by whatever key happens to be exported — the bug where picking "Anthropic" in
+/// onboarding still routed every reading through a stale `OPENROUTER_API_KEY`.
+///
+/// A choice only **reorders** the attempts (see [`try_live`]); it never *excludes* the other provider,
+/// so a failing first choice still falls through rather than stalling on the template.
+fn prefers_anthropic() -> bool {
+    env_nonempty("ZIQPU_PROVIDER")
+        .map(|v| {
+            let v = v.trim().to_ascii_lowercase();
+            v == "anthropic" || v == "built_in"
+        })
+        .unwrap_or(false)
+}
+
+/// Try the live interpreters in preference order, returning the first success as `(value, model_id)`.
+/// Order honors [`prefers_anthropic`]; a first choice that isn't configured — or whose call fails —
+/// falls through to the other, and `None` leaves the caller to use the template. This is the ONE
+/// place the Live ordering rule lives, so every Live path (fit read, grounded brief, frontier
+/// grounded) stays consistent.
+fn try_live<T>(
+    with_openai: impl Fn(&OpenAiCompatInterpreter) -> Option<T>,
+    with_anthropic: impl Fn(&AnthropicInterpreter) -> Option<T>,
+) -> Option<(T, String)> {
+    let try_openai = || {
+        let interp = OpenAiCompatInterpreter::from_env()?;
+        let value = with_openai(&interp)?;
+        Some((value, interp.model().to_string()))
+    };
+    let try_anthropic = || {
+        let interp = anthropic_live()?;
+        let value = with_anthropic(&interp)?;
+        Some((value, interp.model().to_string()))
+    };
+    if prefers_anthropic() {
+        try_anthropic().or_else(try_openai)
+    } else {
+        try_openai().or_else(try_anthropic)
+    }
+}
+
 /// Select the live interpreter by precedence — OpenAI-compat / OpenRouter, then Anthropic (own key,
 /// then the built-in proxy), then the deterministic template — and print a one-line banner (to
 /// stderr, so it never corrupts the MCP server's stdout JSON-RPC stream) naming the choice. With no
@@ -345,7 +422,13 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
     // throwaway session, so an un-gated `eprintln!` spammed the terminal on every reading. It names
     // only the model + mode; it never prints a key. To silence it entirely, gate on `debug_assertions`.
     static BANNER: std::sync::Once = std::sync::Once::new();
-    if let Some(o) = OpenAiCompatInterpreter::from_env() {
+    // An explicit in-app choice (ZIQPU_PROVIDER) is tried first; otherwise the historical order.
+    // Mirrors `try_live`'s rule for the boxed-trait-object shape.
+    let anthropic_first = prefers_anthropic();
+    let openai = (!anthropic_first)
+        .then(OpenAiCompatInterpreter::from_env)
+        .flatten();
+    if let Some(o) = openai {
         BANNER.call_once(|| {
             eprintln!(
                 "[interpreter: Ungasaga = OpenAI-compatible ({}) — live]",
@@ -354,8 +437,23 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
         });
         Box::new(o)
     } else if let Some(a) = anthropic_live() {
-        BANNER.call_once(|| eprintln!("[interpreter: Ungasaga = {} — live]", a.source_label()));
+        BANNER.call_once(|| {
+            eprintln!(
+                "[interpreter: Ungasaga = {} ({}) — live]",
+                a.source_label(),
+                a.model()
+            )
+        });
         Box::new(a)
+    } else if let Some(o) = OpenAiCompatInterpreter::from_env() {
+        // Anthropic was preferred but isn't configured — fall through rather than stall on template.
+        BANNER.call_once(|| {
+            eprintln!(
+                "[interpreter: Ungasaga = OpenAI-compatible ({}) — live]",
+                o.model
+            )
+        });
+        Box::new(o)
     } else {
         BANNER.call_once(|| {
             eprintln!(
@@ -382,15 +480,11 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
 /// `(TemplateInterpreter.fit_read(measures, fit, name), None)`, so the offline demo and CI stay
 /// deterministic.
 pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> (String, Option<String>) {
-    if let Some(interp) = OpenAiCompatInterpreter::from_env() {
-        if let Some(prose) = interp.try_fit_read(measures, fit, name) {
-            return (prose, Some(interp.model().to_string()));
-        }
-    }
-    if let Some(interp) = anthropic_live() {
-        if let Some(prose) = interp.try_fit_read(measures, fit, name) {
-            return (prose, Some(interp.model().to_string()));
-        }
+    if let Some((prose, model)) = try_live(
+        |i| i.try_fit_read(measures, fit, name),
+        |i| i.try_fit_read(measures, fit, name),
+    ) {
+        return (prose, Some(model));
     }
     (TemplateInterpreter.fit_read(measures, fit, name), None)
 }
@@ -543,15 +637,11 @@ pub fn grounded_brief_for(
             None,
         ),
         ReadMode::Live => {
-            if let Some(interp) = OpenAiCompatInterpreter::from_env() {
-                if let Some(prose) = interp.try_grounded_brief(measures, fit, name, grounded) {
-                    return (prose, Some(interp.model().to_string()));
-                }
-            }
-            if let Some(interp) = anthropic_live() {
-                if let Some(prose) = interp.try_grounded_brief(measures, fit, name, grounded) {
-                    return (prose, Some(interp.model().to_string()));
-                }
+            if let Some((prose, model)) = try_live(
+                |i| i.try_grounded_brief(measures, fit, name, grounded),
+                |i| i.try_grounded_brief(measures, fit, name, grounded),
+            ) {
+                return (prose, Some(model));
             }
             (
                 TemplateInterpreter.grounded_brief(measures, fit, name, grounded),
@@ -744,8 +834,8 @@ fn grounded_prompt_with_draft(
     }
 }
 
-/// The frontier grounded call, guided by the optional local draft. Tries OpenAI-compat / OpenRouter
-/// then Anthropic; `None` if neither is configured or both fail.
+/// The frontier grounded call, guided by the optional local draft. Tries the live providers in the
+/// seeker's preferred order (see [`try_live`]); `None` if neither is configured or both fail.
 fn frontier_grounded(
     measures: &Measures,
     fit: Fit,
@@ -754,17 +844,7 @@ fn frontier_grounded(
     draft: Option<&str>,
 ) -> Option<(String, String)> {
     let user = grounded_prompt_with_draft(measures, fit, name, grounded, draft);
-    if let Some(interp) = OpenAiCompatInterpreter::from_env() {
-        if let Some(prose) = interp.complete(&user) {
-            return Some((prose, interp.model().to_string()));
-        }
-    }
-    if let Some(interp) = anthropic_live() {
-        if let Some(prose) = interp.complete(&user) {
-            return Some((prose, interp.model().to_string()));
-        }
-    }
-    None
+    try_live(|i| i.complete(&user), |i| i.complete(&user))
 }
 
 /// Does this signal set carry a **real** external item, or only an empty/placeholder marker? Drives
@@ -1012,6 +1092,102 @@ mod tests {
         assert_eq!(interp.endpoint, "https://api.anthropic.com/v1/messages");
 
         for k in ["ANTHROPIC_API_KEY", "ZIQPU_PROXY_URL", "ZIQPU_PROXY_TOKEN"] {
+            std::env::remove_var(k);
+        }
+    }
+
+    /// Model ids are provider-specific. Regression: a real setup had `ZIQPU_MODEL` pinned to the
+    /// OpenRouter id `nvidia/nemotron-3-super-120b-a12b:free`; forwarding that to api.anthropic.com
+    /// 400s, and the interpreter then silently served the TEMPLATE instead of Claude.
+    #[test]
+    fn model_ids_are_scoped_per_provider() {
+        let _env = env_guard();
+        for k in [
+            "ZIQPU_MODEL",
+            "ZIQPU_ANTHROPIC_MODEL",
+            "ZIQPU_OPENROUTER_MODEL",
+        ] {
+            std::env::remove_var(k);
+        }
+
+        // Defaults when nothing is set.
+        assert_eq!(anthropic_model(), "claude-opus-4-8");
+        assert_eq!(openai_compat_model(), "anthropic/claude-3.5-sonnet");
+
+        // A FOREIGN (OpenRouter) id must never reach Anthropic — it falls back to the safe default,
+        // while the OpenAI-compat path uses it as-is.
+        std::env::set_var("ZIQPU_MODEL", "nvidia/nemotron-3-super-120b-a12b:free");
+        assert_eq!(anthropic_model(), "claude-opus-4-8");
+        assert_eq!(
+            openai_compat_model(),
+            "nvidia/nemotron-3-super-120b-a12b:free"
+        );
+
+        // The mirror: a BARE Claude id isn't routable on OpenRouter (it wants `anthropic/claude-…`).
+        std::env::set_var("ZIQPU_MODEL", "claude-opus-4-8");
+        assert_eq!(anthropic_model(), "claude-opus-4-8");
+        assert_eq!(openai_compat_model(), "anthropic/claude-3.5-sonnet");
+
+        // Explicit per-provider overrides win over the shared var.
+        std::env::set_var("ZIQPU_ANTHROPIC_MODEL", "claude-sonnet-5");
+        std::env::set_var("ZIQPU_OPENROUTER_MODEL", "vendor/some-model");
+        assert_eq!(anthropic_model(), "claude-sonnet-5");
+        assert_eq!(openai_compat_model(), "vendor/some-model");
+
+        for k in [
+            "ZIQPU_MODEL",
+            "ZIQPU_ANTHROPIC_MODEL",
+            "ZIQPU_OPENROUTER_MODEL",
+        ] {
+            std::env::remove_var(k);
+        }
+    }
+
+    /// The seeker's in-app provider choice must be honored. Regression: picking "Anthropic" in
+    /// onboarding still routed every reading through a stale exported `OPENROUTER_API_KEY`, because
+    /// the order was hardcoded OpenAI-compat → Anthropic.
+    ///
+    /// Network-free: the closures return a marker immediately, so `try_live` only exercises the
+    /// env-reading constructors + the ordering rule.
+    #[test]
+    fn explicit_provider_choice_reorders_live_attempts() {
+        let _env = env_guard();
+        for k in [
+            "OPENAI_BASE_URL",
+            "ZIQPU_MODEL",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
+            std::env::remove_var(k);
+        }
+        // Both providers configured — the ONLY thing that decides is the choice.
+        std::env::set_var("OPENROUTER_API_KEY", "dummy-openrouter-not-real");
+        std::env::set_var("ANTHROPIC_API_KEY", "dummy-anthropic-not-real");
+        let pick = || try_live(|_| Some("openai"), |_| Some("anthropic")).map(|(v, _)| v);
+
+        // No choice → the historical default order (OpenAI-compat first).
+        std::env::remove_var("ZIQPU_PROVIDER");
+        assert_eq!(pick(), Some("openai"));
+
+        // Chose Anthropic → Anthropic, even though OPENROUTER_API_KEY is set. (The reported bug.)
+        std::env::set_var("ZIQPU_PROVIDER", "anthropic");
+        assert_eq!(pick(), Some("anthropic"));
+
+        // The built-in (proxy) tier is Anthropic-family, so it orders the same way.
+        std::env::set_var("ZIQPU_PROVIDER", "built_in");
+        assert_eq!(pick(), Some("anthropic"));
+
+        // Chose OpenRouter → OpenAI-compat.
+        std::env::set_var("ZIQPU_PROVIDER", "openrouter");
+        assert_eq!(pick(), Some("openai"));
+
+        // A choice only REORDERS: preferring Anthropic with no Anthropic key still falls through to
+        // OpenRouter rather than stalling on the template.
+        std::env::set_var("ZIQPU_PROVIDER", "anthropic");
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        assert_eq!(pick(), Some("openai"));
+
+        for k in ["OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "ZIQPU_PROVIDER"] {
             std::env::remove_var(k);
         }
     }

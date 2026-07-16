@@ -11,7 +11,7 @@
 use dioxus::prelude::*;
 
 use crate::components::{BirthInputForm, Identity, ModelPanel};
-use crate::settings::{apply_provider_key_live, built_in_available};
+use crate::settings::{apply_provider_key_live, built_in_available, save_provider};
 use crate::vault::{self, Provider};
 
 /// The beats of the gate.
@@ -49,11 +49,15 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
         match vault::set_key(p, &k) {
             Ok(()) => {
                 apply_provider_key_live(p, &k);
+                // Record the CHOICE too, not just the key — otherwise a key that merely happens to
+                // be exported for the other provider would keep winning the interpreter's ordering.
+                save_provider(p.slug());
                 step.set(Step::Birth);
             }
             Err(_) => {
                 // Couldn't reach the keystore — use the key for this session only.
                 apply_provider_key_live(p, &k);
+                save_provider(p.slug());
                 status.set(Some(
                     "Saved for this session only — this device's keychain wasn't reachable. \
                      Use “Continue” to go on."
@@ -105,7 +109,10 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                                 class: "btn btn--go",
                                 style: "width:100%;margin:2px 0 6px",
                                 r#type: "button",
-                                onclick: move |_| step.set(Step::Birth),
+                                onclick: move |_| {
+                                    save_provider("built_in");
+                                    step.set(Step::Birth);
+                                },
                                 "Use Ziqpu's built-in reader — free ✦"
                             }
                             p { class: "onboarding-lede onboarding-lede--muted", style: "margin:2px 0 14px",

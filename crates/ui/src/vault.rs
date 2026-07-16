@@ -45,6 +45,15 @@ impl Provider {
         }
     }
 
+    /// The stable slug persisted as `SettingsFile.provider` and exported as `ZIQPU_PROVIDER` — the
+    /// value `agents`' `prefers_anthropic()` matches on. Keep in sync with that reader.
+    pub fn slug(self) -> &'static str {
+        match self {
+            Provider::Anthropic => "anthropic",
+            Provider::OpenRouter => "openrouter",
+        }
+    }
+
     /// Human label for the UI.
     pub fn label(self) -> &'static str {
         match self {

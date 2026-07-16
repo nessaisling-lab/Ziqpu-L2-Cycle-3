@@ -38,6 +38,13 @@ pub struct SettingsFile {
     /// here into the keychain and nulls it out. New writes always leave this `None`.
     #[serde(default)]
     pub openrouter_key: Option<String>,
+    /// The seeker's **explicit** live-provider choice — `"anthropic"`, `"openrouter"`, or
+    /// `"built_in"` — as picked in onboarding / Settings. Exported as `ZIQPU_PROVIDER` so the
+    /// interpreter honors it instead of silently defaulting to whatever key happens to be exported
+    /// (the bug where picking Anthropic still read through a stale `OPENROUTER_API_KEY`). `None` =
+    /// no explicit choice → the historical precedence.
+    #[serde(default)]
+    pub provider: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
@@ -143,6 +150,9 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_absent("ZIQPU_MODEL", &settings.model);
     set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
+    // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
+    // attempts so the seeker's pick wins over a merely-present key.
+    set_if_absent("ZIQPU_PROVIDER", &settings.provider);
 
     // Hosted-provider keys live in the OS credential vault now. Fill each provider's env var from the
     // vault only when the environment doesn't already carry it — an exported key (shell/CI) still
@@ -184,6 +194,17 @@ pub fn migrate_plaintext_keys_to_vault() {
     }
 }
 
+/// Persist the seeker's explicit live-provider choice (`"anthropic"` / `"openrouter"` / `"built_in"`)
+/// and apply it to the live environment, leaving every other field untouched. Called from onboarding
+/// and Settings the moment a provider is chosen, so the very next reading honors it without a
+/// restart. Best-effort (a failed read/write is swallowed — never panics).
+pub fn save_provider(provider: &str) {
+    let mut settings = load_settings();
+    settings.provider = Some(provider.to_string());
+    save_settings(&settings);
+    std::env::set_var("ZIQPU_PROVIDER", provider);
+}
+
 /// Apply a provider key to the **live** process environment right now (called after a vault write on
 /// Save) so the next reading uses it without a restart — `agents::reading_for` reads the env fresh
 /// per call. An empty `key` removes the var: unlike the credential-preserving [`apply_settings_live`],
@@ -218,6 +239,7 @@ pub fn apply_settings_live(settings: &SettingsFile) {
     set_if_present("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_present("ZIQPU_MODEL", &settings.model);
     set_if_present("ZIQPU_LLM_URL", &settings.local_url);
+    set_if_present("ZIQPU_PROVIDER", &settings.provider);
 }
 
 /// Whether the **built-in free tier** is configured in this build — both the proxy URL and the app

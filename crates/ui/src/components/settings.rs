@@ -12,10 +12,22 @@ use dioxus::prelude::*;
 
 use crate::components::ModelPanel;
 use crate::settings::{
-    active_mode_label, apply_provider_key_live, apply_settings_live, load_settings, save_settings,
-    SettingsFile,
+    active_mode_label, apply_provider_key_live, apply_settings_live, built_in_available,
+    load_settings, save_settings, SettingsFile,
 };
 use crate::vault::{self, Provider};
+
+/// The provider cards offered in Settings: `(slug, label, sub-label)`. The built-in tier is only
+/// listed when this build ships a configured proxy.
+fn provider_choices() -> Vec<(&'static str, &'static str, &'static str)> {
+    let mut v = Vec::new();
+    if built_in_available() {
+        v.push(("built_in", "Ziqpu built-in", "free · no key"));
+    }
+    v.push((Provider::Anthropic.slug(), "Anthropic (Claude)", "your key"));
+    v.push((Provider::OpenRouter.slug(), "OpenRouter", "your key"));
+    v
+}
 
 #[component]
 pub fn SettingsButton() -> Element {
@@ -24,9 +36,12 @@ pub fn SettingsButton() -> Element {
     // Seed the fields once. Provider keys come from the vault; model + local URL from settings.json.
     let initial = use_hook(load_settings);
     let mut anthropic_key = use_signal(|| vault::get_key(Provider::Anthropic).unwrap_or_default());
-    let mut openrouter_key = use_signal(|| vault::get_key(Provider::OpenRouter).unwrap_or_default());
+    let mut openrouter_key =
+        use_signal(|| vault::get_key(Provider::OpenRouter).unwrap_or_default());
     let mut model = use_signal(|| initial.model.clone().unwrap_or_default());
     let mut local_url = use_signal(|| initial.local_url.clone().unwrap_or_default());
+    // The explicit provider choice (slug), or None when the seeker never picked one.
+    let mut provider = use_signal(|| initial.provider.clone());
 
     // UI-only state: per-key reveal toggles (default masked), whether Save landed, and a key-free
     // error line if the keystore couldn't be reached.
@@ -62,6 +77,7 @@ pub fn SettingsButton() -> Element {
             openrouter_key: None,
             model: (!m.is_empty()).then_some(m),
             local_url: (!u.is_empty()).then_some(u),
+            provider: provider.read().clone(),
             // Preserve the developer-build switch — this modal only edits credentials, and a bare
             // literal would silently reset the entitlement to its default on Save.
             dev_build: load_settings().dev_build,
@@ -122,6 +138,31 @@ pub fn SettingsButton() -> Element {
                     p { class: "settings-lede",
                         "Paste a hosted-provider API key to get live readings — no environment variables, "
                         "no files to edit. Keys are kept in this device's secure keychain."
+                    }
+
+                    // ---- Preferred provider ----
+                    // An explicit pick wins over whatever key merely happens to be present, so a key
+                    // exported for another provider can't silently hijack Live readings.
+                    span { class: "settings-label", "Preferred provider" }
+                    div { class: "provider-grid",
+                        for (slug, label, sub) in provider_choices() {
+                            button {
+                                key: "{slug}",
+                                class: if provider.read().as_deref() == Some(slug) {
+                                    "provider-card provider-card--on"
+                                } else {
+                                    "provider-card"
+                                },
+                                r#type: "button",
+                                "aria-pressed": if provider.read().as_deref() == Some(slug) { "true" } else { "false" },
+                                onclick: move |_| {
+                                    provider.set(Some(slug.to_string()));
+                                    saved.set(false);
+                                },
+                                span { class: "pc-name", "{label}" }
+                                span { class: "pc-sub", "{sub}" }
+                            }
+                        }
                     }
 
                     // ---- Anthropic API key (masked) ----
