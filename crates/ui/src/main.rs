@@ -41,6 +41,13 @@ fn main() {
     // download is broken. This turns that into a dialog that names the cause.
     preflight::install_startup_dialog();
 
+    // Then fix the common cause instead of just narrating it: on Windows, detect the WebView2
+    // Runtime in the registry and — if it's missing — offer to download Microsoft's bootstrapper
+    // and install it per-user (no admin rights), so a fresh machine reaches the window on the
+    // first double-click. No-op on macOS/Linux and, in the overwhelmingly common already-installed
+    // case, a single registry read.
+    preflight::ensure_webview2();
+
     // Bake the built-in free-tier proxy config into the runtime env. `ZIQPU_PROXY_URL`/`_TOKEN` are
     // set at RELEASE BUILD time (via the release workflow's env) and captured by `option_env!` here —
     // so the shipped binary carries the proxy URL + the (revocable, rate-limited) app token, but
