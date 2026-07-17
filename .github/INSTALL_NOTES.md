@@ -27,11 +27,12 @@ Unzip anywhere and run `ziqpu-ui.exe`.
 - **SmartScreen** will warn ("Windows protected your PC") because the executable is not
   code-signed. *More info → Run anyway.*
 
-### macOS — `Ziqpu-<version>-macos.dmg`
+### macOS — `Ziqpu-<version>-macos-universal.dmg`
 
 Open the `.dmg` and drag Ziqpu out.
 
-- **Apple Silicon only** (arm64). It will not run on an Intel Mac.
+- **Universal binary** — runs natively on both Apple Silicon (arm64) and Intel (x86_64) Macs,
+  macOS 11 Big Sur or newer.
 - **Unsigned and un-notarized**, so Gatekeeper blocks the first launch — often claiming the app is
   "damaged", which it is not. **Right-click the app → Open**, then confirm. If macOS still refuses:
   `xattr -dr com.apple.quarantine /path/to/Ziqpu.app`

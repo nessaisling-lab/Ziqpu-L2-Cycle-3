@@ -119,14 +119,34 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
 
       - name: Build desktop UI (release, LTO off)
+        if: runner.os != 'macOS'
         run: cargo build --release -p ui --locked
 
-      # ---- macOS: assemble an unsigned Ziqpu.app and pack it into a UDZO .dmg ----
+      # macOS builds BOTH architectures and fuses them with `lipo`: the people downloading this run
+      # Apple Silicon AND Intel Macs, and one universal .app means nobody has to know which chip
+      # they have. Cross-compiling x86_64 on the arm64 runner works because the Xcode SDKs are
+      # themselves universal. `lipo -info` prints the fused architectures into the log so a
+      # single-arch regression is a visible line, not a discovery an Intel user makes.
+      - name: Build desktop UI (release, universal arm64 + x86_64, LTO off)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --release -p ui --locked --target aarch64-apple-darwin
+          cargo build --release -p ui --locked --target x86_64-apple-darwin
+          mkdir -p target/universal/release
+          lipo -create \
+            target/aarch64-apple-darwin/release/ziqpu-ui \
+            target/x86_64-apple-darwin/release/ziqpu-ui \
+            -output target/universal/release/ziqpu-ui
+          lipo -info target/universal/release/ziqpu-ui
+
+      # ---- macOS: assemble an unsigned universal Ziqpu.app and pack it into a UDZO .dmg ----
       # Unsigned: first launch needs a right-click -> Open (or `xattr -dr com.apple.quarantine`)
-      # to get past Gatekeeper — and macos-latest is arm64, so this artifact is Apple Silicon only.
-      # Both facts are stated in .github/INSTALL_NOTES.md, which is published as the release body.
-      # (This comment used to claim they were "documented in the release notes" while the workflow
-      # published `--generate-notes` alone: a bare compare link. The claim is now true.)
+      # to get past Gatekeeper. That is stated in .github/INSTALL_NOTES.md, which is published as
+      # the release body. (This comment used to claim it was "documented in the release notes"
+      # while the workflow published `--generate-notes` alone: a bare compare link. The claim is
+      # now true.)
       - name: Package macOS .dmg
         if: runner.os == 'macOS'
         run: |
@@ -136,7 +156,7 @@ jobs:
           APP="Ziqpu.app"
           rm -rf "$APP"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp target/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
+          cp target/universal/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
           chmod +x "$APP/Contents/MacOS/ziqpu-ui"
           # Licences travel INSIDE the bundle — PolyForm Noncommercial plus the embedded OFL fonts
           # and permissive crates carry obligations that only bind if they ship with the binary.
@@ -169,8 +189,8 @@ jobs:
           </dict>
           </plist>
           PLIST
-          hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos.dmg"
-          echo "built Ziqpu-${TAG}-macos.dmg (unsigned)"
+          hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos-universal.dmg"
+          echo "built Ziqpu-${TAG}-macos-universal.dmg (unsigned, arm64 + x86_64)"
 
       # ---- Windows: zip the .exe + the licences + a readable first-run note ----
       # The zip used to be the bare .exe. Ziqpu is PolyForm Noncommercial and embeds OFL fonts and
