@@ -16,6 +16,7 @@ fn main() {
         "resolve" => resolve(args.get(2).map(String::as_str)),
         "get" => get(force_local),
         "plan" => plan_cmd(force_local),
+        "runtime" => runtime_cmd(),
         "serve" => serve(force_local, port_arg(&args)),
         "-h" | "--help" | "help" => usage(),
         other => {
@@ -205,10 +206,38 @@ fn get(force_local: bool) {
         println!("\nRun this to download + serve (leave it running):");
         println!("  ziqpu-model serve{flag}");
     } else {
-        println!("  llama.cpp NOT found — install it first:");
-        println!("    {}", model::llama_install_hint());
-        println!("  then: ziqpu-model serve{flag}");
+        println!("  llama.cpp NOT found — `ziqpu-model serve{flag}` installs it for you");
+        println!(
+            "  (or install it yourself: {})",
+            model::llama_install_hint()
+        );
     }
+}
+
+/// `runtime` — install (or report) the app-managed llama.cpp build for this machine's GPU, then
+/// show which devices it can see and which one a serve would pin.
+fn runtime_cmd() {
+    println!("Ziqpu · llama.cpp runtime");
+    let bin = match model::ensure_runtime(&mut |line| println!("  {line}")) {
+        Ok(bin) => bin,
+        Err(why) => {
+            eprintln!("  runtime install failed: {why}");
+            eprintln!("  manual fallback: {}", model::llama_install_hint());
+            std::process::exit(1);
+        }
+    };
+    println!("  binary     {}", bin.display());
+    let devices = model::probe_devices(&bin);
+    match model::select_device(&devices) {
+        Some(d) => println!(
+            "  serves on  {} → {} ({:.0} GB)",
+            d.backend.label(),
+            d.name,
+            d.vram_gb()
+        ),
+        None => println!("  serves on  CPU (no GPU visible to this build)"),
+    }
+    println!("\nNext: `ziqpu-model serve` downloads the model and runs it on :1234.");
 }
 
 /// `plan` — dry-run the serve decision: show the repo's real GGUFs (quant + size), this machine's
@@ -301,10 +330,22 @@ fn serve(force_local: bool, port: u16) {
     let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
         std::process::exit(1);
     };
-    let Some(bin) = model::resolve_llama_server() else {
-        eprintln!("llama.cpp not found. Install it, then re-run `ziqpu-model serve`:");
-        eprintln!("  {}", model::llama_install_hint());
-        std::process::exit(1);
+    // No llama.cpp anywhere? Install the backend-correct build for this machine right now —
+    // `serve` is meant to be the one command a stranger runs, so it must not dead-end on a
+    // prerequisite the app can satisfy itself.
+    let bin = match model::resolve_llama_server() {
+        Some(bin) => bin,
+        None => {
+            println!("llama.cpp not found — installing the right build for this machine:");
+            match model::ensure_runtime(&mut |line| println!("  {line}")) {
+                Ok(bin) => bin,
+                Err(why) => {
+                    eprintln!("  runtime install failed: {why}");
+                    eprintln!("  manual fallback: {}", model::llama_install_hint());
+                    std::process::exit(1);
+                }
+            }
+        }
     };
     // Fit the quant to this machine's memory budget (the largest-quality GGUF that fits, NOT the
     // static pick's quant — that hardcoded a quant a smaller card can't hold). Offline → static pick.
@@ -396,5 +437,8 @@ fn usage() {
     eprintln!(
         "  plan [--force-local]        dry-run the serve pick: repo quants, sizes, budget, fit (no download)"
     );
-    eprintln!("  serve [--force-local] [--port N]  download + serve the model (default :1234)");
+    eprintln!(
+        "  runtime                     install the right llama.cpp build for this machine's GPU"
+    );
+    eprintln!("  serve [--force-local] [--port N]  download + serve the model (default :1234; installs llama.cpp if missing)");
 }

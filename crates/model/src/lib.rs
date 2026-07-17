@@ -1279,8 +1279,8 @@ pub fn select_device(devices: &[Device]) -> Option<Device> {
         .cloned()
 }
 
-/// The app-managed runtime root — where Ziqpu lays down the per-vendor llama.cpp build it fetches
-/// (`ensure_runtime`, future), e.g. `%LOCALAPPDATA%\Ziqpu\runtime\llama-b9993-cuda-13.3\`. Kept
+/// The app-managed runtime root — where [`ensure_runtime`] lays down the per-vendor llama.cpp build
+/// it fetches, e.g. `%LOCALAPPDATA%\Ziqpu\runtime\llama-b10064-bin-win-cuda-13.3-x64\`. Kept
 /// separate from the winget location so the managed (correct-backend) build always wins.
 pub fn managed_runtime_root() -> Option<std::path::PathBuf> {
     #[cfg(windows)]
@@ -1307,30 +1307,39 @@ pub fn managed_runtime_root() -> Option<std::path::PathBuf> {
     }
 }
 
-/// A `llama-server` inside the managed runtime root, if one has been laid down (one level of subdirs,
-/// e.g. `.../runtime/llama-b9993-cuda-13.3/llama-server.exe`). This is the backend-correct build for
-/// the machine, so it takes priority over PATH/winget in [`resolve_llama_server`].
-fn managed_llama_server() -> Option<std::path::PathBuf> {
-    let bin = if cfg!(windows) {
+/// The platform name of the `llama-server` binary.
+fn llama_server_bin_name() -> &'static str {
+    if cfg!(windows) {
         "llama-server.exe"
     } else {
         "llama-server"
-    };
-    let root = managed_runtime_root()?;
-    let direct = root.join(bin);
-    if direct.exists() {
+    }
+}
+
+/// Find `bin` under `dir`, descending at most `depth` directory levels. Bounded because the
+/// runtime archives differ in shape — the Windows zips are flat, the macOS/Linux tarballs nest a
+/// `llama-bNNNNN/` directory — and a depth-capped walk handles both without ever crawling a
+/// user's whole disk if the root is misconfigured.
+fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
+    let direct = dir.join(bin);
+    if direct.is_file() {
         return Some(direct);
     }
-    let entries = std::fs::read_dir(&root).ok()?;
-    for e in entries.flatten() {
-        if e.path().is_dir() {
-            let cand = e.path().join(bin);
-            if cand.exists() {
-                return Some(cand);
-            }
-        }
+    if depth == 0 {
+        return None;
     }
-    None
+    let entries = std::fs::read_dir(dir).ok()?;
+    entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .find_map(|e| find_bin_under(&e.path(), bin, depth - 1))
+}
+
+/// A `llama-server` inside the managed runtime root, if one has been laid down. This is the
+/// backend-correct build for the machine, so it takes priority over PATH/winget in
+/// [`resolve_llama_server`].
+fn managed_llama_server() -> Option<std::path::PathBuf> {
+    find_bin_under(&managed_runtime_root()?, llama_server_bin_name(), 3)
 }
 
 /// Resolve the `llama-server` to run: the app-managed (backend-correct) build first, then PATH, then
@@ -1359,6 +1368,427 @@ pub fn gpu_serve_args(device: Option<&Device>) -> Vec<String> {
         }
         _ => Vec::new(),
     }
+}
+
+// ─── ensure_runtime: fetch the backend-correct llama.cpp build for this machine ──────────────────
+//
+// The distribution bug this solves: "local models need llama.cpp installed yourself" is a dead end
+// for a stranger evaluating the app — and the obvious self-serve fix (winget) installs a
+// Vulkan-only build that binds a hybrid laptop's iGPU (the OOM saga above). So the app lays down
+// the right build itself: pick the official ggml-org/llama.cpp release asset for this OS/arch/GPU,
+// download it into the app-managed runtime root, and let `resolve_llama_server` prefer it forever
+// after. One-time, per-user, no admin rights.
+
+/// Which vendor's silicon the detected GPU is — decides which llama.cpp build to fetch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuVendor {
+    Nvidia,
+    Amd,
+    Intel,
+    Apple,
+    None,
+}
+
+/// Classify a detected GPU by name. Pure; unit-tested. `None` (no GPU detected) → CPU build.
+pub fn gpu_vendor(gpu: Option<&GpuInfo>) -> GpuVendor {
+    let Some(g) = gpu else {
+        return GpuVendor::None;
+    };
+    if g.unified {
+        return GpuVendor::Apple;
+    }
+    let n = g.name.to_ascii_uppercase();
+    if ["NVIDIA", "GEFORCE", "RTX", "GTX", "QUADRO", "TESLA"]
+        .iter()
+        .any(|m| n.contains(m))
+    {
+        // Checked FIRST: "RTX" alone must not fall through to another vendor's arm.
+        GpuVendor::Nvidia
+    } else if n.contains("AMD") || n.contains("RADEON") {
+        GpuVendor::Amd
+    } else if n.contains("INTEL") || n.contains("ARC") || n.contains("IRIS") || n.contains("UHD") {
+        GpuVendor::Intel
+    } else if n.starts_with("APPLE") {
+        GpuVendor::Apple
+    } else {
+        GpuVendor::None
+    }
+}
+
+/// Does this NVIDIA card need a CUDA **13** build? CUDA 13 dropped everything older than Turing
+/// (sm_75) but is the only line that knows Blackwell (RTX 50-series, RTX PRO); CUDA 12 knows
+/// Pascal→Ada but NOT Blackwell. So: an RTX model number ≥ 5000, or the "RTX PRO" workstation
+/// line, needs 13 — everything else is safest on 12. Pure; unit-tested. (Edge checked: the
+/// "RTX 500/1000 Ada" laptop workstation cards parse as < 5000 → 12, correct for Ada; the
+/// "RTX 5000 Ada Generation" parses as ≥ 5000 → 13, also fine — CUDA 13 kept Ada.)
+pub fn nvidia_wants_cuda13(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    if n.contains("RTX PRO") {
+        return true;
+    }
+    if let Some(rest) = n.split("RTX").nth(1) {
+        let digits: String = rest
+            .trim_start()
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        if let Ok(model) = digits.parse::<u32>() {
+            return model >= 5000;
+        }
+    }
+    false
+}
+
+/// The compile target, made explicit so [`pick_runtime_asset_for`] is a pure function testable for
+/// every platform from any host (the CI matrix runs all three OSes; each must see the others'
+/// tables pass, not just its own).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetOs {
+    Windows,
+    Mac,
+    Linux,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetArch {
+    X64,
+    Arm64,
+}
+
+/// This build's platform.
+pub fn current_platform() -> (TargetOs, TargetArch) {
+    let os = if cfg!(target_os = "windows") {
+        TargetOs::Windows
+    } else if cfg!(target_os = "macos") {
+        TargetOs::Mac
+    } else {
+        TargetOs::Linux
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        TargetArch::Arm64
+    } else {
+        TargetArch::X64
+    };
+    (os, arch)
+}
+
+/// The runtime download chosen for a machine: the release asset to fetch, an optional companion
+/// (the CUDA builds need the separate `cudart-…` DLL bundle unzipped beside `llama-server.exe`),
+/// and a short label for progress lines.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimePick {
+    pub asset: String,
+    pub companion: Option<String>,
+    pub label: String,
+}
+
+/// The best CUDA asset of a given major line (`"12"` / `"13"`) — highest minor wins, compared
+/// numerically so a hypothetical `12.10` beats `12.4`. Returns `(asset_name, "12.4")`.
+fn best_cuda_asset(names: &[&str], major: &str) -> Option<(String, String)> {
+    names
+        .iter()
+        .filter(|n| !n.starts_with("cudart-"))
+        .filter_map(|n| {
+            let ver = n.split("-bin-win-cuda-").nth(1)?.strip_suffix("-x64.zip")?;
+            let (maj, min) = ver.split_once('.')?;
+            if maj != major {
+                return None;
+            }
+            Some((min.parse::<u32>().ok()?, n.to_string(), ver.to_string()))
+        })
+        .max_by_key(|(min, _, _)| *min)
+        .map(|(_, name, ver)| (name, ver))
+}
+
+/// Pick the release asset for a platform + GPU. Pure; unit-tested against the real asset list of a
+/// real release. Returns `None` only when the release carries nothing usable for the platform.
+///
+/// The vendor table, and why it deviates from the obvious per-vendor maximum:
+/// - **NVIDIA → CUDA** (12 or 13 by card generation — see [`nvidia_wants_cuda13`]) + the matching
+///   `cudart` companion. CUDA is the entire point of the managed runtime: it targets the discrete
+///   card directly and cannot land on the iGPU. Falls back to Vulkan if the release dropped CUDA.
+/// - **AMD / Intel → Vulkan**, deliberately NOT the per-vendor HIP/SYCL builds: HIP zips bake a
+///   fixed gfx-architecture list (a card outside it hard-fails) and SYCL needs the oneAPI runtime
+///   installed system-wide — both are remote failure modes we cannot check from here, on machines
+///   we will never see. Vulkan runs on every AMD/Intel driver stack, and the `-dev` pin +
+///   discreteness ranking (see `select_device`) already defuse the hybrid-iGPU trap that made
+///   Vulkan scary in the first place.
+/// - **Apple → the macOS tarball** (Metal is in the arm64 build); Intel Macs get the x64 CPU build.
+/// - **No GPU → CPU build**, never Vulkan: a Vulkan build without a Vulkan driver fails to start.
+pub fn pick_runtime_asset_for(
+    os: TargetOs,
+    arch: TargetArch,
+    names: &[&str],
+    gpu: Option<&GpuInfo>,
+) -> Option<RuntimePick> {
+    let vendor = gpu_vendor(gpu);
+    let by_suffix = |suffix: &str| -> Option<String> {
+        names
+            .iter()
+            .find(|n| n.ends_with(suffix))
+            .map(|n| n.to_string())
+    };
+    let plain = |asset: Option<String>, label: &str| -> Option<RuntimePick> {
+        asset.map(|a| RuntimePick {
+            asset: a,
+            companion: None,
+            label: label.to_string(),
+        })
+    };
+    match (os, arch) {
+        (TargetOs::Windows, TargetArch::X64) => match vendor {
+            GpuVendor::Nvidia => {
+                let major = if gpu.map(|g| nvidia_wants_cuda13(&g.name)).unwrap_or(false) {
+                    "13"
+                } else {
+                    "12"
+                };
+                if let Some((asset, ver)) = best_cuda_asset(names, major) {
+                    // The CUDA zips do NOT bundle the CUDA runtime DLLs — the release carries them
+                    // as a separate version-matched `cudart-…` zip that must land beside the exe.
+                    let companion = names
+                        .iter()
+                        .find(|n| n.starts_with("cudart-") && n.contains(&format!("cuda-{ver}-")))
+                        .map(|n| n.to_string());
+                    return Some(RuntimePick {
+                        asset,
+                        companion,
+                        label: format!("CUDA {ver} (NVIDIA)"),
+                    });
+                }
+                plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (NVIDIA)")
+                    .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU"))
+            }
+            GpuVendor::Amd => plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (AMD)")
+                .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU")),
+            GpuVendor::Intel => plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (Intel)")
+                .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU")),
+            GpuVendor::Apple | GpuVendor::None => plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU"),
+        },
+        (TargetOs::Windows, TargetArch::Arm64) => {
+            plain(by_suffix("-bin-win-cpu-arm64.zip"), "CPU (ARM64)")
+        }
+        (TargetOs::Mac, TargetArch::Arm64) => plain(
+            by_suffix("-bin-macos-arm64.tar.gz"),
+            "Metal (Apple Silicon)",
+        ),
+        (TargetOs::Mac, TargetArch::X64) => {
+            plain(by_suffix("-bin-macos-x64.tar.gz"), "CPU (Intel Mac)")
+        }
+        (TargetOs::Linux, TargetArch::X64) => match vendor {
+            GpuVendor::None => plain(by_suffix("-bin-ubuntu-x64.tar.gz"), "CPU"),
+            _ => plain(by_suffix("-bin-ubuntu-vulkan-x64.tar.gz"), "Vulkan (GPU)")
+                .or_else(|| plain(by_suffix("-bin-ubuntu-x64.tar.gz"), "CPU")),
+        },
+        (TargetOs::Linux, TargetArch::Arm64) => match vendor {
+            GpuVendor::None => plain(by_suffix("-bin-ubuntu-arm64.tar.gz"), "CPU (ARM64)"),
+            _ => plain(
+                by_suffix("-bin-ubuntu-vulkan-arm64.tar.gz"),
+                "Vulkan (GPU, ARM64)",
+            )
+            .or_else(|| plain(by_suffix("-bin-ubuntu-arm64.tar.gz"), "CPU (ARM64)")),
+        },
+    }
+}
+
+/// [`pick_runtime_asset_for`] on the running platform.
+pub fn pick_runtime_asset(names: &[&str], gpu: Option<&GpuInfo>) -> Option<RuntimePick> {
+    let (os, arch) = current_platform();
+    pick_runtime_asset_for(os, arch, names, gpu)
+}
+
+/// One downloadable asset of a llama.cpp release.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeAsset {
+    pub name: String,
+    pub url: String,
+    pub size: u64,
+}
+
+/// A llama.cpp release: its tag + assets.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeRelease {
+    pub tag: String,
+    pub assets: Vec<RuntimeAsset>,
+}
+
+/// Parse the GitHub `releases/latest` response. Pure; unit-tested against a fixture.
+pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
+    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    let tag = v.get("tag_name")?.as_str()?.to_string();
+    let assets = v
+        .get("assets")?
+        .as_array()?
+        .iter()
+        .filter_map(|a| {
+            Some(RuntimeAsset {
+                name: a.get("name")?.as_str()?.to_string(),
+                url: a.get("browser_download_url")?.as_str()?.to_string(),
+                size: a.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
+            })
+        })
+        .collect();
+    Some(RuntimeRelease { tag, assets })
+}
+
+/// GET the latest ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
+/// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
+/// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
+pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
+    let out = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+        .args([
+            "-sS",
+            "-L",
+            "--max-time",
+            "20",
+            "--max-filesize",
+            "3000000",
+            "-A",
+            HF_USER_AGENT,
+            "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    parse_runtime_release(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
+/// bundles). Returns a human-readable reason on failure.
+fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let status = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+        .args([
+            "-sS",
+            "-L",
+            "--fail",
+            "--max-time",
+            "3600",
+            "--max-filesize",
+            "800000000",
+            "-A",
+            HF_USER_AGENT,
+            "-o",
+            &dest.to_string_lossy(),
+            url,
+        ])
+        .status()
+        .map_err(|e| format!("couldn't run curl ({e})"))?;
+    if !status.success() {
+        return Err(format!("download failed ({status})"));
+    }
+    Ok(())
+}
+
+/// Extract `archive` into `dir` with the system `tar` — which reads BOTH formats the release ships
+/// (`.tar.gz` natively everywhere; Windows' System32 `tar.exe` is bsdtar, which also reads `.zip`).
+/// Zero new dependencies, same pinned-path discipline as every other subprocess here.
+fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("couldn't create {} ({e})", dir.display()))?;
+    let status = no_window(std::process::Command::new(system_cmd("tar.exe", "tar")))
+        .args([
+            "-xf",
+            &archive.to_string_lossy(),
+            "-C",
+            &dir.to_string_lossy(),
+        ])
+        .status()
+        .map_err(|e| format!("couldn't run tar ({e})"))?;
+    if !status.success() {
+        return Err(format!("extraction failed ({status})"));
+    }
+    Ok(())
+}
+
+/// Make sure a backend-correct `llama-server` exists in the app-managed runtime root, downloading
+/// and laying one down if needed. Returns the path to the binary. `progress` receives short
+/// human-readable lines as the steps run (the CLI prints them; the UI feeds its loader).
+///
+/// Steps: already laid down → done. Else: latest release → pick the asset for this OS/arch/GPU →
+/// download → extract into `runtime/<asset-stem>/` → (CUDA) unzip the cudart DLLs beside the exe →
+/// self-check with `--version`. Every failure is a `Err(reason)` the caller can show; nothing here
+/// panics, and a failure leaves `resolve_llama_server`'s other sources (PATH, winget) untouched.
+pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathBuf, String> {
+    if let Some(bin) = managed_llama_server() {
+        progress("llama.cpp runtime already installed");
+        return Ok(bin);
+    }
+    let root = managed_runtime_root().ok_or("couldn't locate a home directory")?;
+    std::fs::create_dir_all(&root)
+        .map_err(|e| format!("couldn't create {} ({e})", root.display()))?;
+
+    progress("checking the latest llama.cpp release…");
+    let release =
+        fetch_runtime_release().ok_or("couldn't reach the llama.cpp releases (offline?)")?;
+    let names: Vec<&str> = release.assets.iter().map(|a| a.name.as_str()).collect();
+    let gpu = detect_gpu();
+    let pick = pick_runtime_asset(&names, gpu.as_ref())
+        .ok_or_else(|| format!("release {} has no build for this machine", release.tag))?;
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == pick.asset)
+        .ok_or("picked asset vanished from the release")?;
+
+    // Lay the build down under a dir named for the asset, so what is installed is legible on disk.
+    let stem = pick
+        .asset
+        .trim_end_matches(".zip")
+        .trim_end_matches(".tar.gz");
+    let dest_dir = root.join(stem);
+    let archive = root.join(&pick.asset);
+    progress(&format!(
+        "downloading {} — {} ({:.0} MB)…",
+        release.tag,
+        pick.label,
+        asset.size as f64 / 1_048_576.0
+    ));
+    download_to(&asset.url, &archive)?;
+    progress("unpacking…");
+    let extracted = extract_archive(&archive, &dest_dir);
+    let _ = std::fs::remove_file(&archive); // best-effort cleanup either way
+    extracted?;
+
+    let bin = find_bin_under(&dest_dir, llama_server_bin_name(), 3)
+        .ok_or("the archive did not contain llama-server")?;
+    // llama-server.exe's own directory is where Windows resolves its DLLs from — the cudart
+    // companion must land exactly there, wherever the main archive put the exe.
+    if let Some(companion) = &pick.companion {
+        let exe_dir = bin.parent().ok_or("no parent dir for llama-server")?;
+        let casset = release
+            .assets
+            .iter()
+            .find(|a| &a.name == companion)
+            .ok_or("cudart companion vanished from the release")?;
+        let carchive = root.join(companion);
+        progress(&format!(
+            "downloading CUDA runtime DLLs ({:.0} MB)…",
+            casset.size as f64 / 1_048_576.0
+        ));
+        download_to(&casset.url, &carchive)?;
+        let cextracted = extract_archive(&carchive, exe_dir);
+        let _ = std::fs::remove_file(&carchive);
+        cextracted?;
+    }
+
+    // Self-check: a build with a missing DLL or wrong arch dies right here, as a readable error,
+    // instead of later inside a serve.
+    progress("verifying…");
+    let ok = no_window(std::process::Command::new(&bin))
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !ok {
+        return Err(format!(
+            "the runtime was laid down at {} but failed its self-check",
+            bin.display()
+        ));
+    }
+    progress("llama.cpp runtime ready ✓");
+    Ok(bin)
 }
 
 #[cfg(test)]
@@ -1944,5 +2374,233 @@ mod tests {
         };
         assert_eq!(gpu_serve_args(Some(&metal)), vec!["-ngl", "99"]); // Metal: no -dev
         assert!(gpu_serve_args(None).is_empty()); // CPU-only: no GPU flags
+    }
+
+    // ─── ensure_runtime: the pure pick logic ─────────────────────────────────────────────────────
+
+    /// The REAL asset list of release b10064 (captured 2026-07-17), so the pick table is tested
+    /// against what the release actually ships, not what we hope it ships.
+    const B10064: [&str; 25] = [
+        "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "cudart-llama-bin-win-cuda-13.3-x64.zip",
+        "llama-b10064-bin-android-arm64.tar.gz",
+        "llama-b10064-bin-macos-arm64.tar.gz",
+        "llama-b10064-bin-macos-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-arm64.tar.gz",
+        "llama-b10064-bin-ubuntu-openvino-2026.2.1-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-rocm-7.2-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-s390x.tar.gz",
+        "llama-b10064-bin-ubuntu-sycl-fp16-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-sycl-fp32-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-vulkan-arm64.tar.gz",
+        "llama-b10064-bin-ubuntu-vulkan-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-x64.tar.gz",
+        "llama-b10064-bin-win-cpu-arm64.zip",
+        "llama-b10064-bin-win-cpu-x64.zip",
+        "llama-b10064-bin-win-cuda-12.4-x64.zip",
+        "llama-b10064-bin-win-cuda-13.3-x64.zip",
+        "llama-b10064-bin-win-hip-radeon-x64.zip",
+        "llama-b10064-bin-win-opencl-adreno-arm64.zip",
+        "llama-b10064-bin-win-openvino-2026.2.1-x64.zip",
+        "llama-b10064-bin-win-sycl-x64.zip",
+        "llama-b10064-bin-win-vulkan-x64.zip",
+        "llama-b10064-ui.tar.gz",
+        "llama-b10064-xcframework.zip",
+    ];
+
+    fn gpu_named(name: &str) -> GpuInfo {
+        GpuInfo {
+            name: name.into(),
+            vram_gb: 16.0,
+            unified: false,
+        }
+    }
+
+    #[test]
+    fn vendors_classify_by_name() {
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("NVIDIA GeForce RTX 5080 Laptop GPU"))),
+            GpuVendor::Nvidia
+        );
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("AMD Radeon RX 7900 XTX"))),
+            GpuVendor::Amd
+        );
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("Intel(R) Arc(TM) A770 Graphics"))),
+            GpuVendor::Intel
+        );
+        let apple = GpuInfo {
+            name: "Apple M3 Max".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        assert_eq!(gpu_vendor(Some(&apple)), GpuVendor::Apple);
+        assert_eq!(gpu_vendor(None), GpuVendor::None);
+    }
+
+    #[test]
+    fn cuda_major_follows_the_card_generation() {
+        // Blackwell (RTX 50-series, RTX PRO) exists only in CUDA 13; Pascal exists only in ≤ 12.
+        assert!(nvidia_wants_cuda13("NVIDIA GeForce RTX 5080 Laptop GPU"));
+        assert!(nvidia_wants_cuda13("NVIDIA RTX PRO 6000 Blackwell"));
+        assert!(!nvidia_wants_cuda13("NVIDIA GeForce RTX 4090"));
+        assert!(!nvidia_wants_cuda13("NVIDIA GeForce GTX 1080 Ti"));
+        assert!(!nvidia_wants_cuda13("Tesla V100-SXM2-16GB"));
+        // The Ada laptop-workstation "RTX 500" is < 5000 → 12; "RTX 5000 Ada" ≥ 5000 → 13, and
+        // CUDA 13 kept Ada, so both roads are safe.
+        assert!(!nvidia_wants_cuda13(
+            "NVIDIA RTX 500 Ada Generation Laptop GPU"
+        ));
+        assert!(nvidia_wants_cuda13("NVIDIA RTX 5000 Ada Generation"));
+    }
+
+    #[test]
+    fn windows_nvidia_gets_cuda_plus_cudart() {
+        // A Blackwell card: the CUDA 13 build + its version-matched cudart bundle.
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("NVIDIA GeForce RTX 5080 Laptop GPU")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cuda-13.3-x64.zip");
+        assert_eq!(
+            p.companion.as_deref(),
+            Some("cudart-llama-bin-win-cuda-13.3-x64.zip")
+        );
+        // An Ada card: CUDA 12 line, 12-matched cudart.
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("NVIDIA GeForce RTX 4070")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cuda-12.4-x64.zip");
+        assert_eq!(
+            p.companion.as_deref(),
+            Some("cudart-llama-bin-win-cuda-12.4-x64.zip")
+        );
+    }
+
+    #[test]
+    fn windows_amd_and_intel_get_vulkan_not_hip_or_sycl() {
+        for name in ["AMD Radeon RX 7800 XT", "Intel(R) Arc(TM) B580"] {
+            let p = pick_runtime_asset_for(
+                TargetOs::Windows,
+                TargetArch::X64,
+                &B10064,
+                Some(&gpu_named(name)),
+            )
+            .unwrap();
+            assert_eq!(p.asset, "llama-b10064-bin-win-vulkan-x64.zip", "{name}");
+            assert_eq!(p.companion, None);
+        }
+    }
+
+    #[test]
+    fn no_gpu_means_cpu_never_vulkan() {
+        let p = pick_runtime_asset_for(TargetOs::Windows, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cpu-x64.zip");
+        let p = pick_runtime_asset_for(TargetOs::Linux, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-ubuntu-x64.tar.gz");
+    }
+
+    #[test]
+    fn macs_pick_by_arch() {
+        let apple = GpuInfo {
+            name: "Apple M2".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        let p = pick_runtime_asset_for(TargetOs::Mac, TargetArch::Arm64, &B10064, Some(&apple))
+            .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-macos-arm64.tar.gz");
+        let p = pick_runtime_asset_for(TargetOs::Mac, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-macos-x64.tar.gz");
+    }
+
+    #[test]
+    fn linux_gpu_gets_vulkan() {
+        let p = pick_runtime_asset_for(
+            TargetOs::Linux,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("AMD Radeon RX 6700 XT")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-ubuntu-vulkan-x64.tar.gz");
+    }
+
+    #[test]
+    fn cuda_minor_versions_compare_numerically() {
+        // A hypothetical 12.10 must beat 12.4 — lexicographic comparison would invert this.
+        let names = [
+            "llama-b1-bin-win-cuda-12.4-x64.zip",
+            "llama-b1-bin-win-cuda-12.10-x64.zip",
+        ];
+        let (asset, ver) = best_cuda_asset(&names, "12").unwrap();
+        assert_eq!(asset, "llama-b1-bin-win-cuda-12.10-x64.zip");
+        assert_eq!(ver, "12.10");
+    }
+
+    #[test]
+    fn a_release_without_cuda_falls_back_to_vulkan() {
+        let names = [
+            "llama-b1-bin-win-vulkan-x64.zip",
+            "llama-b1-bin-win-cpu-x64.zip",
+        ];
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &names,
+            Some(&gpu_named("NVIDIA GeForce RTX 4090")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b1-bin-win-vulkan-x64.zip");
+    }
+
+    #[test]
+    fn release_json_parses_tag_and_assets() {
+        let json = r#"{
+            "tag_name": "b10064",
+            "assets": [
+                {"name": "llama-b10064-bin-win-cpu-x64.zip",
+                 "browser_download_url": "https://example.invalid/a.zip",
+                 "size": 18000000},
+                {"name": "no-url-asset"}
+            ]
+        }"#;
+        let r = parse_runtime_release(json).unwrap();
+        assert_eq!(r.tag, "b10064");
+        assert_eq!(r.assets.len(), 1, "an asset without a URL is skipped");
+        assert_eq!(r.assets[0].name, "llama-b10064-bin-win-cpu-x64.zip");
+        assert_eq!(r.assets[0].size, 18_000_000);
+        assert!(parse_runtime_release("not json").is_none());
+    }
+
+    #[test]
+    fn find_bin_handles_flat_and_nested_layouts() {
+        // The Windows zips are flat; the macOS/Linux tarballs nest `llama-bNNNNN/`. Both must
+        // resolve, and the depth cap must hold.
+        let root = std::env::temp_dir().join(format!("ziqpu-find-bin-{}", std::process::id()));
+        let nested = root
+            .join("llama-b10064-bin-macos-arm64")
+            .join("llama-b10064");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("llama-server"), b"stub").unwrap();
+        let found = find_bin_under(&root, "llama-server", 3).expect("nested layout resolves");
+        assert!(
+            found.ends_with("llama-b10064/llama-server")
+                || found.ends_with("llama-b10064\\llama-server")
+        );
+        // Too deep for the cap → not found (the cap is what keeps a bad root from a disk crawl).
+        let deep = root.join("a").join("b").join("c").join("d");
+        std::fs::create_dir_all(&deep).unwrap();
+        std::fs::write(deep.join("other-bin"), b"stub").unwrap();
+        assert_eq!(find_bin_under(&root, "other-bin", 3), None);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
