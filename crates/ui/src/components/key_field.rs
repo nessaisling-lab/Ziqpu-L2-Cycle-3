@@ -81,11 +81,18 @@ pub fn KeyField(provider: Provider, on_change: EventHandler<()>) -> Element {
         on_change.call(());
     };
 
-    // Delete the stored key and drop it from the live environment, then either open the paste field
-    // (Replace) or stop (Remove).
+    // Delete the stored key, then either open the paste field (Replace) or stop (Remove).
     let mut confirm = move |what: Pending| {
+        let was = *source.read();
         let del_err = vault::delete_key(provider).err();
-        apply_provider_key_live(provider, "");
+        // Clear the live env var only when the key we just deleted is the one in it. Under
+        // `EnvOverridesVault` the env holds the seeker's *own* export — not ours to revoke — and
+        // clearing it would stop readings for this session and then silently resume them on the
+        // next launch, when startup no longer overwrites it. Deleting our inert copy must do
+        // exactly what the confirm said: nothing visible.
+        if was == KeySource::Vault {
+            apply_provider_key_live(provider, "");
+        }
         pending.set(None);
         err.set(del_err);
         adding.set(matches!(what, Pending::Replace));
@@ -102,7 +109,7 @@ pub fn KeyField(provider: Provider, on_change: EventHandler<()>) -> Element {
                 span {
                     class: match src {
                         KeySource::Vault => "key-dot key-dot--on",
-                        KeySource::Env => "key-dot key-dot--env",
+                        KeySource::Env | KeySource::EnvOverridesVault => "key-dot key-dot--env",
                         KeySource::None => "key-dot",
                     },
                     "aria-hidden": "true",
@@ -113,9 +120,7 @@ pub fn KeyField(provider: Provider, on_change: EventHandler<()>) -> Element {
                     "{src.line()}"
                 }
 
-                // Actions, gated on what this state can honestly offer. An env key gets none: we
-                // didn't store it and couldn't outlast it — the startup fill lets the environment
-                // win, so a button here would lie on the next launch.
+                // Actions, gated on what each state can honestly offer.
                 if pending.read().is_none() && !*adding.read() {
                     match src {
                         KeySource::Vault => rsx! {
@@ -134,7 +139,23 @@ pub fn KeyField(provider: Provider, on_change: EventHandler<()>) -> Element {
                                 }
                             }
                         },
+                        // Nothing of ours to manage, and we can't outlast the export — the startup
+                        // fill lets the environment win, so any button here would lie next launch.
                         KeySource::Env => rsx! {},
+                        // We DO hold a key, but it's inert. Removing it is honest and does exactly
+                        // what it says. Replace is deliberately absent: pasting would appear to work
+                        // (it's applied live for the session) and then silently revert on the next
+                        // launch when the export wins again — a button that lies on a delay.
+                        KeySource::EnvOverridesVault => rsx! {
+                            div { class: "keyfield-actions",
+                                button {
+                                    class: "settings-reveal",
+                                    r#type: "button",
+                                    onclick: move |_| pending.set(Some(Pending::Remove)),
+                                    "remove saved key"
+                                }
+                            }
+                        },
                         KeySource::None => rsx! {
                             div { class: "keyfield-actions",
                                 button {
@@ -155,20 +176,32 @@ pub fn KeyField(provider: Provider, on_change: EventHandler<()>) -> Element {
             if src == KeySource::Env {
                 p { class: "settings-hint keyfield-hint",
                     "Ziqpu found this key in your environment and is using it. It isn't stored here, "
-                    "so it can't be changed from this screen — unset "
+                    "so there's nothing on this screen to change — unset "
                     code { "{provider.env_var()}" }
-                    " in your shell to use a key saved on this device instead."
+                    " in your shell if you'd rather save a key to this device instead."
+                }
+            }
+
+            if src == KeySource::EnvOverridesVault {
+                p { class: "settings-hint keyfield-hint",
+                    "You have a key saved on this device, but "
+                    code { "{provider.env_var()}" }
+                    " is set in your environment and wins — that's the key writing your readings. "
+                    "Unset it to fall back to your saved one, or remove the saved one if it's stale."
                 }
             }
 
             // The destructive confirm. The key is gone for good: Ziqpu can't show it to you, and
-            // this was the only copy it kept.
+            // this was the only copy it kept. What happens *next* depends on the state — promising
+            // "readings will stop" would be false when an environment key is standing behind it.
             if let Some(what) = *pending.read() {
                 div { class: "keyfield-confirm",
                     p { class: "keyfield-warn",
                         "This deletes the API key stored on this device. "
                         if what == Pending::Replace {
                             "You'll need to paste a new one."
+                        } else if src == KeySource::EnvOverridesVault {
+                            "Readings will keep working — they're already running on the key in your environment, not this one."
                         } else {
                             "Live readings for this provider will stop until you add a new one."
                         }

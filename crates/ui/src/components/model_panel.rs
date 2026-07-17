@@ -182,17 +182,16 @@ fn parse_download_pct(line: &str) -> Option<u8> {
 
 /// Is the just-spawned server ready to serve (model loaded)? Probes `/health` on the exact port —
 /// `llama-server` answers `{"status":"ok"}` only once the model is resident. Keyless, 3 s cap.
+///
+/// In-process (`ureq`), not a `curl` subprocess. This is the poll loop's only success exit, and a
+/// failed `curl` spawn reads exactly like "not ready" — so on a machine without curl a healthy
+/// server could never be seen: `try_wait` stays `None` because the server is fine, the probe stays
+/// false because curl isn't there, and the loop ran its full 30-minute cap before announcing a
+/// timeout for a server that was serving the whole time. Windows 10+ and macOS ship curl; the
+/// Linux tarball we publish is where it bites.
 fn port_ready(port: u16) -> bool {
-    crate::no_window(std::process::Command::new("curl"))
-        .args([
-            "-sS",
-            "--max-time",
-            "3",
-            &format!("http://127.0.0.1:{port}/health"),
-        ])
-        .output()
-        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
-        .unwrap_or(false)
+    agents::llm_http::probe_body(&format!("http://127.0.0.1:{port}/health"), 3)
+        .is_some_and(|body| body.contains("\"ok\""))
 }
 
 #[component]

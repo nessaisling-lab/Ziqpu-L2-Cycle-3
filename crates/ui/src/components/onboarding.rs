@@ -36,9 +36,16 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
     // The provider as a slug, mirroring `provider` — the picker keys off this, and it's set in the
     // same click that sets `provider`, so the two can't drift.
     let mut slug = use_signal(|| None::<String>);
-    // Per-provider model pick from the live catalog, and a nudge to refetch once a key exists
-    // (Anthropic's catalog needs one).
-    let model_pick = use_signal(String::new);
+    // Model picks, **scoped per provider** — mirroring Settings. A single shared signal is what let
+    // an OpenRouter id be saved as the Anthropic model: OpenRouter's catalog is keyless so it loads
+    // instantly, and switching cards changed `provider` without clearing the pick. Continue then
+    // wrote `ZIQPU_ANTHROPIC_MODEL=openai/gpt-4o`, every Live call 404'd, and the reading fell
+    // silently back to the template — the exact bug `6d1b8b8` fixed in Settings, reintroduced here.
+    // Two signals make it unrepresentable: a pick can only ever be read back for the provider it
+    // was made for.
+    let anthropic_pick = use_signal(String::new);
+    let openrouter_pick = use_signal(String::new);
+    // A nudge to refetch once a key exists (Anthropic's catalog needs one).
     let mut catalog_reload = use_signal(|| 0u32);
 
     // What's already on this machine, detected once when the wizard mounts: a key Ziqpu saved on a
@@ -60,7 +67,12 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
     let save_choice = move |_| {
         let Some(p) = *provider.read() else { return };
         save_provider(p.slug());
-        save_model_for(p, &model_pick.read());
+        // Read back only the pick made for THIS provider — never whatever was chosen for the other.
+        let pick = match p {
+            Provider::Anthropic => anthropic_pick.read().clone(),
+            Provider::OpenRouter => openrouter_pick.read().clone(),
+        };
+        save_model_for(p, &pick);
         step.set(Step::Birth);
     };
 
@@ -160,13 +172,22 @@ pub fn Onboarding(on_done: EventHandler<()>) -> Element {
                             }
                         }
                         if let Some(p) = *provider.read() {
-                            // The live catalog for the chosen provider. OpenRouter's is public, so
-                            // it fills in immediately; Anthropic's needs the key below first, and
-                            // saying so is the picker's job (it shows the reason inline).
-                            ModelPicker {
-                                provider: slug,
-                                chosen: model_pick,
-                                reload: catalog_reload,
+                            // The live catalog for the chosen provider, writing into THAT provider's
+                            // own pick signal. OpenRouter's catalog is public so it fills in
+                            // immediately; Anthropic's needs the key below first, and saying so is
+                            // the picker's job (it shows the reason inline).
+                            if p == Provider::OpenRouter {
+                                ModelPicker {
+                                    provider: slug,
+                                    chosen: openrouter_pick,
+                                    reload: catalog_reload,
+                                }
+                            } else {
+                                ModelPicker {
+                                    provider: slug,
+                                    chosen: anthropic_pick,
+                                    reload: catalog_reload,
+                                }
                             }
                             // Saves on paste, straight to the keychain — and a key already present
                             // shows as installed rather than as an empty box demanding it again.

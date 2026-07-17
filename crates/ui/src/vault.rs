@@ -97,11 +97,22 @@ pub fn set_key(provider: Provider, key: &str) -> Result<(), String> {
 /// secret, because nothing here carries one.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum KeySource {
-    /// Saved by Ziqpu in this device's OS credential vault. Ours — so it can be replaced or removed.
+    /// Saved by Ziqpu in this device's OS credential vault, and the key readings actually use.
+    /// Ours — so it can be replaced or removed.
     Vault,
-    /// Exported in the process environment by something that isn't Ziqpu — a shell, CI, a launcher.
-    /// Detected and used, but not ours to manage.
+    /// Exported in the process environment by something that isn't Ziqpu — a shell, CI, a launcher —
+    /// and we hold nothing of our own. Detected and used, but not ours to manage.
     Env,
+    /// An environment key is winning **over** one we have saved. Both exist; the environment's is
+    /// the one driving readings, because startup only lifts the vault into the env when the env is
+    /// empty ([`crate::settings::fill_env_from_vault`]).
+    ///
+    /// This is its own state rather than a flavour of [`Self::Env`] because the two need opposite
+    /// affordances. `Env` offers nothing to manage. Here there *is* something of ours to manage —
+    /// an inert saved key — and if we called it `Vault` instead, Replace would look like it worked
+    /// (the pasted key is applied to the live env for the session) and then silently revert on the
+    /// next launch when the export wins again.
+    EnvOverridesVault,
     /// No key for this provider anywhere.
     None,
 }
@@ -118,25 +129,52 @@ impl KeySource {
         match self {
             KeySource::Vault => "Key installed — this device's keychain",
             KeySource::Env => "Key detected in your environment",
+            KeySource::EnvOverridesVault => "Environment key in use — overriding your saved one",
             KeySource::None => "No key",
         }
     }
 }
 
-/// Report whether `provider` has a key and where it came from, **without reading its value**.
+/// Report where the key that **actually drives readings** comes from, without reading its value.
 ///
-/// The vault is checked first because startup copies a vaulted key into the environment
-/// ([`crate::settings::apply_settings_to_env`]) — so a key in the env with nothing in the vault is
-/// necessarily one Ziqpu didn't store. That ordering is what makes [`KeySource::Env`] mean
-/// "someone else's", which is exactly what the seeker needs to know to change it.
+/// The environment is checked **first**, and that order is the whole correctness of this function.
+///
+/// It reads backwards — the vault is "ours", so surely ask it first? That was the original bug. The
+/// interpreter reads the key from the *process environment*
+/// ([`agents::AnthropicInterpreter::from_env`]), and startup only copies the vault into the env when
+/// the env is **empty** ([`crate::settings::fill_env_from_vault`] — an exported key wins, on
+/// purpose, so a shell or CI can override the app). So when both exist, the environment's key is the
+/// one in use and the vault's is inert. Answering "Vault" there would name a key that drives
+/// nothing — and [`KeyField`](crate::components::KeyField) would offer replace/remove buttons that
+/// silently fail to change anything, which is precisely the lie the env branch was written to avoid.
+///
+/// Checking the env first makes this report the *effective* key by construction: whatever the
+/// interpreter would pick up, this names. That the vault also holds one is then irrelevant to the
+/// question being asked.
 pub fn key_source(provider: Provider) -> KeySource {
-    if get_key(provider).is_some() {
+    if std::env::var_os(provider.env_var()).is_some_and(|v| !v.is_empty()) {
+        // The env is populated — but that's also true of a key startup lifted *out of* the vault,
+        // which would mislabel our own key as a stranger's. Distinguish by asking whether the vault
+        // holds the very same key. Cheap, and no value leaves this function.
+        match get_key(provider) {
+            Some(vaulted) if env_matches(provider, &vaulted) => KeySource::Vault,
+            Some(_) => KeySource::EnvOverridesVault,
+            None => KeySource::Env,
+        }
+    } else if get_key(provider).is_some() {
+        // In the vault but not in the env: a keystore that became unreachable, or a key saved after
+        // startup's fill. Not driving readings this instant, but it is ours and it will be next
+        // launch — report it as ours rather than as absent.
         KeySource::Vault
-    } else if std::env::var_os(provider.env_var()).is_some_and(|v| !v.is_empty()) {
-        KeySource::Env
     } else {
         KeySource::None
     }
+}
+
+/// Whether `provider`'s env var currently holds exactly `key`. Compares in-process; the value is
+/// never logged, returned, or rendered.
+fn env_matches(provider: Provider, key: &str) -> bool {
+    std::env::var(provider.env_var()).is_ok_and(|v| v == key)
 }
 
 /// Fetch `provider`'s stored key, or `None` when absent/empty/unavailable. Never logs the value.
@@ -238,5 +276,21 @@ mod tests {
     fn env_vars_match_the_interpreter() {
         assert_eq!(Provider::Anthropic.env_var(), "ANTHROPIC_API_KEY");
         assert_eq!(Provider::OpenRouter.env_var(), "OPENROUTER_API_KEY");
+    }
+
+    /// Every state must offer the seeker something true — including the one that says a key exists
+    /// but isn't the one being used. `EnvOverridesVault` was added because collapsing it into
+    /// `Vault` made the surface render replace/remove buttons for an inert key, and collapsing it
+    /// into `Env` hid the only key we could actually manage.
+    #[test]
+    fn the_override_state_reads_as_neither_ours_nor_a_strangers() {
+        let line = KeySource::EnvOverridesVault.line();
+        assert!(KeySource::EnvOverridesVault.present());
+        // It must name the environment as the winner — that's the whole point of the state.
+        assert!(line.contains("Environment"), "{line}");
+        // ...and must not claim the saved key is in use, which is what `Vault`'s line says.
+        assert_ne!(line, KeySource::Vault.line());
+        assert_ne!(line, KeySource::Env.line());
+        assert!(!line.contains("sk-"), "{line}");
     }
 }

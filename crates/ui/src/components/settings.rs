@@ -24,8 +24,8 @@ use dioxus::prelude::*;
 
 use crate::components::{KeyField, ModelPanel, ModelPicker};
 use crate::settings::{
-    active_mode_label, apply_settings_live, built_in_available, load_settings, save_settings,
-    SettingsFile,
+    active_mode_label, built_in_available, load_settings, save_local_url, save_model_for,
+    save_provider,
 };
 use crate::vault::Provider;
 
@@ -82,6 +82,18 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
     // so Save no longer has a credential path — and there are no reveal toggles, by design.
     let mut saved = use_signal(|| false);
 
+    // Clear "Saved ✓" when a model pick changes. The provider card and the local-URL field reset it
+    // inline, but `ModelPicker` writes `chosen` directly and has no way to tell us — so a stale ✓
+    // used to sit in the sticky footer next to Save, asserting a pick was persisted when it wasn't,
+    // and "← done" then unmounted the page and dropped it. Save-then-pick isn't contrived: the
+    // catalog fetch is a network call, so Save is clickable long before the picker fills in.
+    use_effect(move || {
+        // Subscribe to both picks; the read is the subscription.
+        let _ = anthropic_model.read();
+        let _ = openrouter_model.read();
+        saved.set(false);
+    });
+
     // Recomputed each render — reads only env-var *presence*, so it reflects the live mode after Save.
     let mode_label = active_mode_label();
 
@@ -91,25 +103,28 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
         let om = openrouter_model.read().trim().to_string();
 
         // **Non-secrets only.** Keys go straight from the paste field to the vault in [`KeyField`],
-        // so Save has no credential path left to get wrong. It used to have one, and it was a trap:
-        // the key fields were seeded from the vault, so an unreachable keystore rendered them blank
-        // — and a blank field meant "clear this provider", making an innocent Save silently delete
-        // a working key.
-        let file = SettingsFile {
-            openrouter_key: None,
-            // Legacy shared field — the picker writes the scoped ones below. Preserve whatever a
-            // pre-picker install had rather than silently dropping it.
-            model: load_settings().model,
-            local_url: (!u.is_empty()).then_some(u),
-            anthropic_model: (!am.is_empty()).then_some(am),
-            openrouter_model: (!om.is_empty()).then_some(om),
-            provider: provider.read().clone(),
-            // Preserve the developer-build switch — this modal only edits credentials, and a bare
-            // literal would silently reset the entitlement to its default on Save.
-            dev_build: load_settings().dev_build,
-        };
-        save_settings(&file);
-        apply_settings_live(&file);
+        // so Save has no credential path left to get wrong.
+        //
+        // Each call below is load-modify-save on the file plus set-or-remove on the live env. That
+        // shape is deliberate, and replaced a `SettingsFile { .. }` literal that had two bugs a
+        // release audit caught:
+        //
+        // 1. A literal must restate every field it isn't changing, and each restatement is a chance
+        //    to reset one. `openrouter_key: None` looked like a no-op and was an active **delete** —
+        //    erasing a legacy plaintext key that `migrate_plaintext_keys_to_vault` had deliberately
+        //    left on disk when the keystore was unreachable ("we never drop a key we can't
+        //    re-home"). It was unrecoverable, and silent until the next launch. Loading first makes
+        //    preservation the default, so a field nobody remembers here simply survives.
+        // 2. `apply_settings_live` never *removes* a var — an empty field must not wipe a live key —
+        //    so clearing a model back to "Ziqpu's default", or clearing the local URL, said
+        //    "Saved ✓" while the old value stayed in the environment until a restart. These helpers
+        //    clear.
+        if let Some(p) = provider.read().clone() {
+            save_provider(&p);
+        }
+        save_model_for(Provider::Anthropic, &am);
+        save_model_for(Provider::OpenRouter, &om);
+        save_local_url(&u);
         saved.set(true);
     };
 

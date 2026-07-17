@@ -315,8 +315,12 @@ pub fn ModelPicker(
                         p { class: "settings-hint",
                             "✦ best for readings — follows a careful brief, respects our length "
                             "limit, and won't write its reasoning into your reading."
+                            // Plural: BEST_FREE_PICKS is 2, so two rows wear ✧ on the real catalog.
+                            // "the strongest" promised exactly one. The list is ranked, so the top
+                            // ✧ genuinely is the strongest — the copy just can't use a superlative
+                            // for a set.
                             if options.read().iter().any(|m| m.fit == Fit::BestFree) {
-                                " ✧ best free — the strongest that costs nothing."
+                                " ✧ best free — the strongest that cost nothing, best first."
                             }
                             if options.read().iter().any(|m| m.top_quality) {
                                 " ★ the catalog's highest-scoring model, which isn't always the best fit here."

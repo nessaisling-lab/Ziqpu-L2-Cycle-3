@@ -242,6 +242,24 @@ pub fn save_model_for(provider: Provider, model: &str) {
     }
 }
 
+/// Persist the optional local-model endpoint and apply it live, **clearing both when empty**.
+///
+/// Mirrors [`save_model_for`], and exists for the same reason: [`apply_settings_live`] deliberately
+/// never removes a var, so an emptied field saved through it would report success while the old
+/// endpoint stayed live in the environment for the rest of the session. Best-effort (a failed
+/// read/write is swallowed — never panics).
+pub fn save_local_url(url: &str) {
+    let url = url.trim();
+    let mut settings = load_settings();
+    let value = (!url.is_empty()).then(|| url.to_string());
+    settings.local_url = value.clone();
+    save_settings(&settings);
+    match value {
+        Some(u) => std::env::set_var("ZIQPU_LLM_URL", u),
+        None => std::env::remove_var("ZIQPU_LLM_URL"),
+    }
+}
+
 /// Apply a provider key to the **live** process environment right now (called after a vault write on
 /// Save) so the next reading uses it without a restart — `agents::reading_for` reads the env fresh
 /// per call. An empty `key` removes the var: unlike the credential-preserving [`apply_settings_live`],
@@ -256,30 +274,19 @@ pub fn apply_provider_key_live(provider: Provider, key: &str) {
     }
 }
 
-/// Apply the settings to the live environment on Save so a new value takes effect on the next
-/// reading (`agents::reading_for` reads the env fresh per call) without a restart. A **non-empty**
-/// field overrides the live var; an **empty** field is **left alone** — it does NOT remove the var.
-///
-/// This is deliberate: the key field is only ever pre-seeded from `settings.json`, so a key provided
-/// via the shell/env (or not yet saved to the file) leaves the field blank — and a blank-field Save
-/// used to `remove_var` it, silently dropping Live mid-session (observed in testing). Saving can only
-/// ever *set* a value now; to remove a saved key, clear it from `settings.json` (or the data folder).
-pub fn apply_settings_live(settings: &SettingsFile) {
-    fn set_if_present(key: &str, val: &Option<String>) {
-        if let Some(v) = val {
-            if !v.is_empty() {
-                std::env::set_var(key, v);
-            }
-        }
-        // Empty/None → leave the existing env var untouched (never wipe a live key on an empty field).
-    }
-    set_if_present("OPENROUTER_API_KEY", &settings.openrouter_key);
-    set_if_present("ZIQPU_MODEL", &settings.model);
-    set_if_present("ZIQPU_LLM_URL", &settings.local_url);
-    set_if_present("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
-    set_if_present("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
-    set_if_present("ZIQPU_PROVIDER", &settings.provider);
-}
+// `apply_settings_live` used to live here: one whole-file "apply everything" that could only ever
+// SET a var, never remove one. That rule was written to stop a blank key field wiping a live key —
+// a real hazard at the time, because the key fields were seeded from the vault. Keys have since
+// moved to `KeyField` + `apply_provider_key_live`, so the hazard is gone, but the never-remove rule
+// outlived it and quietly cost correctness everywhere else: clearing a model back to "Ziqpu's
+// default", or clearing the local URL, reported "Saved ✓" while the old value stayed live in the
+// environment until a restart.
+//
+// It's replaced by the per-field helpers above — `save_provider`, `save_model_for`,
+// `save_local_url`, `apply_provider_key_live` — each of which is load-modify-save on the file plus
+// set-or-remove on the env. Per-field is also what killed the sharper bug in the same area: an
+// "apply everything" caller had to name every field, and naming a field it didn't mean to change
+// (`openrouter_key: None`) silently deleted an unrecoverable key.
 
 /// Whether the **built-in free tier** is configured in this build — both the proxy URL and the app
 /// token are present (baked in at release time; see `main.rs` + `proxy/README.md`). When true, a
@@ -290,18 +297,14 @@ pub fn built_in_available() -> bool {
 
 /// A short, human-readable label for which interpreter the **current environment** selects — shown
 /// in the Settings panel so Save gives immediate, truthful feedback about what a reading will use.
-/// Mirrors [`agents::build_interpreter`]'s precedence (OpenAI-compat/OpenRouter → Anthropic own key →
-/// built-in proxy → template). Reads only presence, never the key value.
-pub fn active_mode_label() -> &'static str {
-    if std::env::var_os("OPENROUTER_API_KEY").is_some()
-        || std::env::var_os("OPENAI_API_KEY").is_some()
-    {
-        "Live · OpenRouter / OpenAI-compatible"
-    } else if std::env::var_os("ANTHROPIC_API_KEY").is_some() {
-        "Live · Anthropic (Claude)"
-    } else if built_in_available() {
-        "Live · Ziqpu built-in (Claude)"
-    } else {
-        "Offline template · no key set"
-    }
+///
+/// Delegates to [`agents::active_source_label`] rather than deciding anything. This function used to
+/// re-implement the precedence, and a release audit caught what that cost: it checked key *presence*
+/// only, so it never saw `ZIQPU_PROVIDER`, and since startup re-homes any vaulted OpenRouter key
+/// into the environment on every launch, a seeker who picked Anthropic or the built-in tier was told
+/// "Live · OpenRouter" indefinitely. The routing was correct the whole time — only this label lied,
+/// and it is the provider picker's only confirmation. A second copy of a rule is a second thing to
+/// forget to update, so there is now one copy, in the module that makes the choice.
+pub fn active_mode_label() -> String {
+    agents::active_source_label()
 }

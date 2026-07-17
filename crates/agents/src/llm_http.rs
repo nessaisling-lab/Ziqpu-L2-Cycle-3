@@ -36,6 +36,35 @@ pub(crate) fn get_json(url: &str, headers: &[(&str, &str)]) -> Option<String> {
     req.call().ok()?.into_string().ok()
 }
 
+/// GET a **local, keyless** endpoint and return its body, or `None` if nothing answered.
+///
+/// In-process, and that is the point. The local-stack health probes used to shell out to `curl`, and
+/// a missing `curl` is indistinguishable from "not ready" — `Command::output()` returns `Err`, which
+/// collapsed to "not ready" forever. On a minimal Linux box (an artifact we publish) that turned a
+/// perfectly healthy `llama-server` into a thirty-minute spinner ending in "Timed out waiting for
+/// the model", because the caller's only other loop exit was the child dying. Windows 10+ and macOS
+/// ship curl, which is exactly why it hid on the maintainer's machine.
+///
+/// **Why the body and not a bool:** a non-2xx response is meaningful here. `llama-server` answers
+/// `/health` with **503 while the model loads**, and `curl` (without `-f`) exits 0 on that — so the
+/// callers this replaces read a 503 as *loading*, not *down*. `ureq` reports non-2xx as `Err`, so
+/// collapsing errors would silently turn "loading" into "down" and destroy the warm-up wait that
+/// stops the first cards falling back to the template. `Error::Status` still carries the response,
+/// so we keep it. `None` means genuinely nothing answered: no listener, or a timeout.
+///
+/// `timeout_secs` bounds the whole call — these run in polling loops, so a hung listener must not
+/// stall the poll.
+pub fn probe_body(url: &str, timeout_secs: u64) -> Option<String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build();
+    match agent.get(url).call() {
+        Ok(r) => r.into_string().ok(),
+        Err(ureq::Error::Status(_, r)) => r.into_string().ok(),
+        Err(_) => None,
+    }
+}
+
 /// One OpenAI-compatible `/chat/completions` round-trip. POSTs to `{base_url}/chat/completions`
 /// with a Bearer token and a system + user message (`stream:false`, no temperature), then parses
 /// `choices[0].message.content`. Returns `None` on any transport, HTTP, or parse error.

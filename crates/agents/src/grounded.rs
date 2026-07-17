@@ -170,13 +170,29 @@ fn fixture_filings(ticker: &str) -> Option<Vec<String>> {
 
 impl EdgarSource {
     /// GET `url` with the contact User-Agent; `--compressed` so gzip'd bodies decode. `None` on a
-    /// transport error or a non-2xx status (`curl` returns exit 0 on HTTP errors, so we don't rely
-    /// on that alone — callers treat a non-JSON body as "unavailable").
+    /// transport error, a timeout, or a non-2xx status (`curl` returns exit 0 on HTTP errors, so we
+    /// don't rely on that alone — callers treat a non-JSON body as "unavailable").
+    ///
+    /// **The bounds are load-bearing, not hygiene.** `curl` has no default *transfer* timeout, and
+    /// this call is made from a worker thread whose only exit is a result: the checkpoint renders a
+    /// "grounding…" view with no cancel and no error path, so a `curl` that never returns is a
+    /// permanent silent spinner and a wedged thread. A refused connection is fine — that errors and
+    /// falls back to the recorded fixture. The killer is a connection that is *accepted and then
+    /// stalls*: a captive portal that answers the handshake and blackholes, a Wi-Fi roam, a laptop
+    /// resuming from sleep with a half-open socket. Without `--max-time` those hang forever.
+    ///
+    /// `--max-filesize` bounds the other end: a large filer's submissions JSON is multi-MB, and we
+    /// only ever read the first few entries. Both values match the convention the rest of the tree
+    /// already follows (see `model::system_cmd` callers, requirement SEC-004).
     fn get(&self, url: &str) -> Option<Vec<u8>> {
         let output = crate::no_window(std::process::Command::new("curl"))
             .args([
                 "-sS",
                 "--compressed",
+                "--max-time",
+                "8",
+                "--max-filesize",
+                "5000000",
                 "-H",
                 &format!("User-Agent: {}", self.user_agent),
                 url,

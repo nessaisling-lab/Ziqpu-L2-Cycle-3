@@ -438,10 +438,20 @@ const HF_USER_AGENT: &str =
     "ziqpu-model/0.1 (+https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3)";
 
 /// A system tool's spawn target, pinned to an absolute path on Windows and left as the Unix name
-/// elsewhere. On Windows, `CreateProcess` searches the current directory before System32, so a bare
-/// executable name lets a planted exe in the run directory hijack the call (CWE-427); Unix does not
-/// put the CWD on the search path, so the bare name is safe there. `win_rel` is the path under
-/// `%SystemRoot%\System32`; `unix` is the Unix command (bare name or absolute path).
+/// elsewhere (CWE-427). `win_rel` is the path under `%SystemRoot%\System32`; `unix` is the Unix
+/// command (bare name or absolute path).
+///
+/// **The vector is the application directory, not the CWD.** An earlier version of this comment
+/// blamed `CreateProcess` searching the current directory — that is true of raw `CreateProcess` but
+/// *not* of Rust's `std::process::Command`, whose `resolve_exe` deliberately excludes the CWD.
+/// Measured on Windows 11 / rustc 1.96: a planted `curl.exe` in the CWD is **not** picked up, while
+/// one sitting **beside our own exe** is, because Rust's order is child-PATH → application
+/// directory → System32 → Windows → PATH. Pinning the System32 path defeats it (also measured).
+///
+/// That distinction is load-bearing for us: we ship Windows as a plain zip, so users extract and run
+/// from wherever they downloaded it — typically Downloads, which is exactly where attacker-supplied
+/// files land. The app directory is therefore a live planting surface, not a theoretical one.
+/// (Impact is code execution at the user's own privileges, not elevation.)
 fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(windows)]
     {
@@ -1061,9 +1071,15 @@ pub fn model_cached(repo: &str, quant: &str) -> bool {
 /// `None`. Lets the app RECONNECT to an already-loaded model instead of reloading it, and auto-detect
 /// a server still running from a prior session on startup. Only `llama-server` answers `/health` with
 /// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
+/// Runs at startup, before the window opens, so it probes up to 12 ports on every launch — which is
+/// why the spawn target is pinned via [`system_cmd`] like the file's other `curl` callers rather
+/// than left bare. (Known gap: on a machine with no `curl` at all this simply finds nothing and the
+/// app declines to reconnect — a soft, honest degrade, unlike the health probes in `agents`/`ui`
+/// which are now in-process.)
 pub fn running_server_port() -> Option<u16> {
+    let curl = system_cmd("curl.exe", "curl");
     (1234u16..=1245).find(|&p| {
-        no_window(std::process::Command::new("curl"))
+        no_window(std::process::Command::new(&curl))
             .args([
                 "-sS",
                 "--max-time",

@@ -37,6 +37,58 @@ Product/design thinking for this cycle lives in the **internal living PRD** and 
   COMPRESSED). Noted its **security side-benefits** (channel obfuscation + reduced prompt-injection
   surface — defense-in-depth, *not* encryption; see [SECURITY.md](SECURITY.md)).
 
+## [1.4.0] — 2026-07-16 · nightfall pre-release
+
+Bring your own model, and stop being able to see your own key.
+
+### Added
+- **Live model catalogs — no hardcoded lists.** A dropdown in onboarding *and* Settings, filled from
+  each provider's real API: Anthropic `GET /v1/models`, OpenRouter `GET /api/v1/models` (keyless),
+  built-in via the proxy's own `/v1/models` (which asks Anthropic and filters to its allowlist, so
+  the advertised list can't drift from what it accepts).
+- **Badges earned from live fields, never asserted** — ✦ best for readings (fit rules: no
+  `max_tokens` → unfit; mandatory reasoning → caution, since our "don't think" flag can't disable
+  it; survivors ranked on the published intelligence index), ✧ best free, ★ top quality (kept
+  deliberately separate: the catalog's top scorer is mandatory-reasoning, so it is *not* a pick).
+  **There is no "most popular" badge** — OpenRouter publishes no usage or rank data, and we won't
+  invent one.
+- **Traction filter** — drop a model only if it is unused *and* unloved *and* untouched (Hugging
+  Face downloads + likes + last-modified). Downloads alone is the wrong signal: a 2.1M-download
+  Llama was expiring in three days while an 11.8K-download repo had shipped that morning.
+  Closed-weight vendors are exempt. Cached weekly; the cache records *attempts* so an unanswerable
+  repo can't trigger an endless re-sweep (which is how we rate-limited ourselves at 500 req/5 min).
+- **Built-in free Live tier** via a server-side key proxy (`proxy/`) — the real key stays a platform
+  secret; the app carries only a URL and a revocable token, and only in a release build.
+- **OS credential vault** for provider keys (Windows Credential Manager / macOS Keychain / Linux
+  Secret Service), with a one-time migration out of the old plaintext `settings.json`.
+- **Provider-first onboarding** — pick Anthropic or OpenRouter (or skip), and it now **detects a key
+  already on the machine** rather than asking for one you already configured.
+
+### Security
+- **An API key can no longer be shown.** Not "masked" — *unreachable*. Settings used to seed its
+  field from the vault, so the plaintext sat in a signal and in the DOM even behind a password
+  input; deleting the reveal button would have changed nothing. Surfaces now ask
+  `vault::key_source()` for presence + origin and never for a value. Enforced by a test that fails
+  if any UI surface calls `get_key`.
+- **The SEC contact is the project's own mailbox**, not a maintainer's institutional address, and is
+  overridable via `ZIQPU_EDGAR_UA`. The old one shipped in the binary and rode every user's request.
+- **Ziqpu only stops the llama-server it started** (tracked by PID, guarded against PID reuse).
+  It used to kill every llama-server on the machine, including yours.
+- API keys travel in-process via `ureq` (never on a command line); Windows spawns are windowless.
+
+### Fixed
+- **Settings is reachable.** It was a modal; it fought back three times (header scrolled out of
+  reach, then a native `<select>` popup escaped the frame, then the whole thing collapsed to a strip
+  in the header). It is a page now — normal flow, nothing to trap, nothing to clip.
+- **The provider you pick is the provider you get** — an explicit choice now reorders the Live
+  attempts instead of losing to whatever key happened to be exported.
+- **Model ids are provider-scoped**, so an OpenRouter id can't reach Anthropic and silently degrade
+  the reading to the template.
+- The checkpoint now names **every** source it spends (SEC EDGAR filings *and* Wikipedia). The
+  reading was already disclosing Wikipedia; the consent that authorized it wasn't.
+- Save can no longer delete a working key (an unreachable keystore blanked the field, and a blank
+  field meant "clear this provider").
+
 ## [1.3.2] — 2026-07-14 · nightfall pre-release
 
 Local-model runtime made reliable on real hardware.

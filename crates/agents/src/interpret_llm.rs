@@ -391,6 +391,38 @@ fn prefers_anthropic() -> bool {
         .unwrap_or(false)
 }
 
+/// A short, human-readable label for the interpreter the **current environment** would select —
+/// the same decision [`build_interpreter`] makes, computed by the same rule.
+///
+/// This lives here, beside the decision, on purpose. The UI needs to tell the seeker what a reading
+/// will actually use, and it used to answer by re-implementing the precedence itself
+/// (`ui::settings::active_mode_label`). That copy was correct when written and silently became a lie
+/// the moment [`prefers_anthropic`] landed: it still checked key *presence* only, so anyone who had
+/// ever saved an OpenRouter key — whose key startup re-homes into the environment on every launch —
+/// was told "Live · OpenRouter" while their readings ran on Anthropic or the built-in proxy. The
+/// routing was right; only the label lied, and the label is the picker's sole confirmation.
+///
+/// Reads presence and model ids only — never a key value.
+pub fn active_source_label() -> String {
+    // Deliberately mirrors `build_interpreter`'s branches in order, including its fall-through.
+    let anthropic_first = prefers_anthropic();
+    let openai = (!anthropic_first)
+        .then(OpenAiCompatInterpreter::from_env)
+        .flatten();
+    if let Some(o) = openai {
+        return format!("Live · OpenAI-compatible ({})", o.model);
+    }
+    if let Some(a) = anthropic_live() {
+        return format!("Live · {} ({})", a.source_label(), a.model());
+    }
+    // Anthropic was preferred but isn't configured — `build_interpreter` falls through here rather
+    // than stalling on the template, so the label must too.
+    if let Some(o) = OpenAiCompatInterpreter::from_env() {
+        return format!("Live · OpenAI-compatible ({})", o.model);
+    }
+    "Offline template · no key set".to_string()
+}
+
 /// Try the live interpreters in preference order, returning the first success as `(value, model_id)`.
 /// Order honors [`prefers_anthropic`]; a first choice that isn't configured — or whose call fails —
 /// falls through to the other, and `None` leaves the caller to use the template. This is the ONE
@@ -550,18 +582,13 @@ fn local_status() -> LocalStatus {
             .trim_end_matches("/v1")
             .trim_end_matches('/')
     );
-    match crate::no_window(std::process::Command::new("curl"))
-        .args(["-sS", "--max-time", "3", &health])
-        .output()
-    {
-        Ok(o) if o.status.success() => {
-            if String::from_utf8_lossy(&o.stdout).contains("\"ok\"") {
-                LocalStatus::Ready
-            } else {
-                LocalStatus::Loading
-            }
-        }
-        _ => LocalStatus::Down,
+    // In-process (ureq), not a `curl` subprocess: on a box without curl the spawn failed, which was
+    // indistinguishable from "nothing listening", so the whole local path reported Down forever.
+    // A 503 (model still loading) still returns its body here, preserving Loading vs Down.
+    match crate::llm_http::probe_body(&health, 3) {
+        Some(body) if body.contains("\"ok\"") => LocalStatus::Ready,
+        Some(_) => LocalStatus::Loading,
+        None => LocalStatus::Down,
     }
 }
 
@@ -1195,6 +1222,56 @@ mod tests {
         for k in ["OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "ZIQPU_PROVIDER"] {
             std::env::remove_var(k);
         }
+    }
+
+    /// The label the seeker reads must agree with the provider that actually runs.
+    ///
+    /// A release audit caught these disagreeing: the UI had its own copy of the precedence that
+    /// only checked key *presence*, so it never saw `ZIQPU_PROVIDER`. And since startup re-homes any
+    /// vaulted OpenRouter key into the environment on every launch, "has an OpenRouter key" is true
+    /// for anyone who ever saved one — so picking Anthropic or the built-in tier showed
+    /// "Live · OpenRouter" forever. Routing was right; only the label lied, and it's the picker's
+    /// only confirmation. This pins them together on the case that broke.
+    #[test]
+    fn the_active_label_names_the_provider_that_actually_runs() {
+        let _env = env_guard();
+        for k in [
+            "OPENAI_BASE_URL",
+            "ZIQPU_MODEL",
+            "ZIQPU_PROXY_URL",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
+            std::env::remove_var(k);
+        }
+        // The shape that broke: an OpenRouter key present, Anthropic explicitly chosen.
+        std::env::set_var("OPENROUTER_API_KEY", "dummy-openrouter-not-real");
+        std::env::set_var("ANTHROPIC_API_KEY", "sk-ant-dummy-not-real");
+        std::env::set_var("ZIQPU_PROVIDER", "anthropic");
+        let label = active_source_label();
+        assert!(
+            !label.contains("OpenAI-compatible"),
+            "label names OpenRouter while readings run on Anthropic: {label}"
+        );
+        assert!(label.contains("Claude"), "{label}");
+        // And it agrees with the router on the same environment.
+        assert_eq!(
+            try_live(|_| Some("openai"), |_| Some("anthropic")).map(|(v, _)| v),
+            Some("anthropic")
+        );
+
+        // Choosing OpenRouter → the label follows the router the other way.
+        std::env::set_var("ZIQPU_PROVIDER", "openrouter");
+        assert!(
+            active_source_label().contains("OpenAI-compatible"),
+            "{}",
+            active_source_label()
+        );
+
+        // No key at all → honest about the template, not a phantom provider.
+        for k in ["OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "ZIQPU_PROVIDER"] {
+            std::env::remove_var(k);
+        }
+        assert_eq!(active_source_label(), "Offline template · no key set");
     }
 
     #[test]
