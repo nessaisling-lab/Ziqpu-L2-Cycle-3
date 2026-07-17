@@ -5,6 +5,24 @@ All notable changes to Ziqpu are recorded here. Format follows
 **major.feature-phase.fix** (see [RELEASING.md](RELEASING.md)). Two tracks: `main` = stable
 (GitHub "Latest"), `nightfall` = build-ahead pre-releases (never "Latest").
 
+## [Unreleased] — built but not shipping (nightfall; not yet wired into a release)
+
+### Built-in free Live tier — code complete, **not configured in any published build**
+`proxy/` is a Cloudflare Worker that holds the real API key as a platform secret and forwards
+`/v1/messages`; the app authenticates with a low-value revocable token. The app side is done and
+tested (`AnthropicInterpreter::proxy_from_env`, the onboarding option, `built_in_available()`).
+
+It does **not** exist in any installer, and this entry is here rather than under a released version
+because of exactly that. `main.rs` bakes the URL + token via `option_env!` at **build** time;
+`release.yml` never passes them, so they resolve to `None`, `built_in_available()` is false, and the
+"free ✦" option never renders. `proxy/wrangler.toml` also still carries a placeholder KV namespace
+id — the Worker has never been deployed, so there is no endpoint to bake in even if the workflow
+passed the variables.
+
+It ships when the Worker is deployed and `release.yml` is given the two secrets — no sooner. Until
+then a seeker with no key of their own gets the offline template (Raw), or a local model if they
+install llama.cpp themselves.
+
 ## [Unreleased] — design + research (nightfall; not yet wired into the app)
 
 Product/design thinking for this cycle lives in the **internal living PRD** and the
@@ -57,8 +75,6 @@ Bring your own model, and stop being able to see your own key.
   Llama was expiring in three days while an 11.8K-download repo had shipped that morning.
   Closed-weight vendors are exempt. Cached weekly; the cache records *attempts* so an unanswerable
   repo can't trigger an endless re-sweep (which is how we rate-limited ourselves at 500 req/5 min).
-- **Built-in free Live tier** via a server-side key proxy (`proxy/`) — the real key stays a platform
-  secret; the app carries only a URL and a revocable token, and only in a release build.
 - **OS credential vault** for provider keys (Windows Credential Manager / macOS Keychain / Linux
   Secret Service), with a one-time migration out of the old plaintext `settings.json`.
 - **Provider-first onboarding** — pick Anthropic or OpenRouter (or skip), and it now **detects a key

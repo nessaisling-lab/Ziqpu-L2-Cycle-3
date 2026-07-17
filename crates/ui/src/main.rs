@@ -11,6 +11,7 @@
 
 mod app;
 mod components;
+mod preflight;
 mod profile;
 mod settings;
 mod state;
@@ -34,6 +35,12 @@ use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
 use dioxus::LaunchBuilder;
 
 fn main() {
+    // FIRST, before anything that can fail. A release build has no console (see the attribute
+    // above), so without this a panic on the way to the window — the common one being a missing
+    // WebView2 runtime — exits silently: no window, no error, nothing. The user concludes the
+    // download is broken. This turns that into a dialog that names the cause.
+    preflight::install_startup_dialog();
+
     // Bake the built-in free-tier proxy config into the runtime env. `ZIQPU_PROXY_URL`/`_TOKEN` are
     // set at RELEASE BUILD time (via the release workflow's env) and captured by `option_env!` here —
     // so the shipped binary carries the proxy URL + the (revocable, rate-limited) app token, but

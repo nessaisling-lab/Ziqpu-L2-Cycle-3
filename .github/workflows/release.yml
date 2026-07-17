@@ -86,6 +86,14 @@ jobs:
       # balloons link time (and can OOM the linker) on the runners, so force it off for release
       # bundles. The bundle is a distributable build, not a perf benchmark.
       CARGO_PROFILE_RELEASE_LTO: false
+      # The built-in free tier is baked at COMPILE time by `option_env!` in crates/ui/src/main.rs.
+      # It must be passed here or it silently resolves to None and the tier is absent from the
+      # binary — which is exactly what happened to v1.4.0: the feature was code-complete, the
+      # changelog advertised it, and no artifact contained it, because nothing on this path had any
+      # reason to notice. Empty secrets are legal (the tier is optional) — see the guard below,
+      # which makes the outcome *visible* instead of silent.
+      ZIQPU_PROXY_URL: ${{ secrets.ZIQPU_PROXY_URL }}
+      ZIQPU_PROXY_TOKEN: ${{ secrets.ZIQPU_PROXY_TOKEN }}
     steps:
       - name: Checkout the tag being released
         uses: actions/checkout@v4
@@ -94,6 +102,17 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+
+      # Say out loud which tier this build will contain, so "the free tier is missing again" is a
+      # line in the log rather than a discovery a user makes.
+      - name: Report the built-in tier this build will contain
+        shell: bash
+        run: |
+          if [ -n "${ZIQPU_PROXY_URL:-}" ] && [ -n "${ZIQPU_PROXY_TOKEN:-}" ]; then
+            echo "::notice title=Built-in tier::CONFIGURED — this build ships the built-in free Live tier."
+          else
+            echo "::warning title=Built-in tier::ABSENT — ZIQPU_PROXY_URL/ZIQPU_PROXY_TOKEN are not set, so this build has NO built-in free tier. A seeker with no key of their own gets the offline template (Raw) or a local model. Do not advertise the tier in the release notes for this build."
+          fi
 
       - name: Linux WebKitGTK/GTK system deps (Dioxus desktop)
         if: runner.os == 'Linux'
@@ -104,7 +123,10 @@ jobs:
 
       # ---- macOS: assemble an unsigned Ziqpu.app and pack it into a UDZO .dmg ----
       # Unsigned: first launch needs a right-click -> Open (or `xattr -dr com.apple.quarantine`)
-      # to get past Gatekeeper. Documented in the release notes.
+      # to get past Gatekeeper — and macos-latest is arm64, so this artifact is Apple Silicon only.
+      # Both facts are stated in .github/INSTALL_NOTES.md, which is published as the release body.
+      # (This comment used to claim they were "documented in the release notes" while the workflow
+      # published `--generate-notes` alone: a bare compare link. The claim is now true.)
       - name: Package macOS .dmg
         if: runner.os == 'macOS'
         run: |
@@ -113,9 +135,14 @@ jobs:
           VERSION="${TAG#v}"          # strip a leading "v": v1.1.0 -> 1.1.0
           APP="Ziqpu.app"
           rm -rf "$APP"
-          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
           cp target/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
           chmod +x "$APP/Contents/MacOS/ziqpu-ui"
+          # Licences travel INSIDE the bundle — PolyForm Noncommercial plus the embedded OFL fonts
+          # and permissive crates carry obligations that only bind if they ship with the binary.
+          # Contents/Resources is the conventional home and survives drag-installing the .app.
+          cp LICENSE NOTICE "$APP/Contents/Resources/"
+          cp -R LICENSES "$APP/Contents/Resources/"
           cat > "$APP/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -145,22 +172,40 @@ jobs:
           hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos.dmg"
           echo "built Ziqpu-${TAG}-macos.dmg (unsigned)"
 
-      # ---- Windows: zip the .exe ----
+      # ---- Windows: zip the .exe + the licences + a readable first-run note ----
+      # The zip used to be the bare .exe. Ziqpu is PolyForm Noncommercial and embeds OFL fonts and
+      # permissive Rust crates; NOTICE and LICENSES/ carry obligations that only bind if they
+      # travel WITH the binary. Shipping them in the repo and not in the artifact satisfies nobody.
+      # README.txt is here because a stranger who unzips this and gets nothing on double-click needs
+      # the WebView2 answer in the folder, not on a web page they have no reason to visit.
       - name: Package Windows .zip
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $tag = $env:RELEASE_TAG
-          Compress-Archive -Path target/release/ziqpu-ui.exe -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
-          Write-Host "built Ziqpu-$tag-windows-x64.zip"
+          $stage = "pkg/Ziqpu"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item target/release/ziqpu-ui.exe $stage
+          Copy-Item LICENSE, NOTICE $stage
+          Copy-Item -Recurse LICENSES $stage
+          Copy-Item .github/INSTALL_NOTES.md "$stage/README.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
+          Write-Host "built Ziqpu-$tag-windows-x64.zip (exe + LICENSE + NOTICE + LICENSES/ + README.txt)"
 
-      # ---- Linux: tar.gz the binary ----
+      # ---- Linux: tar.gz the binary + the licences + the first-run note ----
       - name: Package Linux .tar.gz
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           TAG="${RELEASE_TAG}"
-          tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C target/release ziqpu-ui
+          STAGE="pkg/Ziqpu"
+          mkdir -p "$STAGE"
+          cp target/release/ziqpu-ui "$STAGE/"
+          cp LICENSE NOTICE "$STAGE/"
+          cp -r LICENSES "$STAGE/"
+          cp .github/INSTALL_NOTES.md "$STAGE/README.txt"
+          tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C pkg Ziqpu
+          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (binary + LICENSE + NOTICE + LICENSES/ + README.txt)"
           echo "built Ziqpu-${TAG}-linux-x64.tar.gz"
 
       # ---- attach the packaged artifact to the Release for the tag ----
@@ -186,7 +231,13 @@ jobs:
               PRE="--prerelease --latest=false"
               TITLE="Ziqpu Nightfall $TAG"
             fi
-            gh release create "$TAG" --title "$TITLE" --generate-notes $PRE || true
+            # Install notes FIRST, auto-generated commit list after. `--generate-notes` alone
+            # publishes a bare compare link — which is what v1.4.0 shipped with, while a comment in
+            # this very file claimed the Gatekeeper workaround was "documented in the release
+            # notes". It was not, and a first-launch prerequisite nobody can find is a broken
+            # download. `--notes-file` + `--generate-notes` composes: our text, then the log.
+            gh release create "$TAG" --title "$TITLE" \
+              --notes-file .github/INSTALL_NOTES.md --generate-notes $PRE || true
           else
             echo "release $TAG already exists; attaching asset"
           fi
