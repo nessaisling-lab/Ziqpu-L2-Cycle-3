@@ -479,6 +479,52 @@ mod tests {
         }
     }
 
+    /// **Eval Card, Case 2 — the quiet chart degrades honestly.**
+    ///
+    /// The card cited `aspects_block_handles_empty_and_full` for this, which checks the *prompt
+    /// block we hand the model* — not the reading. So the behaviour the card actually describes
+    /// ("the two charts barely touch … no invented aspects") had no coverage at all. This is it.
+    ///
+    /// The property is the product's spine: with nothing to say, the honest move is to say that
+    /// plainly. Inventing a thread here would be the exact failure Ziqpu exists to refuse.
+    #[test]
+    fn a_quiet_chart_says_so_and_invents_nothing() {
+        let interp = TemplateInterpreter;
+        // No contacts at all — the "quiet" chart, and the date-unknown choice's shape too.
+        let quiet = Measures {
+            choice: "KO".into(),
+            aspects: vec![],
+            score: 50,
+            top: vec![],
+            theme: None,
+            patterns: vec![],
+            confidence: Confidence::Low,
+        };
+        let read = interp.fit_read(&quiet, Fit::Mixed, "Coca-Cola");
+
+        assert!(
+            read.contains("barely touch"),
+            "a quiet chart must say it is quiet: {read}"
+        );
+        assert!(
+            read.contains("its own kind of answer"),
+            "the quiet degrade must still read as an answer, not an error: {read}"
+        );
+        // The heart of it: nothing invented. No aspect may be named when none were measured — and
+        // the no-jargon rule means these never appear in a reading regardless.
+        for invented in ["trine", "square", "opposition", "conjunction", "sextile"] {
+            assert!(
+                !read.to_lowercase().contains(invented),
+                "a chart with zero contacts produced the aspect {invented:?}: {read}"
+            );
+        }
+        // Degrading is not an excuse to drop the guardrail.
+        assert!(
+            read.to_lowercase().contains("not financial advice"),
+            "the quiet read dropped the guardrail: {read}"
+        );
+    }
+
     #[test]
     fn report_and_verdict_carry_guardrail_and_confidence() {
         let interp = TemplateInterpreter;
