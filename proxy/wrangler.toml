@@ -20,4 +20,4 @@ MONTHLY_TOKEN_BUDGET = "2000000"    # soft monthly token spend cap; refuse once 
 #   wrangler kv namespace create ZIQPU_RL
 [[kv_namespaces]]
 binding = "ZIQPU_RL"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "69b9b9d40f3448479b9be0eeebdc5e60"
