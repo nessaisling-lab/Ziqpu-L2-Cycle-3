@@ -45,7 +45,11 @@ impl GroundedSource for MockGroundedSource {
 /// Keep it a real, monitored address. A plausible-looking dead mailbox is worse than none: it
 /// satisfies the format while quietly breaking the policy's actual purpose, and SEC can block the
 /// User-Agent for the whole fleet at once.
-const DEFAULT_EDGAR_UA: &str = "Ziqpu research (nisaba.ziqpu@gmail.com)";
+///
+/// It is also **public** — in a public repo, in every shipped binary, on every request — so expect
+/// it to be scraped. That's the trade SEC's policy asks for; it's a reason to use a mailbox that
+/// can absorb spam, not a reason to omit the contact.
+const DEFAULT_EDGAR_UA: &str = "Ziqpu research (ness.aisling@nisabacapitalcharting.com)";
 
 /// Real, keyless SEC EDGAR submissions pull. Live only. SEC policy requires a contact
 /// User-Agent — see [`DEFAULT_EDGAR_UA`].
@@ -258,26 +262,34 @@ mod tests {
         assert!(fixture_filings("ZZZZ").is_none());
     }
 
-    /// No maintainer's personal or institutional address may ship in the User-Agent.
+    /// The shipped contact must be a mailbox **the project owns**.
     ///
-    /// This string rides every SEC request every installed copy ever makes, so a personal address
-    /// here quietly attributes strangers' traffic to a named individual — and breaks when that
-    /// person moves on. The addresses below are the ones actually reachable from this project's
-    /// history, which is exactly why they're the ones worth naming: `aisling.ld@pursuit.org` was
-    /// hardcoded here and shipped.
+    /// This string rides every SEC request every installed copy ever makes, so the harm in
+    /// `aisling.ld@pursuit.org` — the address that was hardcoded here and shipped — was never that
+    /// it named a person. It was that it named a *third party*: the fellowship's domain, made the
+    /// point of contact for strangers' traffic without Pursuit ever agreeing to it, and dead the
+    /// moment that affiliation ends. A personal-looking local part on the project's own domain has
+    /// neither problem, which is why this checks the domain rather than banning names.
+    ///
+    /// Forks and partner deployments identify as themselves via `ZIQPU_EDGAR_UA` (tested below);
+    /// this guard only constrains what *we* ship as the default.
     #[test]
-    fn the_contact_address_is_a_role_not_a_person() {
-        for personal in ["pursuit.org", "aisling"] {
-            assert!(
-                !DEFAULT_EDGAR_UA.to_ascii_lowercase().contains(personal),
-                "DEFAULT_EDGAR_UA ships a personal address ({personal}): {DEFAULT_EDGAR_UA}. \
-                 Every user's SEC traffic carries this — use a role mailbox."
-            );
-        }
+    fn the_contact_address_belongs_to_the_project() {
+        let ua = DEFAULT_EDGAR_UA.to_ascii_lowercase();
         // SEC's policy is about reachability, so the format has to actually be a contact.
         assert!(
-            DEFAULT_EDGAR_UA.contains('@'),
+            ua.contains('@'),
             "SEC requires a contact in the User-Agent: {DEFAULT_EDGAR_UA}"
+        );
+        assert!(
+            ua.contains("@nisabacapitalcharting.com"),
+            "DEFAULT_EDGAR_UA must be a mailbox this project owns, not a third party's \
+             (school, employer, a maintainer's private account): {DEFAULT_EDGAR_UA}"
+        );
+        // The specific leak, named so it cannot quietly return.
+        assert!(
+            !ua.contains("pursuit.org"),
+            "DEFAULT_EDGAR_UA is back to the fellowship's domain: {DEFAULT_EDGAR_UA}"
         );
     }
 
