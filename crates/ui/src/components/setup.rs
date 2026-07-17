@@ -263,11 +263,28 @@ fn MarketPanel() -> Element {
                                     }
                                 };
                             }
+                            // Which birth moment this row charts — "listing" (day it went public,
+                            // at the opening bell) or "founding" (the company began; no bell, so no
+                            // angles). Saying which one is the honest half of "measured, not fate":
+                            // the seeker knows whether they're reading a market debut or an origin.
+                            let (moment_word, moment_help) = match row.moment {
+                                Some(tickers::Moment::Listing) => (
+                                    "listing",
+                                    "Charted on the day it went public — at the opening bell.",
+                                ),
+                                Some(tickers::Moment::Founding) => (
+                                    "founding",
+                                    "Charted on the day the company was founded (no listing date on \
+                                     record). No opening bell, so the reading omits the houses.",
+                                ),
+                                None => ("", ""),
+                            };
                             rsx! {
                                 button {
                                     key: "{row.ticker}",
                                     class: "ticker-result",
                                     r#type: "button",
+                                    title: "{moment_help}",
                                     onclick: move |_| {
                                         let u = *universe.read();
                                         // Resolve to a datable Choice and add it once (dedupe by the
@@ -292,6 +309,13 @@ fn MarketPanel() -> Element {
                                     },
                                     span { class: "sym", "{row.ticker}" }
                                     span { class: "co", "{row.name}" }
+                                    span {
+                                        class: match row.moment {
+                                            Some(tickers::Moment::Listing) => "moment moment--listing",
+                                            _ => "moment moment--founding",
+                                        },
+                                        "{moment_word}"
+                                    }
                                     span { class: "univ", "{current_universe.label()}" }
                                 }
                             }

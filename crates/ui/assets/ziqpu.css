@@ -755,10 +755,20 @@ td.b{color:var(--ink)}
 .ticker-result{display:flex;align-items:baseline;gap:10px}
 .ticker-result .sym{font:600 12px/1 var(--f-mono);color:var(--gold-deep);letter-spacing:.05em;min-width:56px}
 .ticker-result .co{color:var(--ink-soft);font-size:14.5px}
+/* Which birth this row charts — quiet, so ticker + name still lead. A LISTING (real market debut,
+   at the opening bell) reads as a solid chip; a FOUNDING (no listing on record → no bell → no
+   houses) wears a dashed border, the same "honest partial" language as an unknown time elsewhere. */
+.ticker-result .moment{
+  font:600 9px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 6px;border-radius:999px;white-space:nowrap;
+}
+.ticker-result .moment--listing{color:var(--lapis);background:color-mix(in srgb,var(--lapis) 8%,transparent);border:1px solid color-mix(in srgb,var(--lapis) 30%,transparent)}
+.ticker-result .moment--founding{color:var(--ink-faint);background:transparent;border:1px dashed var(--line)}
 .ticker-empty{font:500 12.5px/1.6 var(--f-mono);color:var(--ink-faint);padding:2px}
-/* A real entity we have no birth moment for: 764 of 5,271 have no listing date in Polygon and no
-   SEC Form 8-A on record. Listed, not hidden — someone who searched for it deserves to learn that
-   we don't know, rather than wonder if they misspelled it. Recedes and doesn't respond to the
+/* A real entity we hold no day-precise moment for: 3,418 of 7,671 have no SEC listing date and no
+   day-precise Wikidata founding (or a founding CONFLICT, like Coca-Cola). Listed, not hidden —
+   someone who searched for it deserves to learn that we don't know, rather than wonder if they
+   misspelled it. Recedes and doesn't respond to the
    cursor, because the only way to chart it would be to invent the date. */
 .ticker-result--unchartable{cursor:not-allowed}
 .ticker-result--unchartable .sym,.ticker-result--unchartable .co{color:var(--ink-faint)}
