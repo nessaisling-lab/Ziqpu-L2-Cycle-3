@@ -25,7 +25,20 @@ cargo test -p agents
 
 ## Case 1 — Golden Example (standard)
 
-- **Input:** the demo seeker (1990-05-15, 14:30, NYC) + 5 seeded choices (AAPL, MSFT, TSLA, KO, JNJ).
+- **Input:** the demo seeker (1990-05-15, 14:30, NYC) + 5 seeded choices, each a **real, hand-verified
+  US IPO date** (full provenance table in the doc comment on `demo_choices` in `crates/agents/src/lib.rs`):
+
+  | Ticker | Listing (IPO) | Exchange | Time | Note |
+  |--------|---------------|----------|------|------|
+  | AAPL | 1980-12-12 | NASDAQ | 09:30 ET | well-documented IPO |
+  | MSFT | 1986-03-13 | NASDAQ | 09:30 ET | well-documented IPO |
+  | TSLA | 2010-06-29 | NASDAQ | 09:30 ET | cross-confirmed by our own SEC 424B4 re-derivation |
+  | KO | 1919-09-05 | NYSE | — | no reliable 1919 intraday time → charts without angles |
+  | JNJ | 1944-09-24 | NYSE | — | no reliable 1944 intraday time → charts without angles |
+
+  These are hardcoded (never read from the ticker CSV), so the demo is a hand-verified tier more
+  precise than the automated pipeline can be for pre-1994 listings — and stable across data
+  regenerations.
 - **Expected:** five fit reads ranked best-fit first, each with a band — **Strongly Aligned ≥75 ·
   Aligned 60–74 · Mixed 40–59 · Misaligned <40** — plus a score /100 and a plain-language *“why”*,
   each closing on `REMINDER: measured, not fate — not financial advice.` Tool order recorded as
