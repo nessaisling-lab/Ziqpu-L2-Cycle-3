@@ -5,23 +5,52 @@ All notable changes to Ziqpu are recorded here. Format follows
 **major.feature-phase.fix** (see [RELEASING.md](RELEASING.md)). Two tracks: `main` = stable
 (GitHub "Latest"), `nightfall` = build-ahead pre-releases (never "Latest").
 
-## [Unreleased] — built but not shipping (nightfall; not yet wired into a release)
+## [1.4.1] — 2026-07-17 · nightfall pre-release
 
-### Built-in free Live tier — code complete, **not configured in any published build**
-`proxy/` is a Cloudflare Worker that holds the real API key as a platform secret and forwards
-`/v1/messages`; the app authenticates with a low-value revocable token. The app side is done and
-tested (`AnthropicInterpreter::proxy_from_env`, the onboarding option, `built_in_available()`).
+**The distribution release.** Outside evaluators download this from the repo and run it on their
+own machines; every change here exists so that "runs on their machine as though it's mine" is true
+rather than hoped.
 
-It does **not** exist in any installer, and this entry is here rather than under a released version
-because of exactly that. `main.rs` bakes the URL + token via `option_env!` at **build** time;
-`release.yml` never passes them, so they resolve to `None`, `built_in_available()` is false, and the
-"free ✦" option never renders. `proxy/wrangler.toml` also still carries a placeholder KV namespace
-id — the Worker has never been deployed, so there is no endpoint to bake in even if the workflow
-passed the variables.
+### Windows — WebView2 installs itself
+The panic-dialog floor (1.4.0) told a stranger *why* the window never opened; now the common cause
+is fixed before it happens. `preflight::ensure_webview2` reads the registry the way Microsoft
+documents for deployment detection (the `pv` value under the Runtime client GUID — HKLM WOW6432Node,
+HKLM plain, and HKCU for per-user installs; missing/empty/`0.0.0.0` = absent) and, if absent, offers
+to download the official Evergreen Bootstrapper (~2 MB, in-process HTTPS) and run it
+`/silent /install` — a **per-user** install, no UAC, so a non-admin evaluator on a locked-down
+machine still reaches the window. Every prompt is a native MessageBox, because a progress *window*
+would itself need the webview being installed.
 
-It ships when the Worker is deployed and `release.yml` is given the two secrets — no sooner. Until
-then a seeker with no key of their own gets the offline template (Raw), or a local model if they
-install llama.cpp themselves.
+### macOS — one universal app
+`Ziqpu-<tag>-macos-universal.dmg` now carries both architectures (`lipo` arm64 + x86_64) and runs
+natively on Apple Silicon **and** Intel Macs, macOS 11+. The "Apple Silicon only" warning is gone
+because it stopped being true.
+
+### Local models — the app installs its own runtime, and the choice is curated
+- **`ensure_runtime`** (model crate + `ziqpu-model runtime`): fetches the backend-correct
+  llama.cpp build for this OS/arch/GPU from the official releases — NVIDIA → CUDA (12 vs 13 by card
+  generation, Blackwell needs 13, Pascal needs 12) plus the version-matched cudart DLLs laid beside
+  the exe; AMD/Intel → Vulkan (deliberately not HIP/SYCL: baked gfx lists and oneAPI system deps
+  are remote hard-fails); Apple → Metal; no GPU → CPU, never Vulkan. One-time, per-user, no admin.
+  `serve` (CLI and UI) self-installs instead of dead-ending on "install llama.cpp first".
+- **The curated flow** (owner spec #25): benchmark before anything; below the floor = **wild
+  wheat** (bent, muted, unharvestable) and *nothing installs*; above it the machine wears its tier
+  as a card-sized wheat emblem (seed → red → green → gold). The model dropdown offers exactly
+  **#1 Stable** (tier-correct) and **#2 Max** (the biggest model the machine can hold — bigger
+  answers, slower tokens), and never a model the machine can't run.
+
+### Built-in free Live tier — **now configured and shipping**
+The 1.4.0 changelog recorded, honestly, that the proxy tier existed in code and in no artifact.
+Both halves are now real: the Worker is deployed (KV namespace id committed in
+`proxy/wrangler.toml`), and `release.yml` passes `ZIQPU_PROXY_URL`/`ZIQPU_PROXY_TOKEN` from repo
+secrets into the build — with a loud per-build notice stating whether the tier is present, so its
+absence can never again be silent. The binary carries only the proxy URL and a revocable,
+rate-limited token; the real API key lives solely on the Worker.
+
+### Docs
+`INSTALL_NOTES.md` (published as every release body) rewritten to match: WebView2 auto-install,
+the universal .dmg, the three no-setup roads (built-in free tier / own key / self-installing local
+model), and a Known-limitations list that now contains only things that are actually still true.
 
 ## [Unreleased] — design + research (nightfall; not yet wired into the app)
 

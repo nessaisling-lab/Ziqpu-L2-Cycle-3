@@ -19,11 +19,12 @@ your machine.
 
 Unzip anywhere and run `ziqpu-ui.exe`.
 
-- **Needs the Microsoft Edge WebView2 Runtime.** Windows 11 has it built in, and so do the vast
-  majority of Windows 10 machines. It can be missing on a clean Windows 10 install, on Windows
-  Server, or on LTSC editions. If the app does nothing at all when you double-click it, this is why:
-  install the **Evergreen Bootstrapper** from
-  <https://developer.microsoft.com/microsoft-edge/webview2/> and try again.
+- **Needs the Microsoft Edge WebView2 Runtime — and Ziqpu handles this itself.** Windows 11 has it
+  built in, and so do the vast majority of Windows 10 machines (it can be missing on a clean
+  Windows 10 install, Windows Server, or LTSC editions). If it's missing, Ziqpu offers at startup
+  to download Microsoft's official installer (~2 MB) and set it up — per-user, no administrator
+  rights, about a minute. Prefer to do it yourself? Install from
+  <https://developer.microsoft.com/microsoft-edge/webview2/> and start Ziqpu again.
 - **SmartScreen** will warn ("Windows protected your PC") because the executable is not
   code-signed. *More info → Run anyway.*
 
@@ -53,15 +54,21 @@ Ziqpu runs **offline, out of the box** — the chart math and the company data a
 binary. With no API key and no local model you get **Raw**: real charts, real synastry, deterministic
 readings written from templates.
 
-To get written readings from a model you can either paste your own API key (Anthropic or OpenRouter
-— stored in your OS keychain, never in a file, never shown back to you) or run a model locally.
+For written readings from a model, three roads:
+
+- **Built-in free tier** — this build ships one. Pick "Use Ziqpu built-in (free)" and readings run
+  through Ziqpu's own key proxy: no key of yours, no account. It is rate-limited and can be paused;
+  when it's over its budget the app says so honestly instead of failing quietly.
+- **Your own key** (Anthropic or OpenRouter) — stored in your OS keychain, never in a file, never
+  shown back to you.
+- **A local model** — Ziqpu benchmarks your machine, installs the right llama.cpp build for your
+  GPU **automatically** (one-time, per-user, no admin rights), and offers only models your machine
+  can actually run. Below the minimum floor it tells you plainly and installs nothing.
 
 ## Known limitations in this build
 
-- **No built-in free tier.** The key-proxy tier is written and tested but is not configured in
-  published builds, so it does not appear. Bring your own key, or use a local model.
-- **Local models need llama.cpp installed yourself.** Ziqpu can benchmark your machine and
-  recommend a model, but it does not yet install the runtime for you.
+- **Unsigned binaries.** SmartScreen (Windows) and Gatekeeper (macOS) warn on first launch — the
+  workarounds above are the whole fix; nothing is wrong with the download.
 - Reading data comes from **SEC EDGAR filings and Wikipedia**, only after you approve it at the
   checkpoint.
 

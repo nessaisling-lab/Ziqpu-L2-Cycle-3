@@ -108,8 +108,10 @@ The brand crystallized this session (art-direction research workflow). Product/d
 6. **Onboarding + hover tooltips** — explain color codes / badges on first run and on hover-`?`.
 7. **Accessibility: build the UI to WCAG 2.0/2.1 Level A ("2A").**
 8. Minor: investigate a choice that produced no reading ("didn't read Home Depot").
-9. **`ensure_runtime`** (cross-machine distribution: partner's Mac = Metal, office laptop = Vulkan/CPU)
-   — the big one for the Saturday demo; partners have no llama.cpp installed.
+9. ✅ **DONE (v1.4.1).** **`ensure_runtime`** — the app installs the backend-correct llama.cpp
+   itself (NVIDIA→CUDA 12/13 by card generation + cudart, AMD/Intel→Vulkan, Apple→Metal, none→CPU);
+   the UI's serve self-installs, and the curated Stable/Max dropdown + wheat tier emblem landed
+   with it.
 
 ## Build / test / release
 
