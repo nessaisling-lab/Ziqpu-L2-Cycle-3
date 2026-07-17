@@ -30,8 +30,9 @@ use agents::{BirthMoment, Choice};
 use chrono::{NaiveDate, NaiveTime};
 use chrono_tz::Tz;
 
-/// The committed stock table (a copy of the repo-root `company_metadata.csv`). Header:
-/// `ticker,company_name,ipo_date,ipo_time,exchange,latitude,longitude,founding_date,data_source,notes`.
+/// The committed stock table, re-derived from CC0 + public-domain sources by
+/// `scripts/build-tickers-csv.py`. Header: `ticker,name,exchange,cik,conception_date,
+/// conception_prec,conception_src,birth_date,birth_prec,birth_src,note`.
 static CSV: &str = include_str!("../data/company_metadata.csv");
 
 /// The committed airline table (a copy of `datasets/aviation/entities.csv`). Header:
@@ -120,12 +121,13 @@ const NEUTRAL_US_MARKET: (f64, f64) = (40.7128, -74.0060);
 pub struct TickerRow {
     pub ticker: String,
     pub name: String,
-    /// Whether this entity has a **real** birth date, and can therefore be read.
+    /// Whether we hold a **day-precise** moment for this entity, and can therefore chart it.
     ///
-    /// `false` for the 764 rows with no listing date in Polygon and no Form 8-A on record. They are
-    /// still returned from a search on purpose — a seeker who types "Allied Gold" should be told we
-    /// don't know its birth moment, not silently handed nothing and left to wonder whether they
-    /// misspelled it. Absence of data is data; hiding it is its own small lie.
+    /// `false` for the 3,418 rows (of 7,671) with no SEC listing date and no day-precise Wikidata
+    /// founding — or a founding *conflict*, like Coca-Cola. They are still returned from a search on
+    /// purpose — a seeker who types "Coca-Cola" should be told we don't know its birth moment, not
+    /// silently handed nothing and left to wonder whether they misspelled it. Absence of data is
+    /// data; hiding it is its own small lie.
     ///
     /// [`choice_in`] returns `None` for these, so an unchartable row can never become a reading.
     pub chartable: bool,
@@ -615,7 +617,10 @@ fn parse_industry(csv: &str) -> Vec<Entity> {
                 .trim()
                 .parse::<Tz>()
                 .unwrap_or(chrono_tz::America::New_York);
-            let (lat, lon) = match (parse_coord(f[6].trim(), 90.0), parse_coord(f[7].trim(), 180.0)) {
+            let (lat, lon) = match (
+                parse_coord(f[6].trim(), 90.0),
+                parse_coord(f[7].trim(), 180.0),
+            ) {
                 (Some(la), Some(lo)) => (la, lo),
                 _ => NEUTRAL_US_MARKET,
             };
@@ -713,7 +718,11 @@ mod tests {
         let c = choice("TSLA").expect("TSLA has a listing date and resolves");
         assert_eq!(c.ticker, "TSLA");
         assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(2010, 6, 29).unwrap());
-        assert_eq!(c.birth.time, Some(MARKET_OPEN), "a listing carries the bell");
+        assert_eq!(
+            c.birth.time,
+            Some(MARKET_OPEN),
+            "a listing carries the bell"
+        );
         assert_eq!(c.birth.tz, chrono_tz::America::New_York);
         assert!(c.cik.is_none() && c.wiki.is_none());
     }
@@ -816,10 +825,15 @@ mod tests {
             let flag = r.chart_date.is_some();
             let resolves = choice(&r.ticker).is_some();
             assert_eq!(
-                flag, resolves,
+                flag,
+                resolves,
                 "{}: chartable={flag} but choice() {} — search and the resolver disagree",
                 r.ticker,
-                if resolves { "resolved" } else { "returned None" }
+                if resolves {
+                    "resolved"
+                } else {
+                    "returned None"
+                }
             );
             if flag {
                 chartable += 1
@@ -839,7 +853,10 @@ mod tests {
         assert_eq!(c.birth.time, None);
         assert_eq!((c.birth.lat, c.birth.lon), NASDAQ_COORDS);
         // Search reports which moment it is.
-        let hit = search("AAPL").into_iter().find(|r| r.ticker == "AAPL").unwrap();
+        let hit = search("AAPL")
+            .into_iter()
+            .find(|r| r.ticker == "AAPL")
+            .unwrap();
         assert_eq!(hit.moment, Some(Moment::Founding));
     }
 
@@ -1026,7 +1043,10 @@ mod tests {
         );
         assert_eq!(via_universe.birth.time, None);
         assert_eq!(via_universe.birth.tz, chrono_tz::America::New_York);
-        assert_eq!((via_universe.birth.lat, via_universe.birth.lon), NASDAQ_COORDS);
+        assert_eq!(
+            (via_universe.birth.lat, via_universe.birth.lon),
+            NASDAQ_COORDS
+        );
         assert_eq!(search("aapl"), search_in(Universe::Stocks, "aapl"));
     }
 }
