@@ -756,6 +756,17 @@ td.b{color:var(--ink)}
 .ticker-result .sym{font:600 12px/1 var(--f-mono);color:var(--gold-deep);letter-spacing:.05em;min-width:56px}
 .ticker-result .co{color:var(--ink-soft);font-size:14.5px}
 .ticker-empty{font:500 12.5px/1.6 var(--f-mono);color:var(--ink-faint);padding:2px}
+/* A real entity we have no birth moment for: 764 of 5,271 have no listing date in Polygon and no
+   SEC Form 8-A on record. Listed, not hidden — someone who searched for it deserves to learn that
+   we don't know, rather than wonder if they misspelled it. Recedes and doesn't respond to the
+   cursor, because the only way to chart it would be to invent the date. */
+.ticker-result--unchartable{cursor:not-allowed}
+.ticker-result--unchartable .sym,.ticker-result--unchartable .co{color:var(--ink-faint)}
+.ticker-result--unchartable:hover{background:transparent}
+.univ--none{
+  color:var(--ink-faint);background:transparent;border-style:dashed;
+  border-color:var(--line);
+}
 .basket{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--parchment);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
 .basket-label{font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep)}
 .basket-chips{display:flex;flex-wrap:wrap;gap:8px}

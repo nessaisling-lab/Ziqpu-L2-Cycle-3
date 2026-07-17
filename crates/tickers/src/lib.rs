@@ -7,9 +7,11 @@
 //! and parsed **once, lazily** into its own in-memory index — **no network, no build-time codegen,
 //! no filesystem at runtime.**
 //!
-//! - **Stocks** (`company_metadata.csv`, ≈5.3k US-listed symbols): every symbol is dated by its IPO
-//!   on a US exchange, so a choice's birth moment is `ipo_date @ 09:30 America/New_York` at the
-//!   exchange's coordinates (both already in the CSV).
+//! - **Stocks** (`company_metadata.csv`, ≈5.3k US-listed symbols): a dated symbol's birth moment is
+//!   `ipo_date @ 09:30 America/New_York` at the exchange's coordinates (both already in the CSV).
+//!   **4,507 are dated** (Polygon, plus the SEC Form 8-A backfill — regenerate with
+//!   `scripts/gen-tickers-csv.sh`); **764 are not**, and those are searchable but **unchartable**
+//!   ([`TickerRow::chartable`]) rather than charted on a date we made up.
 //! - **Airlines / Insurers** (`aviation.csv` / `insurance.csv`): each entity is dated by its
 //!   founding `birth_date`, at the time in `birth_time` **if present, else left unknown** (industry
 //!   birth times are usually blank — honest time-unknown, never invented), with `tz` + `latitude` +
@@ -90,12 +92,19 @@ const MARKET_OPEN: NaiveTime = match NaiveTime::from_hms_opt(9, 30, 0) {
     None => unreachable!(),
 };
 
-/// Neutral listing date used when a row has neither a parseable `ipo_date` nor `founding_date`, so
-/// every symbol in the table is still datable (and thus addable) rather than silently dropped.
-const DEFAULT_LISTING_DATE: NaiveDate = match NaiveDate::from_ymd_opt(2000, 1, 1) {
-    Some(d) => d,
-    None => unreachable!(),
-};
+// There used to be a `DEFAULT_LISTING_DATE` here — 2000-01-01, handed to any row with no date at
+// all "so every symbol is still datable (and thus addable) rather than silently dropped". It was
+// added to fix a UI bug where undated symbols didn't hold when picked: a UX problem solved by
+// inventing data.
+//
+// It applied to 2,917 of 5,271 rows (the SEC 8-A harvest cut that to 764), and each one produced a
+// full synastry reading — a score, a band, a "why" — computed from a date that never happened and
+// closed with "measured, not fate". That is fiction presented as measurement, which is the one thing
+// this product exists to refuse; `UNGASAGA_SYSTEM` forbids inventing a measure in words while the
+// data layer did it upstream, and the Postgres seed the data came from was more honest than we were
+// (db/README: implausible dates are NULLed "so not fabricated into a bogus chart").
+//
+// Undated rows are now unchartable and say so. See [`TickerRow::chartable`] and [`choice_in`].
 
 /// Trading-floor coordinates used to backfill a row whose `latitude`/`longitude` are missing or out
 /// of range, keyed by exchange; `NEUTRAL_US_MARKET` (lower Manhattan) covers anything else.
@@ -103,12 +112,20 @@ const NYSE_COORDS: (f64, f64) = (40.707, -74.011);
 const NASDAQ_COORDS: (f64, f64) = (40.757, -73.986);
 const NEUTRAL_US_MARKET: (f64, f64) = (40.7128, -74.0060);
 
-/// A search hit: the symbol and the company's display name. Just enough to render a result row and
-/// to feed [`choice`] when the seeker picks it.
+/// A search hit: the symbol, the company's display name, and whether we can actually chart it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TickerRow {
     pub ticker: String,
     pub name: String,
+    /// Whether this entity has a **real** birth date, and can therefore be read.
+    ///
+    /// `false` for the 764 rows with no listing date in Polygon and no Form 8-A on record. They are
+    /// still returned from a search on purpose — a seeker who types "Allied Gold" should be told we
+    /// don't know its birth moment, not silently handed nothing and left to wonder whether they
+    /// misspelled it. Absence of data is data; hiding it is its own small lie.
+    ///
+    /// [`choice_in`] returns `None` for these, so an unchartable row can never become a reading.
+    pub chartable: bool,
 }
 
 /// One parsed row from any universe, normalized into a common shape: the display fields, their
@@ -182,8 +199,18 @@ pub fn search_in(u: Universe, query: &str) -> Vec<TickerRow> {
         .map(|(_, r)| TickerRow {
             ticker: r.ticker.clone(),
             name: r.name.clone(),
+            chartable: birth_date_of(r).is_some(),
         })
         .collect()
+}
+
+/// The entity's **real** birth date, or `None` when we simply don't have one.
+///
+/// The single place the question is asked, so search and [`choice_in`] can never disagree about
+/// what is chartable — a row shown as pickable that then refuses to be picked is worse than either
+/// answer alone.
+fn birth_date_of(r: &Entity) -> Option<NaiveDate> {
+    parse_date(&r.date).or_else(|| parse_date(&r.alt_date))
 }
 
 /// Search the stock market — [`search_in`] over [`Universe::Stocks`]. Kept for existing callers.
@@ -301,6 +328,7 @@ pub fn find_in_text(text: &str) -> Option<TickerRow> {
     Some(TickerRow {
         ticker: chosen.ticker.clone(),
         name: chosen.name.clone(),
+        chartable: birth_date_of(chosen).is_some(),
     })
 }
 
@@ -399,23 +427,28 @@ fn phrase_contains(hay: &str, core: &str) -> bool {
 /// - **Airlines / Insurers**: the founding `birth_date`, at `birth_time` if present else `None`
 ///   (honest time-unknown), with `tz` + `latitude` + `longitude` straight from the CSV.
 ///
-/// **Every listed entity yields `Some`**, so the UI's `if let Some(choice) = …` can always add it.
-/// Missing or unparseable data degrades gracefully rather than dropping the row:
-/// - date: primary date, else the secondary (`founding_date` for Stocks), else
-///   [`DEFAULT_LISTING_DATE`] (2000-01-01);
-/// - time: the time column when parseable, else the universe's blank-time default
-///   ([`MARKET_OPEN`] for Stocks, `None` for industry);
-/// - coordinates: the CSV `latitude`/`longitude` when both are present and in range, else the
-///   universe's fallback (the exchange's trading floor for Stocks, a neutral point for industry).
+/// Returns `None` when the id isn't in that universe's table, **or when we have no real birth date
+/// for it** — 764 rows have neither a Polygon listing date nor a Form 8-A on record, and a chart
+/// cannot be computed from a date we don't have. Those rows are still *searchable*; they are marked
+/// unchartable ([`TickerRow::chartable`]) rather than hidden, so the seeker learns we don't know
+/// instead of quietly getting a reading built on an invented moment.
+///
+/// Everything softer than the date still degrades gracefully, because these are honest partials
+/// rather than inventions:
+/// - time: the time column when parseable, else the universe's blank-time default ([`MARKET_OPEN`]
+///   for Stocks — the real moment trading opens; `None` for industry, which charts without angles
+///   and is flagged);
+/// - coordinates: the CSV `latitude`/`longitude` when present and in range, else the universe's
+///   fallback (the exchange's trading floor for Stocks — where the listing actually happened; a
+///   neutral point for industry).
 ///
 /// `cik`/`wiki` are `None` (these universes carry no curated grounding handles; the seeded demo's
-/// five stocks do). Returns `None` only for an id not present in that universe's table.
+/// five stocks do).
 pub fn choice_in(u: Universe, id: &str) -> Option<Choice> {
     let key = id.trim().to_lowercase();
     let r = entities(u).iter().find(|r| r.ticker_lc == key)?;
-    let date = parse_date(&r.date)
-        .or_else(|| parse_date(&r.alt_date))
-        .unwrap_or(DEFAULT_LISTING_DATE);
+    // No date, no chart. The one thing we will not do is make one up.
+    let date = birth_date_of(r)?;
     let time = parse_time(&r.time).or(r.blank_time);
     let (lat, lon) = match (r.lat, r.lon) {
         (Some(lat), Some(lon)) => (lat, lon),
@@ -680,61 +713,105 @@ mod tests {
     /// silently loses the enrichment fails loudly instead of quietly halving the product.
     #[test]
     fn the_sec_8a_enrichment_is_in_the_shipped_dataset() {
-        let c = choice("MU").expect("MU must resolve");
-        assert_eq!(c.ticker, "MU");
-        assert_ne!(
-            c.birth.date, DEFAULT_LISTING_DATE,
-            "MU fell back to the fabricated date — the sec-8a enrichment is missing from the CSV. \
-             Run scripts/gen-tickers-csv.sh."
+        // MU had no Polygon listing date; without route-3 it would now be unchartable, so a `Some`
+        // here IS the enrichment. (Before the harvest it "resolved" only because an invented
+        // 2000-01-01 made every row resolve — the old test could not tell the two apart.)
+        let c = choice("MU").expect(
+            "MU has no Polygon date, so this can only pass via the sec-8a enrichment — if it fails, \
+             the CSV lost route-3. Run scripts/gen-tickers-csv.sh.",
         );
+        assert_eq!(c.ticker, "MU");
         assert_eq!(c.birth.time, Some(MARKET_OPEN));
         assert_eq!(c.birth.tz, chrono_tz::America::New_York);
     }
 
-    /// **Characterizes a known defect — it does not endorse one.** (Nathan's review, P2.)
+    /// **A row we have no birth date for is never charted, and never invented.** (Nathan's P2.)
     ///
-    /// 764 rows have no date at all: not in Polygon, and no Form 8-A on record. `choice_in` hands
-    /// them [`DEFAULT_LISTING_DATE`] — **2000-01-01, a date that never happened** — and the app then
-    /// computes a full synastry reading from it: a score, a band, a "why", closing on *"measured,
-    /// not fate"*. That reading is fiction presented as measurement, which is the one thing this
-    /// product exists to refuse. `UNGASAGA_SYSTEM` even forbids it in words ("never invent a measure
-    /// you were not given") while the data layer does it upstream.
+    /// This used to assert the opposite: 2,917 rows (764 after the SEC 8-A harvest) were handed a
+    /// `DEFAULT_LISTING_DATE` of 2000-01-01 and turned into full readings — a score, a band, a
+    /// "why", closing on *"measured, not fate"* — from a day that never happened. The constant was
+    /// added to fix a UI bug where undated symbols "didn't hold" when picked: a UX problem solved by
+    /// inventing data.
     ///
-    /// It was not malice: the constant was introduced to fix a UI bug where undated symbols "didn't
-    /// hold" when picked. A UX bug got fixed by inventing data.
-    ///
-    /// The harvest cut the blast radius from 2,917 rows to 764. The remaining fix is a product
-    /// decision the owner has to make — drop the undated from search, or list them marked as
-    /// unchartable (his stated preference elsewhere: *indicate, don't hide*) — so this test records
-    /// today's behaviour honestly rather than pretending it is correct.
+    /// Searchable, unpickable, honest about why. The seeker still finds it; they just find out we
+    /// don't know.
     #[test]
-    fn a_dateless_row_is_charted_on_a_fabricated_date_known_defect() {
-        // AAUC: Polygon has no listing date and there is no Form 8-A on record.
-        let c = choice("AAUC").expect("a blank ipo_date does not currently drop the symbol");
-        assert_eq!(c.ticker, "AAUC");
-        assert_eq!(
-            c.birth.date, DEFAULT_LISTING_DATE,
-            "the fabrication path changed — if undated rows are now handled honestly, delete this \
-             test and DEFAULT_LISTING_DATE with it"
-        );
+    fn a_row_with_no_birth_date_is_unchartable_not_invented() {
+        // AAUC: no listing date in Polygon, no Form 8-A on record.
         assert!(
-            c.birth.lat.abs() <= 90.0 && c.birth.lon.abs() <= 180.0,
-            "fallback coordinates must be in range, got {},{}",
-            c.birth.lat,
-            c.birth.lon
+            choice("AAUC").is_none(),
+            "an undated row must not resolve to a Choice — the only way to chart it is to make the \
+             date up, which is the one thing this product refuses"
         );
-    }
 
-    #[test]
-    fn every_symbol_in_the_table_is_addable() {
-        // The core robustness guarantee: choice() returns Some for every ticker that exists.
-        for r in rows() {
-            assert!(
-                choice(&r.ticker).is_some(),
-                "choice({}) returned None — symbol would silently fail to add",
-                r.ticker
+        // ...but it is still findable, and it says why it can't be read.
+        let hit = search("AAUC")
+            .into_iter()
+            .find(|r| r.ticker == "AAUC")
+            .expect("an undated row must still be searchable — hiding it is its own small lie");
+        assert!(
+            !hit.chartable,
+            "AAUC has no date, so it cannot be chartable"
+        );
+
+        // The flag and the resolver must agree, or the UI offers a row that then refuses to be
+        // picked — worse than either answer alone.
+        for row in search("a") {
+            assert_eq!(
+                row.chartable,
+                choice(&row.ticker).is_some(),
+                "{} says chartable={} but choice() disagrees",
+                row.ticker,
+                row.chartable
             );
         }
+    }
+
+    /// The dated majority still resolves — honesty about the gaps must not cost the 4,507.
+    #[test]
+    fn a_dated_row_still_charts() {
+        let c = choice("AAPL").expect("AAPL is dated and must resolve");
+        assert_eq!(c.ticker, "AAPL");
+        assert_eq!(c.birth.time, Some(MARKET_OPEN));
+        assert_eq!(c.birth.tz, chrono_tz::America::New_York);
+        assert!(search("AAPL").iter().all(|r| r.chartable));
+    }
+
+    /// Every symbol we **claim** we can chart, we can chart.
+    ///
+    /// This used to assert `choice()` is `Some` for *every* ticker — "the core robustness
+    /// guarantee". It was only ever true because an undated row was handed an invented 2000-01-01,
+    /// so the guarantee was purchased with fiction: totality over honesty. The real guarantee is
+    /// that the two answers agree — if a row says it's chartable it must resolve, and if it doesn't
+    /// it must not. That is what keeps the UI from ever offering a row that refuses to be picked.
+    #[test]
+    fn chartable_and_resolvable_never_disagree() {
+        let (mut dated, mut undated) = (0, 0);
+        for r in rows() {
+            let chartable = birth_date_of(r).is_some();
+            let resolves = choice(&r.ticker).is_some();
+            assert_eq!(
+                chartable,
+                resolves,
+                "{}: chartable={chartable} but choice() {} — the search list and the resolver \
+                 disagree, so the UI would offer a row it cannot add",
+                r.ticker,
+                if resolves {
+                    "resolved"
+                } else {
+                    "returned None"
+                }
+            );
+            if chartable {
+                dated += 1
+            } else {
+                undated += 1
+            }
+        }
+        // Pin the shape of the dataset: if a regenerated CSV silently loses the SEC 8-A enrichment,
+        // this collapses from 4,507 to ~2,354 and says so, instead of quietly halving the product.
+        assert_eq!(dated, 4_507, "chartable stock count drifted");
+        assert_eq!(undated, 764, "date-unknown stock count drifted");
     }
 
     #[test]
@@ -883,19 +960,41 @@ mod tests {
         );
     }
 
+    /// The same agreement rule across the industry universes — where the gap is proportionally
+    /// worse: 27 of 61 insurers ship a blank `birth_date`. Every one of them used to be charted on
+    /// an invented 2000-01-01, which for a company founded in 1922 is not a rounding error, it is a
+    /// different company.
     #[test]
-    fn every_industry_entity_is_addable() {
-        // The robustness guarantee extends to both industry universes.
+    fn industry_chartable_and_resolvable_never_disagree() {
         for u in [Universe::Airlines, Universe::Insurance] {
             for r in entities(u) {
-                assert!(
+                assert_eq!(
+                    birth_date_of(r).is_some(),
                     choice_in(u, &r.ticker).is_some(),
-                    "choice_in({:?}, {}) returned None",
+                    "{:?} {}: the search flag and the resolver disagree",
                     u,
                     r.ticker
                 );
             }
         }
+        // Airlines are fully dated; insurance has a real, known hole. Named so a future data drop
+        // that quietly widens it has to argue with a number.
+        let undated = |u| {
+            entities(u)
+                .iter()
+                .filter(|r| birth_date_of(r).is_none())
+                .count()
+        };
+        assert_eq!(
+            undated(Universe::Airlines),
+            0,
+            "airlines gained an undated row"
+        );
+        assert_eq!(
+            undated(Universe::Insurance),
+            27,
+            "insurance date coverage drifted"
+        );
     }
 
     #[test]
