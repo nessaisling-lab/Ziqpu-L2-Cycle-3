@@ -58,7 +58,8 @@ For written readings from a model, three roads:
 
 - **Built-in free tier** — this build ships one. Pick "Use Ziqpu built-in (free)" and readings run
   through Ziqpu's own key proxy: no key of yours, no account. It is rate-limited and can be paused;
-  when it's over its budget the app says so honestly instead of failing quietly.
+  when it can't answer, readings fall back to the offline template rung, and the badge on every
+  reading names the rung that actually wrote it.
 - **Your own key** (Anthropic or OpenRouter) — stored in your OS keychain, never in a file, never
   shown back to you.
 - **A local model** — Ziqpu benchmarks your machine, installs the right llama.cpp build for your

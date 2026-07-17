@@ -349,8 +349,8 @@ fn serve(force_local: bool, port: u16) {
     };
     // Fit the quant to this machine's memory budget (the largest-quality GGUF that fits, NOT the
     // static pick's quant — that hardcoded a quant a smaller card can't hold). Offline → static pick.
-    let (repo, quant, size_gb) = match model::plan_serve(&pick, &spec, gpu.as_ref()) {
-        Some(p) => (p.repo, p.quant, Some(p.size_gb)),
+    let (repo, quant, size_gb, fits_gpu) = match model::plan_serve(&pick, &spec, gpu.as_ref()) {
+        Some(p) => (p.repo, p.quant, Some(p.size_gb), p.fits_gpu),
         None => {
             let Some(cand) = model::resolve_current_repo(&pick) else {
                 eprintln!(
@@ -363,14 +363,18 @@ fn serve(force_local: bool, port: u16) {
                 );
                 std::process::exit(1);
             };
-            (cand.repo, pick.quant.to_string(), None)
+            (cand.repo, pick.quant.to_string(), None, true)
         }
     };
     // Which GPU will this binary actually use? Probe --list-devices and pin the discrete one, so we
     // never silently land on a hybrid laptop's integrated GPU (the whole OOM saga). No device line =
-    // CPU-only build/machine.
-    let devices = model::probe_devices(&bin);
-    let device = model::select_device(&devices);
+    // CPU-only build/machine. And NO pin when the fitted quant is bigger than the card's pool —
+    // forcing `-ngl 99` there allocates itself to death; CPU-side (RAM-fitted) is the honest serve.
+    let device = if fits_gpu {
+        model::select_device(&model::probe_devices(&bin))
+    } else {
+        None
+    };
     let hf = format!("{repo}:{quant}");
     println!("Ziqpu · serving {} ({quant})", pick.name);
     match &device {
@@ -380,6 +384,9 @@ fn serve(force_local: bool, port: u16) {
             d.name,
             d.vram_gb()
         ),
+        None if !fits_gpu => {
+            println!("  runtime   CPU (model larger than the GPU's memory — slower)")
+        }
         None => println!("  runtime   CPU (no GPU device visible to this build)"),
     }
     if matches!(&device, Some(d) if d.backend == model::Backend::Vulkan) {

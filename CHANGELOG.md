@@ -37,7 +37,17 @@ because it stopped being true.
   wheat** (bent, muted, unharvestable) and *nothing installs*; above it the machine wears its tier
   as a card-sized wheat emblem (seed → red → green → gold). The model dropdown offers exactly
   **#1 Stable** (tier-correct) and **#2 Max** (the biggest model the machine can hold — bigger
-  answers, slower tokens), and never a model the machine can't run.
+  answers, slower tokens), and never a model the machine can't run: a Max pick too big for the
+  card's memory serves **CPU-side, RAM-fitted** (labelled so) instead of being forced onto the GPU.
+
+### Pre-tag adversarial audit (4 lenses + refute — the v1.4.0 discipline, kept)
+11 raw findings, 6 refuted under adversarial verification, 5 confirmed and fixed before this tag:
+a failed runtime install could leave a half-laid-down llama.cpp that later launches trusted forever
+(now: self-check on the fast path + partial trees removed on any failure); a "Max" model bigger
+than the GPU's pool was forced onto the card with full offload (now the CPU-side fallback above);
+and three user-facing lines that claimed more than the code delivers (the free-tier budget wording,
+the below-floor guidance that ignored the built-in tier, a button asserting a download that might
+not happen) were rewritten to what is actually true.
 
 ### Built-in free Live tier — **now configured and shipping**
 The 1.4.0 changelog recorded, honestly, that the proxy tier existed in code and in no artifact.

@@ -412,12 +412,21 @@ pub fn ModelPanel() -> Element {
                 ));
                 return;
             };
-            // Which GPU will this build actually serve on? Pin the discrete device so we never land on
-            // the integrated GPU (the OOM saga). Empty args on a CPU-only build/machine.
-            let devices = probe_devices(&bin);
-            let device = select_device(&devices);
+            // Which GPU will this build actually serve on? Pin the discrete device so we never land
+            // on the integrated GPU (the OOM saga). Empty args on a CPU-only build/machine — and NO
+            // pin when the fitted quant is bigger than the card's pool (a Max pick on a small card):
+            // forcing `-ngl 99` there allocates itself to death after a multi-GB download. CPU-side,
+            // RAM-fitted, is the honest serve for that shape, and the runtime line says so.
+            let device = if plan.fits_gpu {
+                select_device(&probe_devices(&bin))
+            } else {
+                None
+            };
             let runtime_line = match &device {
                 Some(d) => format!("{} → {}", d.backend.label(), d.name),
+                None if !plan.fits_gpu => {
+                    "CPU (model larger than the GPU's memory — slower)".to_string()
+                }
                 None => "CPU (no GPU visible to this build)".to_string(),
             };
             let hf = format!("{}:{}", plan.repo, plan.quant);
@@ -583,11 +592,20 @@ pub fn ModelPanel() -> Element {
             p.quant, p.size_gb, p.repo
         )
     });
+    // Point the below-floor audience at the road that actually exists in THIS build: the built-in
+    // free tier when it's baked in (this is exactly who it exists for), a key only otherwise.
     let nolocal_line = match &rec_now {
-        Some(Recommendation::NoLocal { reason, .. }) => Some(format!(
-            "No local model — {}. Use Raw (offline) or Live (an API key) instead.",
-            reason.human()
-        )),
+        Some(Recommendation::NoLocal { reason, .. }) => {
+            let live_road = if crate::settings::built_in_available() {
+                "Live (built-in free tier — no key needed)"
+            } else {
+                "Live (an API key)"
+            };
+            Some(format!(
+                "No local model — {}. Use Raw (offline) or {live_road} instead.",
+                reason.human()
+            ))
+        }
         _ => None,
     };
     let is_local = matches!(rec_now, Some(Recommendation::Local(_)));
@@ -611,7 +629,7 @@ pub fn ModelPanel() -> Element {
     };
     let max_option = (*max_pick.read()).map(|m| {
         format!(
-            "#2 Max — {} ({}, ~{:.0} GB, slower)",
+            "#2 Max — {} ({}, ~{:.0} GB, slower — may run CPU-side)",
             m.name, m.params, m.download_gb
         )
     });
@@ -741,6 +759,10 @@ pub fn ModelPanel() -> Element {
                             "Install & serve locally"
                         } else if is_cached && !chose_max {
                             "Serve locally"
+                        } else if chose_max {
+                            // The cache check ran against the Stable plan, so for Max we don't
+                            // KNOW whether a download is coming — and must not assert one.
+                            "Serve locally (downloads if needed)"
                         } else {
                             "Download & serve locally"
                         }

@@ -793,16 +793,45 @@ pub struct ServePlan {
     pub repo: String,
     pub quant: String,
     pub size_gb: f64,
+    /// Whether the chosen quant fits the **GPU** budget, i.e. whether forcing full offload
+    /// (`-ngl 99 -dev …`) is safe. `false` = the model is bigger than the card's pool (a "Max"
+    /// pick on a small card): the serve must NOT pin the GPU — it runs CPU-side (RAM-fitted,
+    /// slower) instead of allocating itself to death after a multi-GB download.
+    pub fits_gpu: bool,
+}
+
+/// Fit a quant to the machine: the highest-quality quant within the **GPU** budget when one exists
+/// (→ full offload is safe); otherwise re-fit against the **RAM** budget for a CPU-side serve —
+/// which both rescues the serve AND usually yields a *better* quant than the old
+/// fall-back-to-smallest did (the smallest file was still over the GPU budget anyway, so it OOM'd
+/// full-offload while wasting quality). Returns `(quant, fits_gpu)`. Pure; unit-tested.
+pub fn fit_quant(
+    files: &[GgufOption],
+    gpu_budget_gb: f64,
+    ram_budget_gb: f64,
+) -> Option<(GgufOption, bool)> {
+    let best = best_gguf_for(files, gpu_budget_gb)?;
+    if best.size_gb <= gpu_budget_gb {
+        return Some((best, true));
+    }
+    // Nothing fits the GPU's pool. Serve CPU-side, fitted to RAM.
+    let best = best_gguf_for(files, ram_budget_gb)?;
+    Some((best, false))
 }
 
 /// Resolve the recommended pick to a concrete `repo:quant` fitted to this machine's memory budget.
 pub fn plan_serve(pick: &ModelPick, spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> Option<ServePlan> {
     let repo = resolve_current_repo(pick)?.repo;
-    let best = best_gguf_for(&list_repo_ggufs(&repo), device_model_budget_gb(spec, gpu))?;
+    let (best, fits_gpu) = fit_quant(
+        &list_repo_ggufs(&repo),
+        device_model_budget_gb(spec, gpu),
+        spec.ram_gb * FIT_FRACTION,
+    )?;
     Some(ServePlan {
         repo,
         quant: best.quant,
         size_gb: best.size_gb,
+        fits_gpu,
     })
 }
 
@@ -1731,20 +1760,52 @@ fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(
     Ok(())
 }
 
+/// Does this `llama-server` actually start? (`--version`, output discarded.) A build with a
+/// missing DLL (a half-installed CUDA tree) or the wrong arch dies right here, as a `false`,
+/// instead of later inside a serve — where the Windows loader kills it invisibly under
+/// CREATE_NO_WINDOW and the user sees only "exited early".
+fn runtime_self_check(bin: &std::path::Path) -> bool {
+    no_window(std::process::Command::new(bin))
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Make sure a backend-correct `llama-server` exists in the app-managed runtime root, downloading
 /// and laying one down if needed. Returns the path to the binary. `progress` receives short
 /// human-readable lines as the steps run (the CLI prints them; the UI feeds its loader).
 ///
-/// Steps: already laid down → done. Else: latest release → pick the asset for this OS/arch/GPU →
-/// download → extract into `runtime/<asset-stem>/` → (CUDA) unzip the cudart DLLs beside the exe →
-/// self-check with `--version`. Every failure is a `Err(reason)` the caller can show; nothing here
-/// panics, and a failure leaves `resolve_llama_server`'s other sources (PATH, winget) untouched.
+/// Steps: already laid down **and passing its self-check** → done. Else: latest release → pick the
+/// asset for this OS/arch/GPU → download → extract into `runtime/<asset-stem>/` → (CUDA) unzip the
+/// cudart DLLs beside the exe → self-check with `--version`. Every failure is a `Err(reason)` the
+/// caller can show; nothing here panics, and a failure leaves `resolve_llama_server`'s other
+/// sources (PATH, winget) untouched.
+///
+/// **No poisoned trees.** Any failure after extraction begins removes the partial install before
+/// returning — and the fast path re-runs the self-check rather than trusting a file by name. Both
+/// halves matter: `resolve_llama_server` prefers the managed build and the UI only calls this
+/// function when nothing resolves, so a broken tree left on disk (a network drop between the CUDA
+/// zip and its cudart companion; a driver too old for the picked runtime) would otherwise be
+/// trusted on every later launch, with no in-product path to repair.
 pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathBuf, String> {
-    if let Some(bin) = managed_llama_server() {
-        progress("llama.cpp runtime already installed");
-        return Ok(bin);
-    }
     let root = managed_runtime_root().ok_or("couldn't locate a home directory")?;
+    if let Some(bin) = managed_llama_server() {
+        if runtime_self_check(&bin) {
+            progress("llama.cpp runtime already installed");
+            return Ok(bin);
+        }
+        // A managed build that can't start is a half-install from an earlier failure. Remove its
+        // top-level dir (the component directly under the root) and lay a fresh one down.
+        progress("removing a broken llama.cpp install…");
+        if let Ok(rel) = bin.strip_prefix(&root) {
+            if let Some(top) = rel.components().next() {
+                let _ = std::fs::remove_dir_all(root.join(top.as_os_str()));
+            }
+        }
+    }
     std::fs::create_dir_all(&root)
         .map_err(|e| format!("couldn't create {} ({e})", root.display()))?;
 
@@ -1776,50 +1837,59 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
     ));
     download_to(&asset.url, &archive)?;
     progress("unpacking…");
-    let extracted = extract_archive(&archive, &dest_dir);
-    let _ = std::fs::remove_file(&archive); // best-effort cleanup either way
-    extracted?;
 
-    let bin = find_bin_under(&dest_dir, llama_server_bin_name(), 3)
-        .ok_or("the archive did not contain llama-server")?;
-    // llama-server.exe's own directory is where Windows resolves its DLLs from — the cudart
-    // companion must land exactly there, wherever the main archive put the exe.
-    if let Some(companion) = &pick.companion {
-        let exe_dir = bin.parent().ok_or("no parent dir for llama-server")?;
-        let casset = release
-            .assets
-            .iter()
-            .find(|a| &a.name == companion)
-            .ok_or("cudart companion vanished from the release")?;
-        let carchive = root.join(companion);
-        progress(&format!(
-            "downloading CUDA runtime DLLs ({:.0} MB)…",
-            casset.size as f64 / 1_048_576.0
-        ));
-        download_to(&casset.url, &carchive)?;
-        let cextracted = extract_archive(&carchive, exe_dir);
-        let _ = std::fs::remove_file(&carchive);
-        cextracted?;
-    }
+    // Everything from extraction onward runs inside this closure so that ONE failure branch below
+    // can remove the partial tree — a half-install left behind would be found (by name) and
+    // trusted (by `resolve_llama_server`) on every later launch.
+    let laid = (|| -> Result<std::path::PathBuf, String> {
+        let extracted = extract_archive(&archive, &dest_dir);
+        let _ = std::fs::remove_file(&archive); // best-effort cleanup either way
+        extracted?;
 
-    // Self-check: a build with a missing DLL or wrong arch dies right here, as a readable error,
-    // instead of later inside a serve.
-    progress("verifying…");
-    let ok = no_window(std::process::Command::new(&bin))
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    if !ok {
-        return Err(format!(
-            "the runtime was laid down at {} but failed its self-check",
-            bin.display()
-        ));
+        let bin = find_bin_under(&dest_dir, llama_server_bin_name(), 3)
+            .ok_or("the archive did not contain llama-server")?;
+        // llama-server.exe's own directory is where Windows resolves its DLLs from — the cudart
+        // companion must land exactly there, wherever the main archive put the exe.
+        if let Some(companion) = &pick.companion {
+            let exe_dir = bin.parent().ok_or("no parent dir for llama-server")?;
+            let casset = release
+                .assets
+                .iter()
+                .find(|a| &a.name == companion)
+                .ok_or("cudart companion vanished from the release")?;
+            let carchive = root.join(companion);
+            progress(&format!(
+                "downloading CUDA runtime DLLs ({:.0} MB)…",
+                casset.size as f64 / 1_048_576.0
+            ));
+            download_to(&casset.url, &carchive)?;
+            let cextracted = extract_archive(&carchive, exe_dir);
+            let _ = std::fs::remove_file(&carchive);
+            cextracted?;
+        }
+
+        progress("verifying…");
+        if !runtime_self_check(&bin) {
+            return Err(format!(
+                "the runtime was laid down at {} but failed its self-check (a GPU driver too old \
+                 for this build is the usual cause)",
+                bin.display()
+            ));
+        }
+        Ok(bin)
+    })();
+
+    match laid {
+        Ok(bin) => {
+            progress("llama.cpp runtime ready ✓");
+            Ok(bin)
+        }
+        Err(why) => {
+            // Remove the partial tree so the next attempt starts clean instead of trusting it.
+            let _ = std::fs::remove_dir_all(&dest_dir);
+            Err(why)
+        }
     }
-    progress("llama.cpp runtime ready ✓");
-    Ok(bin)
 }
 
 #[cfg(test)]
@@ -2610,6 +2680,42 @@ mod tests {
         assert_eq!(r.assets[0].name, "llama-b10064-bin-win-cpu-x64.zip");
         assert_eq!(r.assets[0].size, 18_000_000);
         assert!(parse_runtime_release("not json").is_none());
+    }
+
+    #[test]
+    fn an_oversized_pick_serves_cpu_side_instead_of_ooming_the_card() {
+        // The audit's evaluator shape: big RAM, small card. GPU budget 6.4 GB (8 GB card × 0.8),
+        // RAM budget 25.6 GB (32 GB × 0.8). No quant fits the card.
+        let files = vec![
+            GgufOption {
+                quant: "Q6_K".into(),
+                size_gb: 16.0,
+            },
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 12.0,
+            },
+            GgufOption {
+                quant: "Q2_K".into(),
+                size_gb: 9.0,
+            },
+        ];
+        // Old behavior: fall back to the SMALLEST quant (Q2_K, worst quality) and still force
+        // -ngl 99 → allocate-to-death. New behavior: re-fit against RAM, serve CPU-side, and get
+        // the BETTER quant while we're at it.
+        let (best, fits_gpu) = fit_quant(&files, 6.4, 25.6).unwrap();
+        assert!(!fits_gpu, "nothing fits the card → no GPU pin");
+        assert_eq!(best.quant, "Q6_K", "RAM re-fit beats fall-back-to-smallest");
+        // A card that CAN hold a quant keeps the full-offload fast path.
+        let (best, fits_gpu) = fit_quant(&files, 12.8, 25.6).unwrap();
+        assert!(fits_gpu);
+        assert_eq!(
+            best.quant, "Q4_K_M",
+            "highest quality within the card's pool"
+        );
+        // And no GPU pin is ever asserted for a quant the RAM can't hold either (tiny box).
+        let (_, fits_gpu) = fit_quant(&files, 2.0, 40.0).unwrap();
+        assert!(!fits_gpu);
     }
 
     #[test]
