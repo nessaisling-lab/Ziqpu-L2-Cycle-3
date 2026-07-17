@@ -108,8 +108,23 @@ fn openai_compat_model() -> String {
             return m;
         }
     }
-    "anthropic/claude-3.5-sonnet".to_string()
+    DEFAULT_OPENROUTER_MODEL.to_string()
 }
+
+/// The model used when an OpenRouter key is present but no model was chosen — the seeker pasted a
+/// key and never opened the picker.
+///
+/// This default was `anthropic/claude-3.5-sonnet`, which OpenRouter **retired**. Nothing noticed,
+/// because the failure is silent by design: a bad model id is a 400, `try_live` treats any Live
+/// error as "fall back to the template", and the reading arrives looking merely plain. So the
+/// unluckiest user — the one who pastes a valid, paid key and trusts our default — was the only one
+/// guaranteed never to get a live reading.
+///
+/// Kept deliberately in step with [`DEFAULT_ANTHROPIC_MODEL`]: same model, same quality, whichever
+/// door the seeker came through. Verified present in the live catalog by
+/// `live_openrouter_default_model_still_exists` (`--ignored`, needs network) — a unit test cannot
+/// catch a vendor retiring a model, so the check belongs where the truth lives.
+pub const DEFAULT_OPENROUTER_MODEL: &str = "anthropic/claude-opus-4.8";
 
 /// Claude-backed interpreter over the Anthropic Messages API wire shape. Falls back to the
 /// deterministic template on any failure. Two ways to reach Claude, same body + parsing:
@@ -1142,23 +1157,27 @@ mod tests {
             std::env::remove_var(k);
         }
 
-        // Defaults when nothing is set.
-        assert_eq!(anthropic_model(), "claude-opus-4-8");
-        assert_eq!(openai_compat_model(), "anthropic/claude-3.5-sonnet");
+        // Defaults when nothing is set. Asserted against the CONSTANTS, not against literals: this
+        // test's job is the scoping rule, not the identity of the default. Spelling the literal out
+        // here is how the dead `anthropic/claude-3.5-sonnet` survived — the test pinned the bug in
+        // place and went green every time. Whether a default is a real, live model is a question
+        // only the network can answer; `live_openrouter_default_model_still_exists` asks it.
+        assert_eq!(anthropic_model(), DEFAULT_ANTHROPIC_MODEL);
+        assert_eq!(openai_compat_model(), DEFAULT_OPENROUTER_MODEL);
 
         // A FOREIGN (OpenRouter) id must never reach Anthropic — it falls back to the safe default,
         // while the OpenAI-compat path uses it as-is.
         std::env::set_var("ZIQPU_MODEL", "nvidia/nemotron-3-super-120b-a12b:free");
-        assert_eq!(anthropic_model(), "claude-opus-4-8");
+        assert_eq!(anthropic_model(), DEFAULT_ANTHROPIC_MODEL);
         assert_eq!(
             openai_compat_model(),
             "nvidia/nemotron-3-super-120b-a12b:free"
         );
 
         // The mirror: a BARE Claude id isn't routable on OpenRouter (it wants `anthropic/claude-…`).
-        std::env::set_var("ZIQPU_MODEL", "claude-opus-4-8");
-        assert_eq!(anthropic_model(), "claude-opus-4-8");
-        assert_eq!(openai_compat_model(), "anthropic/claude-3.5-sonnet");
+        std::env::set_var("ZIQPU_MODEL", DEFAULT_ANTHROPIC_MODEL);
+        assert_eq!(anthropic_model(), DEFAULT_ANTHROPIC_MODEL);
+        assert_eq!(openai_compat_model(), DEFAULT_OPENROUTER_MODEL);
 
         // Explicit per-provider overrides win over the shared var.
         std::env::set_var("ZIQPU_ANTHROPIC_MODEL", "claude-sonnet-5");

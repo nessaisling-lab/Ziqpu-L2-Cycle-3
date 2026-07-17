@@ -66,10 +66,19 @@ pub struct SettingsFile {
     pub dev_build: Option<bool>,
 }
 
-/// Whether the developer build is on — premium features unlocked. Defaults to **on** while we're
-/// building (so the developer sees everything); flip it off to preview the free-customer experience.
+/// Whether the developer build is on — premium features unlocked.
+///
+/// Defaults to the **build kind**, not to a constant: on in a debug build (the developer sees
+/// everything), off in a release build (a stranger sees what a customer sees). A saved choice always
+/// wins, so flipping the header switch still sticks.
+///
+/// It used to default to `true` unconditionally, which was right while the only builds were on this
+/// machine and wrong the moment we published installers: every downloader with no `settings.json`
+/// got a "⚙ dev build" pill in the header and every paywalled feature unlocked. That is not a
+/// generous free tier — it is the product failing to be itself, and it makes the entitlement gate
+/// untestable in the one build where it matters.
 pub fn dev_build_default() -> bool {
-    load_settings().dev_build.unwrap_or(true)
+    load_settings().dev_build.unwrap_or(cfg!(debug_assertions))
 }
 
 /// Persist just the developer-build switch, leaving the credential fields untouched. Best-effort

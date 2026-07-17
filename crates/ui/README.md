@@ -36,6 +36,16 @@ plain `cargo build` produces a fully-branded app with no external assets.
 
 ## Config
 
-In-app **Settings** stores an OpenRouter key + model + local URL on this machine — no env vars needed.
-Env still wins where set; see the repo `.env.example` (`ZIQPU_LLM_URL`, `ZIQPU_LOCAL_MODEL`,
-`ZIQPU_MOCK`, `ZIQPU_ONBOARD`). Birth data and the API key live in the OS data dir (`0o600` on Unix).
+In-app **Settings** (a page — `⚙ settings` in the header) holds the provider choice, the model, and
+an optional local endpoint. No env vars needed; env still wins where set — see the repo
+`.env.example` (`ZIQPU_LLM_URL`, `ZIQPU_LOCAL_MODEL`, `ZIQPU_MOCK`, `ZIQPU_ONBOARD`).
+
+**Two stores, split by sensitivity:**
+
+- **API keys → the OS credential vault** (Windows Credential Manager · macOS Keychain · Linux Secret
+  Service), via `src/vault.rs`. Never written to disk in the clear, never placed on a command line,
+  and **never displayed** — the UI asks `vault::key_source()` for presence and origin, never for a
+  value, and a test fails the build if any component calls `get_key`. A key from a pre-vault install
+  is migrated out of `settings.json` on startup.
+- **Non-secrets → `<data_dir>/settings.json`**; birth data → `<data_dir>/profile.json`. Both are
+  `0o600` on Unix (the profile holds birth PII).

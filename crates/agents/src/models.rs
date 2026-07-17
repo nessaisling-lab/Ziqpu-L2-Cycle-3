@@ -991,6 +991,40 @@ mod tests {
         assert_eq!(human_tokens(900), "900");
     }
 
+    /// The model we fall back to when a seeker pastes an OpenRouter key and never opens the picker
+    /// must actually EXIST. Nothing else can check this: a vendor retiring a model is invisible to a
+    /// unit test, and the failure is silent by construction — a dead id is a 400, `try_live` treats
+    /// any Live error as "use the template", so the reading just arrives looking plain.
+    ///
+    /// That is exactly what happened: the default sat at `anthropic/claude-3.5-sonnet` long after
+    /// OpenRouter retired it, so the one seeker who trusted our default was the one guaranteed never
+    /// to get a live reading. Run before shipping:
+    /// `cargo test -p agents live_openrouter -- --ignored --nocapture`
+    #[test]
+    #[ignore = "network: hits the live OpenRouter catalog"]
+    fn live_openrouter_default_model_still_exists() {
+        let raw = crate::llm_http::get_json("https://openrouter.ai/api/v1/models", &[])
+            .expect("live OpenRouter catalog");
+        let value: serde_json::Value = serde_json::from_str(&raw).expect("catalog json");
+        let ids: Vec<&str> = value["data"]
+            .as_array()
+            .expect("data[]")
+            .iter()
+            .filter_map(|m| m["id"].as_str())
+            .collect();
+        assert!(
+            ids.contains(&crate::interpret_llm::DEFAULT_OPENROUTER_MODEL),
+            "DEFAULT_OPENROUTER_MODEL ({}) is not in OpenRouter's live catalog of {} models — \
+             every seeker who pastes a key without picking a model silently gets the template. \
+             Pick a live id from: {:?}",
+            crate::interpret_llm::DEFAULT_OPENROUTER_MODEL,
+            ids.len(),
+            ids.iter()
+                .filter(|i| i.starts_with("anthropic/"))
+                .collect::<Vec<_>>()
+        );
+    }
+
     /// Hits the REAL OpenRouter catalog. `#[ignore]`d so CI stays offline and deterministic; run it
     /// by hand when you want to prove the parser still matches the live shape:
     /// `cargo test -p agents live_openrouter -- --ignored --nocapture`

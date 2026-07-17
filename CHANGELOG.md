@@ -170,7 +170,8 @@ Promoted the N2 desktop-agent work to `main` and ran a full 8-phase docs/complia
   observe→decide→act loop with a human-in-the-loop **approval checkpoint** before the costed
   grounded pull, the no-advice guardrail, the Dioxus desktop UI, and a green 3-OS CI gauntlet.
 
-[Unreleased]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/compare/v1.3.2...nightfall
+[Unreleased]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/compare/v1.4.0...nightfall
+[1.4.0]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases/tag/v1.4.0
 [1.3.2]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases/tag/v1.3.2
 [1.3.0-nightfall.1]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases/tag/v1.3.0-nightfall.1
 [1.2.0]: https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases/tag/v1.2.0

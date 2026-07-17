@@ -299,7 +299,20 @@ pub fn App() -> Element {
             .flatten()
             .next()
             .cloned()
-            .unwrap_or_else(|| "hosted model".to_string()),
+            // No reading has run, so NO model has been contacted — we cannot name one. This used to
+            // fall back to the words "hosted model", which on a fresh install rendered
+            // "✦ live · hosted model" in the header while every card underneath said
+            // "○ offline · template": the pill asserted a live hosted model that did not exist.
+            // Ask the environment what Live would actually resolve to instead of inventing it.
+            .unwrap_or_else(|| {
+                let resolved = agents::active_source_label();
+                match resolved.strip_prefix("Live · ") {
+                    // A provider IS configured; name it, even though we haven't called it yet.
+                    Some(source) => source.to_string(),
+                    // Nothing configured: Live falls through to the template, so say so.
+                    None => "no key — template".to_string(),
+                }
+            }),
     };
 
     // The fixed, seeded star field drawn behind the whole app — identical every launch.
