@@ -672,16 +672,51 @@ mod tests {
         assert_eq!(r.ticker, "AAPL");
     }
 
+    /// The route-3 (SEC Form 8-A) enrichment is present in the shipped dataset.
+    ///
+    /// It lived only in `db/init/02_seed.sql` for nine days while the CSV the binary actually
+    /// compiles in stayed at the pre-enrichment Polygon export — 2,354 dated instead of 4,507. MU
+    /// is one of the 2,156 rows the backfill dated; it is pinned here so a regenerated CSV that
+    /// silently loses the enrichment fails loudly instead of quietly halving the product.
     #[test]
-    fn choice_is_some_for_a_row_with_blank_ipo_date() {
-        // MU (Micron) ships with an empty ipo_date. It must still resolve — this is the exact bug
-        // that made some symbols "not hold" in the UI. It falls back to a neutral listing date and,
-        // being NASDAQ-listed, keeps NASDAQ coordinates and the 09:30 open.
-        let c = choice("MU").expect("a blank ipo_date must not drop the symbol");
+    fn the_sec_8a_enrichment_is_in_the_shipped_dataset() {
+        let c = choice("MU").expect("MU must resolve");
         assert_eq!(c.ticker, "MU");
-        assert_eq!(c.birth.date, DEFAULT_LISTING_DATE);
+        assert_ne!(
+            c.birth.date, DEFAULT_LISTING_DATE,
+            "MU fell back to the fabricated date — the sec-8a enrichment is missing from the CSV. \
+             Run scripts/gen-tickers-csv.sh."
+        );
         assert_eq!(c.birth.time, Some(MARKET_OPEN));
         assert_eq!(c.birth.tz, chrono_tz::America::New_York);
+    }
+
+    /// **Characterizes a known defect — it does not endorse one.** (Nathan's review, P2.)
+    ///
+    /// 764 rows have no date at all: not in Polygon, and no Form 8-A on record. `choice_in` hands
+    /// them [`DEFAULT_LISTING_DATE`] — **2000-01-01, a date that never happened** — and the app then
+    /// computes a full synastry reading from it: a score, a band, a "why", closing on *"measured,
+    /// not fate"*. That reading is fiction presented as measurement, which is the one thing this
+    /// product exists to refuse. `UNGASAGA_SYSTEM` even forbids it in words ("never invent a measure
+    /// you were not given") while the data layer does it upstream.
+    ///
+    /// It was not malice: the constant was introduced to fix a UI bug where undated symbols "didn't
+    /// hold" when picked. A UX bug got fixed by inventing data.
+    ///
+    /// The harvest cut the blast radius from 2,917 rows to 764. The remaining fix is a product
+    /// decision the owner has to make — drop the undated from search, or list them marked as
+    /// unchartable (his stated preference elsewhere: *indicate, don't hide*) — so this test records
+    /// today's behaviour honestly rather than pretending it is correct.
+    #[test]
+    fn a_dateless_row_is_charted_on_a_fabricated_date_known_defect() {
+        // AAUC: Polygon has no listing date and there is no Form 8-A on record.
+        let c = choice("AAUC").expect("a blank ipo_date does not currently drop the symbol");
+        assert_eq!(c.ticker, "AAUC");
+        assert_eq!(
+            c.birth.date, DEFAULT_LISTING_DATE,
+            "the fabrication path changed — if undated rows are now handled honestly, delete this \
+             test and DEFAULT_LISTING_DATE with it"
+        );
         assert!(
             c.birth.lat.abs() <= 90.0 && c.birth.lon.abs() <= 180.0,
             "fallback coordinates must be in range, got {},{}",

@@ -19,10 +19,11 @@ your machine.
 
 Unzip anywhere and run `ziqpu-ui.exe`.
 
-- **Needs the Microsoft Edge WebView2 Runtime.** Windows 11 and most Windows 10 installs already
-  have it. Some do not — notably LTSC, N/KN editions, and freshly-imaged enterprise machines. If the
-  app does nothing at all when you double-click it, this is why: install the **Evergreen
-  Bootstrapper** from <https://developer.microsoft.com/microsoft-edge/webview2/> and try again.
+- **Needs the Microsoft Edge WebView2 Runtime.** Windows 11 has it built in, and so do the vast
+  majority of Windows 10 machines. It can be missing on a clean Windows 10 install, on Windows
+  Server, or on LTSC editions. If the app does nothing at all when you double-click it, this is why:
+  install the **Evergreen Bootstrapper** from
+  <https://developer.microsoft.com/microsoft-edge/webview2/> and try again.
 - **SmartScreen** will warn ("Windows protected your PC") because the executable is not
   code-signed. *More info → Run anyway.*
 

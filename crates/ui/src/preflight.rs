@@ -6,9 +6,16 @@
 //! correct: a GUI app should not flash a terminal. But it means a panic before the window opens has
 //! nowhere to print. And there is a very ordinary way to panic before the window opens: Dioxus
 //! desktop draws through the system webview, and on Windows that is the **Edge WebView2 Runtime**,
-//! which is *not* present on every machine — notably LTSC, N/KN editions, and freshly-imaged
-//! enterprise installs. When it is missing, `wry` fails to build the webview and
-//! `dioxus-desktop`'s `webview.rs` does `.build().unwrap()`.
+//! which is not present on every machine. Microsoft's own list of where it may be missing is
+//! exactly three cases: **clean Windows 10 installs, Windows Server, and LTSC editions**. When it is
+//! missing, `wry` fails to build the webview and `dioxus-desktop`'s `webview.rs` does
+//! `.build().unwrap()`.
+//!
+//! (An earlier version of this file also blamed **N/KN editions**. That was wrong, and it shipped:
+//! Microsoft's N/KN exclusion list is *media technology only* — Media Player, Groove, Movies & TV.
+//! Edge itself is present in N editions and WebView2 appears nowhere on that list. Guessing at
+//! another vendor's edition matrix and putting the guess in a user-facing dialog is how you send a
+//! stranger to fix the wrong thing.)
 //!
 //! Panic → stderr → a console that does not exist → exit 101. The user double-clicks the exe and
 //! **nothing happens at all**. No window, no error, no log. They double-click again, conclude the
@@ -63,8 +70,9 @@ fn dialog(_title: &str, _text: &str) {}
 #[cfg(windows)]
 const STARTUP_HELP: &str = "Ziqpu couldn't start.\n\n\
      This is almost always a missing Microsoft Edge WebView2 Runtime — the component Ziqpu draws \
-     its window with. Most Windows 11 and Windows 10 machines already have it; some (LTSC, N/KN, \
-     and freshly-imaged work laptops) do not.\n\n\
+     its window with. Windows 11 has it built in and the vast majority of Windows 10 machines do \
+     too; it can be missing on a clean Windows 10 install, on Windows Server, or on LTSC \
+     editions.\n\n\
      Install the WebView2 Runtime, then start Ziqpu again:\n\
      https://developer.microsoft.com/microsoft-edge/webview2/\n\n\
      Your download is not corrupt, and nothing is wrong with your machine.\n\n\
