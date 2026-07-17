@@ -1053,6 +1053,28 @@ td.b{color:var(--ink)}
 .wheat--pending .stalk path{animation:wload-wash 3.2s ease-in-out infinite}
 .wheat--pending .stalk ellipse{animation:wload-wash-fill 3.2s ease-in-out infinite}
 @keyframes wload-wash-fill{0%,100%{fill:var(--carnelian)}38%{fill:var(--malachite)}72%{fill:var(--gold)}}
+/* The tier EMBLEM — a card-sized stand whose color names the machine's tier (seed→red→green→gold),
+   still (a verdict, not a process). Wild = below the floor: bent, scattered, muted. */
+.wtier{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:10px 14px 8px;
+  border:1px solid var(--gold-line);border-radius:11px;
+  background:color-mix(in srgb,var(--parchment) 70%,transparent)}
+.wtier-field{display:flex;align-items:flex-end;gap:5px;height:52px}
+.wtier-field .wload-stalk{height:52px;width:13px}
+.wtier-field .wload-stalk svg{height:52px}
+.wtier-caption{font-size:12px;letter-spacing:.04em;color:var(--ink-soft)}
+.wtier--seed  .wload-stem,.wtier--seed  .wload-grain{stroke:color-mix(in srgb,var(--gold-deep) 45%,var(--ink-faint))}
+.wtier--red   .wload-stem,.wtier--red   .wload-grain{stroke:var(--carnelian)}
+.wtier--green .wload-stem,.wtier--green .wload-grain{stroke:var(--malachite)}
+.wtier--gold  .wload-stem,.wtier--gold  .wload-grain{stroke:var(--gold)}
+.wtier--wild  .wload-stem,.wtier--wild  .wload-grain{stroke:color-mix(in srgb,var(--ink-faint) 55%,transparent)}
+/* wild wheat: each stalk leans its own way; one is half-broken. Growth transform is safe to
+   override here — the emblem always renders grown. */
+.wtier--wild .wtier-field .wload-stalk:nth-child(1) .wload-grow{transform:rotate(-16deg)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(2) .wload-grow{transform:rotate(9deg) scaleY(.8)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(3) .wload-grow{transform:rotate(-5deg) scaleY(.55)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(4) .wload-grow{transform:rotate(14deg)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(5) .wload-grow{transform:rotate(-10deg) scaleY(.7)}
+.wtier--wild .wtier-caption{color:var(--ink-faint)}
 .modelpanel-pick{
   font-size:14px;color:var(--ink);padding:9px 12px;border-radius:9px;
   background:color-mix(in srgb,var(--malachite) 10%,transparent);

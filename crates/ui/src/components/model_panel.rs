@@ -7,12 +7,12 @@
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 
-use crate::components::{WheatLoader, WheatPhase};
+use crate::components::{WheatLoader, WheatPhase, WheatTier, WheatTierState};
 use model::{
-    agent_disqualified, detect_gpu, detect_spec_with, gpu_serve_args, have_llama_server,
-    llama_install_hint, model_cached, plan_serve, probe_devices, recommend_for, resolve_candidates,
-    resolve_llama_server, running_server_port, select_device, Candidate, DeviceSpec, GpuInfo,
-    Recommendation, ServePlan,
+    agent_disqualified, detect_gpu, detect_spec_with, ensure_runtime, gpu_serve_args,
+    have_llama_server, llama_install_hint, max_runnable, model_cached, plan_serve, probe_devices,
+    recommend_for, resolve_candidates, resolve_llama_server, running_server_port, select_device,
+    Candidate, DeviceSpec, GpuInfo, ModelPick, Recommendation, ServePlan,
 };
 
 /// The off-thread benchmark result: machine spec, its recommendation, the detected GPU, whether a
@@ -31,6 +31,9 @@ type BenchResult = (
     // Whether the fitted model is ALREADY in the Hugging Face cache — serving then only loads it, no
     // download. Drives the "downloaded ✓" hint + the "Serve" (vs "Download & serve") button label.
     bool,
+    // The "#2 Max" pick — the biggest model this machine can hold, when that differs from the
+    // Stable recommendation. `None` = no second option, the dropdown collapses to Stable only.
+    Option<ModelPick>,
 );
 
 /// The first free TCP port at or after `start`. Ziqpu's Local default is 1234, but LM Studio or
@@ -145,6 +148,9 @@ fn stop_our_server() {
 enum ServeProgress {
     /// Spawning `llama-server`; nothing to report yet.
     Preparing,
+    /// First run on a machine with no llama.cpp at all: `ensure_runtime` is laying down the
+    /// backend-correct build. The line is its live progress ("downloading b10066 — CUDA 13.3…").
+    Installing(String),
     /// First-run model download, `0..=100` %. Parsed from `llama-server`'s stderr.
     Downloading(u8),
     /// Download done (or model cached); loading the weights into VRAM. Indeterminate.
@@ -205,6 +211,10 @@ pub fn ModelPanel() -> Element {
     let mut runtime_warn = use_signal(|| false);
     let mut cached = use_signal(|| false);
     let mut running = use_signal(|| false);
+    // The curated dropdown: `max_pick` = the "#2 Max" option when it differs from Stable;
+    // `use_max` = which of the two the seeker chose (false = "#1 Stable", the default).
+    let mut max_pick = use_signal(|| None::<ModelPick>);
+    let mut use_max = use_signal(|| false);
 
     // Search state.
     let mut query = use_signal(String::new);
@@ -214,7 +224,7 @@ pub fn ModelPanel() -> Element {
 
     // Off-thread benchmark result → set the signals.
     let bench = use_coroutine(move |mut rx: UnboundedReceiver<BenchResult>| async move {
-        while let Some((s, r, g, srv, p, rt, is_cached)) = rx.next().await {
+        while let Some((s, r, g, srv, p, rt, is_cached, maxp)) = rx.next().await {
             // Prefill the search box with the pick's family — done HERE (an event handler), never in
             // the render body: writing a signal you also read during render triggers Dioxus's
             // "write during render" warning and can loop.
@@ -228,6 +238,9 @@ pub fn ModelPanel() -> Element {
             runtime_warn.set(rt.as_ref().is_some_and(|(_, warn)| *warn));
             runtime.set(rt.map(|(line, _)| line));
             cached.set(is_cached);
+            // A fresh benchmark resets the choice to Stable — the machine may have changed.
+            max_pick.set(maxp);
+            use_max.set(false);
             spec.set(Some(s));
             rec.set(Some(r));
             gpu.set(g);
@@ -311,7 +324,10 @@ pub fn ModelPanel() -> Element {
                 .as_ref()
                 .map(|pl| model_cached(&pl.repo, &pl.quant))
                 .unwrap_or(false);
-            let _ = tx.unbounded_send((s, r, g, srv, p, rt, is_cached));
+            // The "#2 Max" option — the biggest model this machine can hold, when that beats the
+            // Stable pick. Runnable-only by construction (`runnable_models` is the source).
+            let maxp = max_runnable(&s);
+            let _ = tx.unbounded_send((s, r, g, srv, p, rt, is_cached, maxp));
         });
     };
 
@@ -335,14 +351,21 @@ pub fn ModelPanel() -> Element {
     // (dropping the Child leaves it running) on the first free port from 1234, then points Ziqpu's
     // Local mode at it. Never blocks the UI.
     let run_serve = move |()| {
-        let plan_v = plan.read().clone();
         let spec_v = *spec.read();
         let gpu_v = gpu.read().clone();
-        let pick = match &*rec.read() {
+        let stable = match &*rec.read() {
             Some(Recommendation::Local(p)) => Some(*p),
             _ => None,
         };
-        let Some(pick) = pick else { return };
+        let Some(stable) = stable else { return };
+        // The dropdown's choice: "#2 Max" swaps in the biggest runnable model. The benchmark's
+        // cached ServePlan was fitted for Stable, so a Max serve must re-plan from scratch.
+        let chose_max = *use_max.read();
+        let pick = match (chose_max, *max_pick.read()) {
+            (true, Some(maxp)) => maxp,
+            _ => stable,
+        };
+        let plan_v = if chose_max { None } else { plan.read().clone() };
         serving.set(true);
         serve_status.set(Some(ServeProgress::Preparing));
         let tx = server_co.tx();
@@ -359,12 +382,27 @@ pub fn ModelPanel() -> Element {
             }
             // Resolve the backend-correct llama-server (app-managed CUDA/Metal/ROCm build first, then
             // PATH/winget) — NOT the winget Vulkan build that binds a hybrid laptop's integrated GPU.
-            let Some(bin) = resolve_llama_server() else {
-                let _ = tx.unbounded_send(ServeProgress::Failed(format!(
-                    "llama.cpp not found — install it first ({}).",
-                    llama_install_hint()
-                )));
-                return;
+            // Nothing anywhere? Install it ourselves: `ensure_runtime` fetches the right build for
+            // this OS/arch/GPU into the app-managed root, streaming progress here. This runs ONLY on
+            // the serve path — a below-floor machine never reaches it (no serve button), so "can't
+            // run a model" never installs a runtime it can't use.
+            let bin = match resolve_llama_server() {
+                Some(bin) => bin,
+                None => {
+                    let txp = tx.clone();
+                    match ensure_runtime(&mut |line| {
+                        let _ = txp.unbounded_send(ServeProgress::Installing(line.to_string()));
+                    }) {
+                        Ok(bin) => bin,
+                        Err(why) => {
+                            let _ = tx.unbounded_send(ServeProgress::Failed(format!(
+                                "Couldn't install llama.cpp: {why}. Manual fallback: {}.",
+                                llama_install_hint()
+                            )));
+                            return;
+                        }
+                    }
+                }
             };
             let resolved =
                 plan_v.or_else(|| spec_v.and_then(|s| plan_serve(&pick, &s, gpu_v.as_ref())));
@@ -554,6 +592,31 @@ pub fn ModelPanel() -> Element {
     };
     let is_local = matches!(rec_now, Some(Recommendation::Local(_)));
     let plan_known = plan.read().is_some();
+    // The tier emblem: the machine's wheat. A runnable tier wears its band color; below the floor
+    // is wild wheat — it grows, but you can't harvest it.
+    let tier_state = match &rec_now {
+        Some(Recommendation::Local(p)) => Some(WheatTierState::Tier(p.tier)),
+        Some(Recommendation::NoLocal { .. }) => Some(WheatTierState::Wild),
+        None => None,
+    };
+    // The curated two-option dropdown: "#1 Stable" (the tier-correct pick) and — when the machine
+    // can hold more — "#2 Max" (the biggest runnable model; bigger answers, slower tokens).
+    let chose_max = *use_max.read();
+    let stable_option = match &rec_now {
+        Some(Recommendation::Local(p)) => Some(format!(
+            "#1 Stable — {} ({}, ~{:.0} GB)",
+            p.name, p.params, p.download_gb
+        )),
+        _ => None,
+    };
+    let max_option = (*max_pick.read()).map(|m| {
+        format!(
+            "#2 Max — {} ({}, ~{:.0} GB, slower)",
+            m.name, m.params, m.download_gb
+        )
+    });
+    // Both labels or no dropdown — a machine whose Max IS its Stable gets no fake choice.
+    let choice_labels = stable_option.zip(max_option);
     // RuntimeHealth: the backend + GPU the serve will land on. A Vulkan runtime on a discrete-GPU
     // machine is the iGPU-trap warning; CUDA/Metal/ROCm is the healthy path.
     let runtime_line = runtime.read().clone();
@@ -570,6 +633,11 @@ pub fn ModelPanel() -> Element {
             ServeProgress::Preparing => {
                 ("Preparing…".to_string(), Some(WheatPhase::Loading), "prep")
             }
+            ServeProgress::Installing(line) => (
+                format!("Installing llama.cpp — {line}"),
+                Some(WheatPhase::Loading),
+                "prep",
+            ),
             ServeProgress::Downloading(pct) => (
                 format!("Downloading model… {pct}%"),
                 Some(WheatPhase::Download(*pct)),
@@ -617,58 +685,81 @@ pub fn ModelPanel() -> Element {
                         }
                     }
                 }
-                if let Some(line) = pick_line {
-                    div { class: "modelpanel-pick", "{line}" }
-                }
-                if let Some(line) = plan_line {
-                    div { class: "modelpanel-plan", "{line}" }
-                }
-                if is_local && !plan_known {
-                    p { class: "settings-hint",
-                        "The best quant for your hardware is chosen when you serve (needs a connection to list the repo)."
+                // The machine's wheat: tier band color for a runnable machine, wild for below-floor.
+                div { class: "modelpanel-tier-row",
+                    if let Some(state) = tier_state {
+                        WheatTier { state }
+                    }
+                    div { class: "modelpanel-tier-lines",
+                        if let Some(line) = pick_line {
+                            div { class: "modelpanel-pick", "{line}" }
+                        }
+                        if let Some(line) = plan_line {
+                            div { class: "modelpanel-plan", "{line}" }
+                        }
+                        if is_local && !plan_known {
+                            p { class: "settings-hint",
+                                "The best quant for your hardware is chosen when you serve (needs a connection to list the repo)."
+                            }
+                        }
+                        if let Some(line) = nolocal_line {
+                            div { class: "modelpanel-nolocal", "{line}" }
+                        }
                     }
                 }
-                if let Some(line) = nolocal_line {
-                    div { class: "modelpanel-nolocal", "{line}" }
-                }
                 if is_local {
-                    if srv {
-                        if is_cached {
-                            div { class: "modelpanel-cached",
-                                span { class: "modelpanel-cached-dot" }
-                                "downloaded — serving just loads it, no re-download"
+                    // The curated choice — ONLY models this machine can hold ever appear here.
+                    if let Some((stable_label, max_label)) = choice_labels {
+                        label { class: "settings-field modelpanel-choice",
+                            span { class: "settings-label", "Model to run" }
+                            select {
+                                class: "settings-input",
+                                value: if chose_max { "max" } else { "stable" },
+                                onchange: move |e| use_max.set(e.value() == "max"),
+                                option { value: "stable", "{stable_label}" }
+                                option { value: "max", "{max_label}" }
                             }
                         }
-                        button {
-                            class: "btn btn--go modelpanel-btn",
-                            r#type: "button",
-                            disabled: serving_now,
-                            onclick: move |_| {
-                                let mut f = run_serve;
-                                f(());
-                            },
-                            if serving_now {
-                                "Starting…"
-                            } else if is_cached {
-                                "Serve locally"
-                            } else {
-                                "Download & serve locally"
-                            }
+                    }
+                    if is_cached && !chose_max {
+                        div { class: "modelpanel-cached",
+                            span { class: "modelpanel-cached-dot" }
+                            "downloaded — serving just loads it, no re-download"
                         }
-                        if let Some((label, wheat, kind)) = serve_view {
-                            div { class: "modelpanel-serve modelpanel-serve--{kind}",
-                                p { class: "modelpanel-serve-label", "{label}" }
-                                if let Some(phase) = wheat {
-                                    WheatLoader { phase }
-                                }
-                            }
+                    }
+                    button {
+                        class: "btn btn--go modelpanel-btn",
+                        r#type: "button",
+                        disabled: serving_now,
+                        onclick: move |_| {
+                            let mut f = run_serve;
+                            f(());
+                        },
+                        if serving_now {
+                            "Starting…"
+                        } else if !srv {
+                            "Install & serve locally"
+                        } else if is_cached && !chose_max {
+                            "Serve locally"
                         } else {
-                            p { class: "settings-hint",
-                                "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."
+                            "Download & serve locally"
+                        }
+                    }
+                    if let Some((label, wheat, kind)) = serve_view {
+                        div { class: "modelpanel-serve modelpanel-serve--{kind}",
+                            p { class: "modelpanel-serve-label", "{label}" }
+                            if let Some(phase) = wheat {
+                                WheatLoader { phase }
                             }
+                        }
+                    } else if srv {
+                        p { class: "settings-hint",
+                            "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."
                         }
                     } else {
-                        p { class: "settings-hint modelpanel-warn", "{install_hint}" }
+                        p { class: "settings-hint",
+                            "First serve installs the right llama.cpp build for your GPU automatically (one-time, no admin rights) — or install it yourself: {install_hint}."
+                        }
                     }
                 }
             } else {

@@ -279,6 +279,37 @@ pub fn all_models() -> &'static [ModelPick] {
     &DESKTOP_MODELS
 }
 
+/// The committed models this machine can actually **hold**, weakest→strongest — the curated set the
+/// UI's dropdown may offer, and nothing else. Empty below the floor (a machine that can't run any
+/// model gets no list to pick from, by design). "Runnable" is the same fit rule `recommend_for`
+/// applies: weights + headroom within RAM. A model *above* the machine's gated tier can still be in
+/// this list — it runs, just slower than its home tier would (that's the "Max" trade, below).
+pub fn runnable_models(spec: &DeviceSpec) -> Vec<ModelPick> {
+    if !meets_floor(spec) {
+        return Vec::new();
+    }
+    all_models()
+        .iter()
+        .copied()
+        .filter(|m| model_fits(spec, m))
+        .collect()
+}
+
+/// The **"#2 Max"** option: the biggest model this machine can hold, offered beside the
+/// tier-correct **"#1 Stable"** pick of [`recommend_for`]. `None` below the floor, and `None` when
+/// it would just repeat the Stable pick (the caller then shows no second option). Max may exceed
+/// the machine's gated tier — bigger model, slower tokens; the seeker chooses the trade.
+pub fn max_runnable(spec: &DeviceSpec) -> Option<ModelPick> {
+    let max = runnable_models(spec)
+        .into_iter()
+        .max_by(|a, b| a.download_gb.total_cmp(&b.download_gb))?;
+    match recommend_for(spec) {
+        Recommendation::Local(stable) if stable.name == max.name => None,
+        Recommendation::Local(_) => Some(max),
+        Recommendation::NoLocal { .. } => None,
+    }
+}
+
 /// Which non-local path a below-floor machine should use instead. Mirrors the app's
 /// `ReadMode { Raw, Local, Live }`: [`Recommendation::NoLocal`] means "skip the Local rung".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2579,6 +2610,36 @@ mod tests {
         assert_eq!(r.assets[0].name, "llama-b10064-bin-win-cpu-x64.zip");
         assert_eq!(r.assets[0].size, 18_000_000);
         assert!(parse_runtime_release("not json").is_none());
+    }
+
+    #[test]
+    fn the_curated_list_is_runnable_only_and_max_is_a_real_upgrade() {
+        // The 8 GB floor box: exactly one model fits → no Max option (it would repeat Stable).
+        let floor = spec(8.0, 4, Some(50.0), None);
+        let runnable = runnable_models(&floor);
+        assert_eq!(runnable.len(), 1, "only the guarded 4B fits 8 GB");
+        assert_eq!(
+            max_runnable(&floor),
+            None,
+            "Max = Stable → no second option"
+        );
+        // A big-RAM machine gated to Medium (no GPU): Stable is the Medium pick, Max is the biggest
+        // model RAM can hold — an above-tier trade the seeker may choose, never be forced into.
+        let big = spec(64.0, 12, Some(200.0), None);
+        let stable = match recommend_for(&big) {
+            Recommendation::Local(p) => p,
+            other => panic!("expected Local, got {other:?}"),
+        };
+        let max = max_runnable(&big).expect("a 64 GB machine holds more than its tier pick");
+        assert!(max.download_gb > stable.download_gb);
+        assert!(
+            runnable_models(&big).iter().any(|m| m.name == max.name),
+            "Max comes from the runnable list"
+        );
+        // Below the floor: nothing to pick from, and no Max — the dropdown must have no rows.
+        let sub = spec(4.0, 2, None, None);
+        assert!(runnable_models(&sub).is_empty());
+        assert_eq!(max_runnable(&sub), None);
     }
 
     #[test]

@@ -35,5 +35,5 @@ pub use onboarding::Onboarding;
 pub use ranked::Ranked;
 pub use settings::{SettingsButton, SettingsPage};
 pub use setup::Setup;
-pub use wheat_loader::{WheatLoader, WheatPhase};
+pub use wheat_loader::{WheatLoader, WheatPhase, WheatTier, WheatTierState};
 pub use your_sky::YourSky;

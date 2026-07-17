@@ -79,3 +79,37 @@ pub fn WheatLoader(phase: WheatPhase) -> Element {
         }
     }
 }
+
+/// The **tier emblem** — a card-sized stand of wheat whose color names the machine's local-model
+/// tier (the owner's ladder: seed → red → green → gold), or **wild wheat** for a machine below the
+/// floor: bent, scattered, ungoverned — it grows, but you can't harvest it. Still, no animation:
+/// this is a verdict, not a process (the [`WheatLoader`] above owns motion).
+#[derive(Clone, Copy, PartialEq)]
+pub enum WheatTierState {
+    /// A runnable tier → its color class (see `.wtier--*` in `ziqpu.css`).
+    Tier(model::Tier),
+    /// Below the floor — no local model. Wild wheat.
+    Wild,
+}
+
+#[component]
+pub fn WheatTier(state: WheatTierState) -> Element {
+    // Tier → the color band of the owner's seed→red→green→gold ladder. Five tiers, four named
+    // bands: Weak folds in with Medium's red — the in-between the ladder didn't name.
+    let (variant, caption) = match state {
+        WheatTierState::Tier(model::Tier::Low) => ("wtier--seed", "Tier Low"),
+        WheatTierState::Tier(model::Tier::Weak) => ("wtier--red", "Tier Weak"),
+        WheatTierState::Tier(model::Tier::Medium) => ("wtier--red", "Tier Medium"),
+        WheatTierState::Tier(model::Tier::Strong) => ("wtier--green", "Tier Strong"),
+        WheatTierState::Tier(model::Tier::Ultra) => ("wtier--gold", "Tier Ultra"),
+        WheatTierState::Wild => ("wtier--wild", "Wild — below the floor"),
+    };
+    rsx! {
+        div { class: "wtier {variant}",
+            div { class: "wtier-field", "aria-hidden": "true",
+                {(0..5).map(|i| rsx! { Stalk { key: "{i}", index: i, grown: true } })}
+            }
+            span { class: "wtier-caption", "{caption}" }
+        }
+    }
+}
