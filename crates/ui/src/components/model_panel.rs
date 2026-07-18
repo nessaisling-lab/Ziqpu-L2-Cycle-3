@@ -303,6 +303,11 @@ where
         // to the model's full 32k+ trained window, several GB of KV).
         "-c".into(),
         model::SERVE_CTX_SIZE.to_string(),
+        // Use the model's own chat template + tool-call grammar. This is what makes a served model
+        // able to answer with `tool_calls` (the N3 origin-resolver's engine, `agents::tools`); it is
+        // additive for plain readings (the template is the model's intended one). Every recommended
+        // model ships a jinja template, so this is safe across the tiers.
+        "--jinja".into(),
         // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
         "-lv".into(),
         "1".into(),

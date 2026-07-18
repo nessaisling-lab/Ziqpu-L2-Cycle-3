@@ -415,6 +415,9 @@ fn serve(force_local: bool, port: u16) {
         // several GB) so weights + KV fit in VRAM — a real contributor to the earlier OOM.
         "-c".into(),
         model::SERVE_CTX_SIZE.to_string(),
+        // Enable the model's chat template + tool-call grammar (the N3 origin-resolver's engine
+        // needs `tool_calls`). Additive for plain readings; every recommended model ships a template.
+        "--jinja".into(),
         "-lv".into(),
         "1".into(),
     ];

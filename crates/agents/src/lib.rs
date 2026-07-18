@@ -24,6 +24,7 @@ pub mod orchestrator;
 pub mod profile;
 pub mod score;
 pub mod tier;
+pub mod tools;
 pub mod traction;
 pub mod types;
 
@@ -61,6 +62,7 @@ pub use orchestrator::{
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
+pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
     AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, DayBeat, Fit, GateError,
     GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,

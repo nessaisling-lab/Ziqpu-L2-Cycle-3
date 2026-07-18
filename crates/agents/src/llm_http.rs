@@ -97,6 +97,41 @@ pub fn probe_body(url: &str, timeout_secs: u64) -> Option<String> {
     }
 }
 
+/// One OpenAI-compatible **tool-calling** turn: POST the running `messages` + the advertised `tools`,
+/// and return `choices[0].message` verbatim (`{role, content, tool_calls?}`) so the caller — the
+/// agentic loop in [`crate::tools`] — can both read the `tool_calls` and replay the turn into the
+/// conversation. `tool_choice` is `"auto"` (the model decides). `None` on any transport / HTTP /
+/// parse error. Used against a local `llama-server --jinja` or any hosted OpenAI-shaped endpoint.
+pub(crate) fn openai_tool_turn(
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    messages: &[serde_json::Value],
+    tools: &[serde_json::Value],
+) -> Option<serde_json::Value> {
+    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+    let mut body = serde_json::json!({
+        "model": model,
+        "stream": false,
+        "max_tokens": 1024,
+        "messages": messages,
+    });
+    if !tools.is_empty() {
+        body["tools"] = serde_json::json!(tools);
+        body["tool_choice"] = serde_json::json!("auto");
+    }
+    let text = post_json(
+        &url,
+        &[
+            ("Authorization", &format!("Bearer {api_key}")),
+            ("content-type", "application/json"),
+        ],
+        &body.to_string(),
+    )?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    value.get("choices")?.get(0)?.get("message").cloned()
+}
+
 /// One OpenAI-compatible `/chat/completions` round-trip. POSTs to `{base_url}/chat/completions`
 /// with a Bearer token and a system + user message (`stream:false`, no temperature), then parses
 /// `choices[0].message.content`. Returns `None` on any transport, HTTP, or parse error.
