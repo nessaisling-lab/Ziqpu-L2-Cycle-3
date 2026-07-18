@@ -27,6 +27,7 @@ pub mod tier;
 pub mod tools;
 pub mod traction;
 pub mod types;
+pub mod vin;
 
 /// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
 /// elsewhere. Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this
@@ -68,6 +69,7 @@ pub use types::{
     GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
     Verdict, WeeklyReading,
 };
+pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId};
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can
 // build placements and score contacts without depending on `engine` directly.
