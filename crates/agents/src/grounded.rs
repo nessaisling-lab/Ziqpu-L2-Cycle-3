@@ -359,7 +359,12 @@ impl SecFactsSource {
     /// `None` on any transport/parse failure or if no concept returned data. "Newest" is by period
     /// `end`, so a fresh 10-Q beats a stale 10-K and a retired concept never shadows a live one.
     fn latest_usd(&self, cik: u32, concepts: &[&str], label: &str) -> Option<String> {
-        let mut best: Option<(String, f64, String)> = None; // (end, val, form)
+        // (end, val, form, start). `start` is `None` for an instant fact (Assets — a point in time)
+        // and `Some` for a duration fact (revenue — a span). It is load-bearing for honesty: a 10-Q
+        // reports several revenue durations ending on the same date (the 3-month quarter AND the
+        // cumulative year-to-date), so a bare "revenue: $254.94B" would silently present a
+        // multi-quarter total as if it were the period's revenue. We label the real span instead.
+        let mut best: Option<(String, f64, String, Option<String>)> = None;
         for concept in concepts {
             let url = format!(
                 "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik:010}/us-gaap/{concept}.json"
@@ -378,22 +383,37 @@ impl SecFactsSource {
                     continue;
                 };
                 let form = pt["form"].as_str().unwrap_or("").to_string();
-                if best
-                    .as_ref()
-                    .map_or(true, |(b_end, _, _)| end > b_end.as_str())
-                {
-                    best = Some((end.to_string(), val, form));
+                let start = pt["start"].as_str().map(str::to_string);
+                // Prefer the newest period end; among facts sharing that end, prefer the *shortest*
+                // span (the later start) — i.e. the clean quarter over the year-to-date blob.
+                let take = match best.as_ref() {
+                    None => true,
+                    Some((b_end, _, _, b_start)) => {
+                        end > b_end.as_str()
+                            || (end == b_end.as_str()
+                                && start.as_deref().unwrap_or("")
+                                    > b_start.as_deref().unwrap_or(""))
+                    }
+                };
+                if take {
+                    best = Some((end.to_string(), val, form, start));
                 }
             }
         }
-        let (end, val, form) = best?;
+        let (end, val, form, start) = best?;
         let form_note = if form.is_empty() {
             String::new()
         } else {
             format!(", {form}")
         };
+        // A duration fact names its span (so the reader sees a quarter, not an implied year); an
+        // instant fact (Assets) is a point-in-time balance.
+        let period = match start {
+            Some(s) => format!("over {s} → {end}"),
+            None => format!("as of {end}"),
+        };
         Some(format!(
-            "{label}: {} (ended {end}{form_note})",
+            "{label}: {} ({period}{form_note})",
             format_usd(val)
         ))
     }
