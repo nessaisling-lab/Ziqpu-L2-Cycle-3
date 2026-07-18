@@ -238,8 +238,34 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let server = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let mut buf = [0u8; 2048];
-            let _ = stream.read(&mut buf); // drain the request line + headers + body
+            // Drain the WHOLE request (headers + Content-Length body) before responding. On Windows,
+            // closing a socket while the receive buffer still holds unread request bytes sends a RST,
+            // which `ureq` reports as a transport error instead of the 429 — a real flake seen only on
+            // windows CI. Fully draining first (then flushing the response) makes the close graceful.
+            let mut data: Vec<u8> = Vec::new();
+            let mut buf = [0u8; 1024];
+            loop {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        data.extend_from_slice(&buf[..n]);
+                        if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let head = String::from_utf8_lossy(&data[..pos]);
+                            let cl = head
+                                .lines()
+                                .find_map(|l| {
+                                    l.to_ascii_lowercase()
+                                        .strip_prefix("content-length:")
+                                        .and_then(|v| v.trim().parse::<usize>().ok())
+                                })
+                                .unwrap_or(0);
+                            if data.len() >= pos + 4 + cl {
+                                break; // full request in hand
+                            }
+                        }
+                    }
+                }
+            }
             let body = r#"{"error":"monthly_budget_exhausted"}"#;
             let resp = format!(
                 "HTTP/1.1 429 Too Many Requests\r\nContent-Type: application/json\r\n\
@@ -248,6 +274,7 @@ mod tests {
                 body
             );
             let _ = stream.write_all(resp.as_bytes());
+            let _ = stream.flush();
         });
 
         let url = format!("http://{addr}/v1/messages");
