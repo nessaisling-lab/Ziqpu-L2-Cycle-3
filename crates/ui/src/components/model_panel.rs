@@ -792,6 +792,18 @@ pub fn ModelPanel() -> Element {
     });
     // Both labels or no dropdown — a machine whose Max IS its Stable gets no fake choice.
     let choice_labels = stable_option.zip(max_option);
+    // Capability chips for the CURRENTLY-selected pick (Max if chosen, else the Stable pick) — so a
+    // seeker can tell, before serving, whether this local model can drive the N3 origin-resolver
+    // (tool-calling) and what else it offers.
+    let selected_pick: Option<ModelPick> = if chose_max {
+        *max_pick.read()
+    } else {
+        match &rec_now {
+            Some(Recommendation::Local(p)) => Some(*p),
+            _ => None,
+        }
+    };
+    let selected_caps = selected_pick.map(|p| p.caps.badges());
     // RuntimeHealth: the backend + GPU the serve will land on. A Vulkan runtime on a discrete-GPU
     // machine is the iGPU-trap warning; CUDA/Metal/ROCm is the healthy path.
     let runtime_line = runtime.read().clone();
@@ -932,6 +944,20 @@ pub fn ModelPanel() -> Element {
                         }
                         if let Some(line) = plan_line {
                             div { class: "modelpanel-plan", "{line}" }
+                        }
+                        // Capability chips — tool-calling leads (N3-readiness), then reasoning /
+                        // vision, then the context window.
+                        if let Some(caps) = selected_caps {
+                            div { class: "modelpanel-caps",
+                                {caps.iter().enumerate().map(|(i, c)| {
+                                    let cls = if c == "tool-calling" {
+                                        "modelpanel-cap modelpanel-cap--tools"
+                                    } else {
+                                        "modelpanel-cap"
+                                    };
+                                    rsx! { span { key: "{i}", class: "{cls}", "{c}" } }
+                                })}
+                            }
                         }
                         if is_local && !plan_known {
                             p { class: "settings-hint",

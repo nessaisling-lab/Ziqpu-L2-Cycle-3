@@ -1145,3 +1145,16 @@ td.b{color:var(--ink)}
   border:1px solid var(--gold-line);
   overflow-wrap:anywhere;
 }
+/* Capability chips for the selected local pick. tool-calling is emphasized (lapis, the N3-ready
+   signal); the rest are quiet neutral chips. */
+.modelpanel-caps{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 2px}
+.modelpanel-cap{
+  font:600 11px/1 var(--f-mono);letter-spacing:.03em;color:var(--ink-soft);
+  padding:4px 8px;border-radius:999px;border:1px solid var(--gold-line);
+  background:color-mix(in srgb,var(--parchment) 60%,transparent);
+}
+.modelpanel-cap--tools{
+  color:var(--lapis);
+  border-color:color-mix(in srgb,var(--lapis) 34%,var(--gold-line));
+  background:color-mix(in srgb,var(--lapis) 9%,transparent);
+}

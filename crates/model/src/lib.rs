@@ -204,6 +204,42 @@ pub struct ModelPick {
     /// hyphenated/space-free so it needs no URL encoding, and deliberately a little fuzzy — layer 2
     /// finds whatever GGUF repos actually exist for this model family today (releases drift).
     pub search_term: &'static str,
+    /// What this model can do — surfaced as badges so a seeker can tell, before serving, whether a
+    /// local pick can drive the N3 origin-resolver (`tools`) and what else it offers.
+    pub caps: Caps,
+}
+
+/// A local model's capabilities. Committed facts about each pick (like its params/quant), not probed
+/// — the `model` crate has no model to interrogate. `tools` is the load-bearing one: it says whether
+/// this model can drive [`crate::tools`]-style function-calling, which the N3 origin-resolver requires.
+/// `vision` is uniformly false for the current text-only GGUF picks; the field exists for when a
+/// vision model joins the ledger. `ctx_k` is the model's *trained* window (thousands of tokens), not
+/// the served `-c` cap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Caps {
+    pub tools: bool,
+    pub vision: bool,
+    pub reasoning: bool,
+    pub ctx_k: u32,
+}
+
+impl Caps {
+    /// Short display chips, most useful first: tool-calling (N3-readiness), then reasoning, then
+    /// vision if present, then always the context window. No emoji — the panel styles them as chips.
+    pub fn badges(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        if self.tools {
+            v.push("tool-calling".to_string());
+        }
+        if self.reasoning {
+            v.push("reasoning".to_string());
+        }
+        if self.vision {
+            v.push("vision".to_string());
+        }
+        v.push(format!("{}k ctx", self.ctx_k));
+        v
+    }
 }
 
 /// The Desktop-class model per tier (hierarchy §Class 3 recommendations).
@@ -216,6 +252,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 3.0,
         min_ram_gb: 8.0,
         search_term: "gemma-3-4b-it",
+        // Gemma 3 supports function calling; the text GGUF has no vision; no explicit thinking mode.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: false,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Weak,
@@ -225,6 +268,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 6.6,
         min_ram_gb: 16.0,
         search_term: "Qwen3.5-9B-Instruct",
+        // Qwen3 family: strong native tool-calling + a thinking mode.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     // Medium = a 16 GB dedicated-VRAM card (e.g. RTX 5080 Laptop). A DENSE 14B at Q4_K_M (~9 GB) fits
     // with real headroom for the KV cache + compute (a 20B's ~12 GB quants left almost none and OOM'd),
@@ -238,6 +288,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 9.0,
         min_ram_gb: 16.0,
         search_term: "Qwen3-14B",
+        // Strong native tool-calling template + thinking mode — the reading/resolver workhorse.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Strong,
@@ -247,6 +304,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 24.0,
         min_ram_gb: 32.0,
         search_term: "Qwen3.5-35B",
+        // Qwen3 MoE: tools + reasoning.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Ultra,
@@ -256,6 +320,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 65.0,
         min_ram_gb: 64.0,
         search_term: "gpt-oss-120b",
+        // GPT-OSS is a reasoning model with native tool use.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
 ];
 
@@ -271,6 +342,14 @@ pub const SUBFLOOR_PICK: ModelPick = ModelPick {
     download_gb: 2.0,
     min_ram_gb: 4.0,
     search_term: "Llama-3.2-3B-Instruct",
+    // Llama 3.2 3B carries a tool-calling template, but at 3B it is unreliable at it and has no
+    // reasoning mode — honest caps for the forced, rough fallback (below the resolver's bar).
+    caps: Caps {
+        tools: false,
+        vision: false,
+        reasoning: false,
+        ctx_k: 128,
+    },
 };
 
 /// The whole tier→model table, weakest→strongest — for a `list` view and for callers offering the
@@ -2746,6 +2825,36 @@ mod tests {
         let sub = spec(4.0, 2, None, None);
         assert!(runnable_models(&sub).is_empty());
         assert_eq!(max_runnable(&sub), None);
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_constants)] // SUBFLOOR_PICK is const; asserting its caps is intended
+    fn every_recommended_model_is_tool_capable_but_the_subfloor_is_not() {
+        // N3-readiness: every tier's recommended pick can drive the tool-calling loop, so the
+        // origin-resolver works on any machine the ledger recommends a model for.
+        for m in all_models() {
+            assert!(
+                m.caps.tools,
+                "{} must be tool-capable (N3 needs it)",
+                m.name
+            );
+        }
+        // The forced sub-floor 3B is honestly marked as NOT a reliable tool-caller (below the bar).
+        assert!(!SUBFLOOR_PICK.caps.tools);
+
+        // badges() leads with tool-calling when present and always ends with the context window.
+        let qwen14 = all_models().iter().find(|m| m.name == "Qwen3 14B").unwrap();
+        let b = qwen14.caps.badges();
+        assert_eq!(b.first().map(String::as_str), Some("tool-calling"));
+        assert!(b.iter().any(|s| s == "reasoning"));
+        assert!(b.last().unwrap().ends_with("ctx"), "{b:?}");
+        // A non-reasoning pick (Gemma 3 4B) omits the reasoning chip; no local pick claims vision.
+        let gemma = all_models()
+            .iter()
+            .find(|m| m.name.starts_with("Gemma"))
+            .unwrap();
+        assert!(!gemma.caps.badges().iter().any(|s| s == "reasoning"));
+        assert!(all_models().iter().all(|m| !m.caps.vision));
     }
 
     #[test]
