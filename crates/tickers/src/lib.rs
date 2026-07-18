@@ -169,6 +169,12 @@ struct Entity {
     ticker_lc: String,
     name_lc: String,
     name_norm: String,
+    /// SEC Central Index Key, parsed from the stock CSV's `cik` column — the grounding handle that
+    /// lets [`grounded`](../../agents/src/grounded.rs) pull this company's real EDGAR filings. `None`
+    /// for the industry universes (their CSVs carry no CIK) and for any stock row with a blank/
+    /// malformed CIK. Without it a searched choice can only be read unsourced, which is exactly why
+    /// grounding came back empty for every ticker outside the seeded demo before this was wired.
+    cik: Option<u32>,
     /// The day-precise moment to cast the chart for, or `None` when the entity is unchartable
     /// (no listing date and no day-precise founding). Search still lists it; it just can't be picked.
     chart_date: Option<NaiveDate>,
@@ -470,8 +476,11 @@ fn phrase_contains(hay: &str, core: &str) -> bool {
 ///   fallback (the exchange's trading floor for Stocks — where the listing actually happened; a
 ///   neutral point for industry).
 ///
-/// `cik`/`wiki` are `None` (these universes carry no curated grounding handles; the seeded demo's
-/// five stocks do).
+/// `cik` is carried from the CSV for **Stocks** (the grounding handle — every one of the ~4,500
+/// chartable stocks now resolves with its real SEC CIK, so grounding fires for any searched ticker,
+/// not just the five seeded demo picks); `None` for the industry universes, whose CSVs carry no CIK.
+/// `wiki` stays `None` for now — the stock CSV has no Wikipedia-title column, so the EDGAR leg is what
+/// lights up here; the Wikipedia leg still runs for the demo picks that hardcode a title.
 pub fn choice_in(u: Universe, id: &str) -> Option<Choice> {
     let key = id.trim().to_lowercase();
     let r = entities(u).iter().find(|r| r.ticker_lc == key)?;
@@ -488,7 +497,7 @@ pub fn choice_in(u: Universe, id: &str) -> Option<Choice> {
             lat: r.lat,
             lon: r.lon,
         },
-        cik: None,
+        cik: r.cik,
         wiki: None,
     })
 }
@@ -560,6 +569,9 @@ fn parse_stocks(csv: &str) -> Vec<Entity> {
             let name = f[1].trim().to_string();
             let name_lc = name.to_lowercase();
             let name_norm = normalize(&name_lc);
+            // The grounding handle. A blank or non-numeric CIK just means unsourced-only for this row,
+            // never a panic — the same tolerance the date columns get.
+            let cik = f[3].trim().parse::<u32>().ok();
             let (lat, lon) = fallback_coords(f[2].trim());
 
             // Listing first (day-precise, opening bell), else a day-precise founding (no bell).
@@ -574,6 +586,7 @@ fn parse_stocks(csv: &str) -> Vec<Entity> {
             Some(Entity {
                 ticker_lc: ticker.to_lowercase(),
                 name_norm,
+                cik,
                 chart_date,
                 chart_time,
                 moment,
@@ -632,6 +645,7 @@ fn parse_industry(csv: &str) -> Vec<Entity> {
             Some(Entity {
                 ticker_lc: ticker.to_lowercase(),
                 name_norm,
+                cik: None, // industry CSVs carry no CIK — these entities read unsourced
                 chart_date,
                 chart_time,
                 moment: Moment::Founding,
@@ -724,7 +738,11 @@ mod tests {
             "a listing carries the bell"
         );
         assert_eq!(c.birth.tz, chrono_tz::America::New_York);
-        assert!(c.cik.is_none() && c.wiki.is_none());
+        // A searched stock now carries its real SEC CIK — the grounding handle that lets EDGAR pull
+        // its filings. This is what makes grounding work beyond the five seeded demo picks. `wiki`
+        // stays None (the stock CSV has no title column; the EDGAR leg is what fires here).
+        assert_eq!(c.cik, Some(1318605), "TSLA resolves with its SEC CIK");
+        assert!(c.wiki.is_none());
     }
 
     #[test]
@@ -1048,5 +1066,33 @@ mod tests {
             NASDAQ_COORDS
         );
         assert_eq!(search("aapl"), search_in(Universe::Stocks, "aapl"));
+        // AAPL carries its real SEC CIK (320193) — grounding fires for it too.
+        assert_eq!(via_universe.cik, Some(320193), "AAPL resolves with its CIK");
+    }
+
+    /// The regression guard for the CIK-grounding fix: the CIK must reach a resolved `Choice` for the
+    /// vast majority of chartable stocks, not just the seeded demo. Before this fix `choice_in`
+    /// hardcoded `cik: None`, so grounding silently returned nothing for every searched ticker. A
+    /// blanket ratio (not a hardcoded count) survives data refreshes while still failing loudly if the
+    /// wiring is ever cut again.
+    #[test]
+    fn chartable_stocks_resolve_with_a_cik() {
+        let (mut chartable, mut with_cik) = (0usize, 0usize);
+        for r in entities(Universe::Stocks) {
+            if let Some(c) = choice_in(Universe::Stocks, &r.ticker) {
+                chartable += 1;
+                if c.cik.is_some() {
+                    with_cik += 1;
+                }
+            }
+        }
+        assert!(chartable > 1000, "expected a large chartable-stock population, got {chartable}");
+        // SEC CIKs exist for essentially every EDGAR-listed issuer; allow a small margin for
+        // pre-EDGAR foundings whose row may lack one, but the overwhelming majority must carry it.
+        let ratio = with_cik as f64 / chartable as f64;
+        assert!(
+            ratio > 0.9,
+            "only {with_cik}/{chartable} chartable stocks carry a CIK ({ratio:.2}) — grounding handle regressed"
+        );
     }
 }
