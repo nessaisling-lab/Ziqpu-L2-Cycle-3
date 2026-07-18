@@ -151,6 +151,10 @@ pub struct AnthropicInterpreter {
     fallback: TemplateInterpreter,
     /// Short, key-free label for the banner / "who wrote this" — e.g. "Claude" or "Ziqpu built-in".
     source_label: &'static str,
+    /// `true` only for the **built-in free tier** (the key proxy). Gates whether `complete` reports
+    /// its outcome to [`crate::tier`]: a user's own key or OpenRouter is not the free tier, so it must
+    /// never move the free-tier health latch that drives the "over budget / paused" banner.
+    is_built_in: bool,
 }
 
 impl AnthropicInterpreter {
@@ -172,6 +176,7 @@ impl AnthropicInterpreter {
             model,
             fallback: TemplateInterpreter,
             source_label: "Claude",
+            is_built_in: false,
         })
     }
 
@@ -197,6 +202,7 @@ impl AnthropicInterpreter {
             model,
             fallback: TemplateInterpreter,
             source_label: "Ziqpu built-in",
+            is_built_in: true,
         })
     }
 
@@ -215,14 +221,34 @@ impl AnthropicInterpreter {
         })
         .to_string();
 
-        // Auth rides an in-process header (post_json), never a process command line. Same for both
-        // the direct key and the proxy app-token.
+        // Auth rides an in-process header (post_json_outcome), never a process command line. Same for
+        // both the direct key and the proxy app-token.
         let headers: Vec<(&str, &str)> = self
             .headers
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect();
-        let text = crate::llm_http::post_json(&self.endpoint, &headers, &body)?;
+        // Read the FULL outcome so the built-in tier can report an over-budget/paused 429/503 instead
+        // of it silently collapsing to "no reading". Only the built-in proxy path touches the latch —
+        // a user's own key or OpenRouter is not the free tier (see `is_built_in`).
+        use crate::llm_http::PostOutcome;
+        let text = match crate::llm_http::post_json_outcome(&self.endpoint, &headers, &body) {
+            PostOutcome::Ok(t) => {
+                if self.is_built_in {
+                    crate::tier::record(crate::tier::BuiltInTier::Ready);
+                }
+                t
+            }
+            PostOutcome::Status(code, err_body) => {
+                if self.is_built_in {
+                    crate::tier::record(crate::tier::classify(code, &err_body));
+                }
+                return None;
+            }
+            // A transport failure (offline / timeout) is NOT a tier verdict — leave the latch as-is
+            // so a network blip can't fabricate or erase an "over budget".
+            PostOutcome::Transport => return None,
+        };
         let value: serde_json::Value = serde_json::from_str(&text).ok()?;
         // Guard the error/refusal shapes before reading content.
         if value.get("type").and_then(|t| t.as_str()) == Some("error") {

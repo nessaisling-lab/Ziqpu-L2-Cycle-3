@@ -5,10 +5,24 @@
 
 use std::time::Duration;
 
-/// One JSON POST over HTTPS. Sets each `(name, value)` header (this is where the secret Authorization
-/// header rides — in memory, never on argv) and sends `body`. Returns the response body as a string,
-/// or `None` on any transport / non-2xx / read error. A 60s timeout guards a hung provider.
-pub(crate) fn post_json(url: &str, headers: &[(&str, &str)], body: &str) -> Option<String> {
+/// The outcome of a POST when the caller must distinguish an HTTP error (with its status + body)
+/// from a transport failure — e.g. to recognize the key proxy's "over budget" 429 vs an offline box.
+/// [`post_json`] (the common case) discards this detail; the built-in-tier path in `interpret_llm`
+/// reads the full outcome to keep [`crate::tier`] honest.
+pub(crate) enum PostOutcome {
+    /// A 2xx response body.
+    Ok(String),
+    /// A non-2xx response: the HTTP status and the body (the body carries the proxy's error string).
+    Status(u16, String),
+    /// Transport / read failure — nothing came back (offline, DNS, timeout, unreadable body).
+    Transport,
+}
+
+/// One JSON POST over HTTPS, returning the full [`PostOutcome`]. Sets each `(name, value)` header
+/// (this is where the secret Authorization header rides — in memory, never on argv) and sends `body`.
+/// A 60s timeout guards a hung provider. `ureq::Error::Status` still carries the response, so a
+/// non-2xx body is preserved (that is how the proxy's `monthly_budget_exhausted` reaches the caller).
+pub(crate) fn post_json_outcome(url: &str, headers: &[(&str, &str)], body: &str) -> PostOutcome {
     let agent = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(60))
         .build();
@@ -16,9 +30,27 @@ pub(crate) fn post_json(url: &str, headers: &[(&str, &str)], body: &str) -> Opti
     for (name, value) in headers {
         req = req.set(name, value);
     }
-    // `send_string` errors on transport failure AND on a non-2xx status; `.ok()?` collapses both to
-    // `None`, matching the loop's "on any error, fall back to the template" contract.
-    req.send_string(body).ok()?.into_string().ok()
+    match req.send_string(body) {
+        Ok(r) => match r.into_string() {
+            Ok(s) => PostOutcome::Ok(s),
+            Err(_) => PostOutcome::Transport,
+        },
+        Err(ureq::Error::Status(code, r)) => {
+            // `Error::Status` carries the response — the proxy's error JSON rides in this body.
+            PostOutcome::Status(code, r.into_string().unwrap_or_default())
+        }
+        Err(_) => PostOutcome::Transport,
+    }
+}
+
+/// One JSON POST over HTTPS. Returns the response body as a string, or `None` on any transport /
+/// non-2xx / read error — matching the loop's "on any error, fall back to the template" contract.
+/// A thin wrapper over [`post_json_outcome`] for callers that don't need the status.
+pub(crate) fn post_json(url: &str, headers: &[(&str, &str)], body: &str) -> Option<String> {
+    match post_json_outcome(url, headers, body) {
+        PostOutcome::Ok(s) => Some(s),
+        _ => None,
+    }
 }
 
 /// One JSON GET over HTTPS. Same discipline as [`post_json`] — any key rides an in-process header,
@@ -157,7 +189,50 @@ fn strip_tag_block(s: &str, open: &str, close: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{strip_reasoning, strip_tag_block};
+    use super::{post_json_outcome, strip_reasoning, strip_tag_block, PostOutcome};
+
+    /// The load-bearing behavior for the built-in-tier honesty fix: a non-2xx response must surface
+    /// its **status + body**, not collapse to "nothing came back" — that body is how the proxy's
+    /// `monthly_budget_exhausted` reaches `tier::classify`. Verified against a real one-shot socket
+    /// (no env vars, no global latch → no cross-test races), because the old `.ok()?` silently
+    /// discarded exactly this.
+    #[test]
+    fn post_json_outcome_surfaces_status_and_body_on_non_2xx() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = stream.read(&mut buf); // drain the request line + headers + body
+            let body = r#"{"error":"monthly_budget_exhausted"}"#;
+            let resp = format!(
+                "HTTP/1.1 429 Too Many Requests\r\nContent-Type: application/json\r\n\
+                 Content-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(resp.as_bytes());
+        });
+
+        let url = format!("http://{addr}/v1/messages");
+        match post_json_outcome(&url, &[("content-type", "application/json")], "{}") {
+            PostOutcome::Status(code, body) => {
+                assert_eq!(code, 429);
+                assert!(
+                    body.contains("monthly_budget_exhausted"),
+                    "the 429 body must survive, got {body:?}"
+                );
+                // And the full chain classifies it — the reason the banner ever appears.
+                assert_eq!(
+                    crate::tier::classify(code, &body),
+                    crate::tier::BuiltInTier::OverBudget
+                );
+            }
+            _ => panic!("expected a Status outcome carrying the 429 body, not a collapse to None"),
+        }
+        server.join().unwrap();
+    }
 
     #[test]
     fn strip_reasoning_keeps_only_the_final_reading() {

@@ -23,6 +23,7 @@ pub mod models;
 pub mod orchestrator;
 pub mod profile;
 pub mod score;
+pub mod tier;
 pub mod traction;
 pub mod types;
 

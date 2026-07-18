@@ -225,6 +225,17 @@ header{
 }
 
 /* ---- stepper — a 4-beat sequence ---- */
+/* Built-in free-tier notice — informational, not an error: the reading still landed (on the offline
+   template), the seeker just deserves to know the free tier is exhausted for now. Lapis/gold accent
+   (the "live" family), not carnelian. */
+.tier-notice{
+  display:flex;align-items:flex-start;gap:10px;margin:18px 0 0;padding:11px 14px;border-radius:11px;
+  background:color-mix(in srgb,var(--lapis) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--lapis) 30%,var(--gold-line));
+  font-size:13.5px;line-height:1.5;color:var(--ink-soft);
+}
+.tier-notice__mark{color:var(--gold);font-size:14px;line-height:1.5;flex:none}
+.tier-notice__text{flex:1}
 .steps{display:flex;gap:6px;margin:22px 0 24px;flex-wrap:wrap}
 .step{
   display:flex;align-items:center;gap:9px;

@@ -51,6 +51,9 @@ pub fn App() -> Element {
     let mut recs = use_signal(Vec::<Recommendation>::new);
     let mut pending = use_signal(HashSet::<String>::new);
     let mut sources = use_signal(HashMap::<String, Option<String>>::new);
+    // A one-line notice when the built-in free tier declined (over budget / rate-limited / paused).
+    // Pulled out here so the `reader` coroutine can set it as readings land.
+    let mut builtin_tier_notice = use_signal(|| None::<String>);
     // The Raw → Local → Live display mode. Pulled out here (rather than inline in the `AppCtx`
     // literal) so the header button can both read it for its label and cycle it on click. Default
     // Live. The Local-mode reading store + its off-thread fill live alongside it.
@@ -111,6 +114,11 @@ pub fn App() -> Element {
                 }
                 sources.write().insert(ticker.clone(), model);
                 pending.write().remove(&ticker);
+                // Surface the built-in free tier's health: `notice()` is `Some(line)` only when THIS
+                // ranking's built-in attempts hit the budget/rate/kill-switch (the latch was reset at
+                // ranking start), else `None`. Setting it every reading keeps it live and self-clearing
+                // — a later success flips the tier back to Ready and the banner vanishes.
+                builtin_tier_notice.set(agents::tier::notice());
             }
         },
     );
@@ -315,6 +323,11 @@ pub fn App() -> Element {
             }),
     };
 
+    // The built-in free tier's honest banner: `Some(line)` only when this ranking's built-in Live
+    // attempts hit the budget / daily limit / kill switch (the seeker then silently got the offline
+    // template, and deserves to know why). `None` when the tier served or isn't the active source.
+    let tier_notice = builtin_tier_notice.read().clone();
+
     // The fixed, seeded star field drawn behind the whole app — identical every launch.
     let stars = seeded_stars();
     let sky_class = if searching {
@@ -454,6 +467,16 @@ pub fn App() -> Element {
             if *settings_open.read() {
                 SettingsPage { on_close: move |_| settings_open.set(false) }
             } else {
+
+            // Built-in free-tier notice — shown only when the tier declined (over budget / daily
+            // limit / paused) and the reading fell back to the offline template. Honest, dismissible
+            // by fixing the cause (own key / local model), and self-clearing on the next good reading.
+            if let Some(notice) = tier_notice.clone() {
+                div { class: "tier-notice", role: "status",
+                    span { class: "tier-notice__mark", "aria-hidden": "true", "✦" }
+                    span { class: "tier-notice__text", "{notice}" }
+                }
+            }
 
             nav { class: "steps", role: "tablist", "aria-label": "Reading flow",
                 {STEPS.iter().enumerate().map(|(i, label)| {

@@ -290,6 +290,12 @@ pub fn run_recommend(mut ctx: AppCtx) {
         ensure_local_readings(ctx.clone());
     }
 
+    // Clear the built-in free-tier health latch so the "over budget / paused" banner reflects only
+    // THIS ranking's built-in attempts — and stays hidden when the active source is the seeker's own
+    // key (that path never records). The reader coroutine reads `agents::tier::notice()` as each
+    // reading lands.
+    agents::tier::reset();
+
     // Fill readings off the event-loop thread: the only place the blocking `curl` runs. The closure
     // moves only owned, `Send` values (the measures map, the work list, and the channel sender).
     let tx = ctx.reader.tx();
