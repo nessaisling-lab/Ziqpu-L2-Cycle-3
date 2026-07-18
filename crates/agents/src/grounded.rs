@@ -34,17 +34,41 @@ impl GroundedSource for MockGroundedSource {
     }
 }
 
+/// The contact address sent to SEC EDGAR, overridable with `ZIQPU_EDGAR_UA`.
+///
+/// SEC's fair-access policy requires a User-Agent that reaches a human, and this string ships in
+/// the binary — so **every** grounded pull, by every person who installs Ziqpu, carries it. That
+/// makes it a *role* address by necessity, not a preference: a maintainer's personal or
+/// institutional address here would hand strangers' traffic a name that never consented to it, and
+/// would rot the moment that person moved on. Whoever answers this mailbox answers for the fleet.
+///
+/// Keep it a real, monitored address. A plausible-looking dead mailbox is worse than none: it
+/// satisfies the format while quietly breaking the policy's actual purpose, and SEC can block the
+/// User-Agent for the whole fleet at once.
+///
+/// It is also **public** — in a public repo, in every shipped binary, on every request — so expect
+/// it to be scraped. That's the trade SEC's policy asks for; it's a reason to use a mailbox that
+/// can absorb spam, not a reason to omit the contact.
+const DEFAULT_EDGAR_UA: &str = "Ziqpu research (ness.aisling@nisabacapitalcharting.com)";
+
 /// Real, keyless SEC EDGAR submissions pull. Live only. SEC policy requires a contact
-/// User-Agent. Shells out to `curl` so no HTTP crate enters the dependency tree.
+/// User-Agent — see [`DEFAULT_EDGAR_UA`].
 pub struct EdgarSource {
     pub user_agent: String,
 }
 
 impl Default for EdgarSource {
+    /// Uses [`DEFAULT_EDGAR_UA`] unless `ZIQPU_EDGAR_UA` overrides it — so a fork, a partner
+    /// deployment, or a heavy researcher can identify as themselves (which SEC's policy actually
+    /// wants) without patching the source. Blank or whitespace is treated as unset: an empty
+    /// contact would be a policy violation dressed as a configuration.
     fn default() -> Self {
-        Self {
-            user_agent: "Ziqpu research (aisling.ld@pursuit.org)".to_string(),
-        }
+        let ua = std::env::var("ZIQPU_EDGAR_UA")
+            .map(|s| s.trim().to_string())
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| DEFAULT_EDGAR_UA.to_string());
+        Self { user_agent: ua }
     }
 }
 
@@ -146,13 +170,29 @@ fn fixture_filings(ticker: &str) -> Option<Vec<String>> {
 
 impl EdgarSource {
     /// GET `url` with the contact User-Agent; `--compressed` so gzip'd bodies decode. `None` on a
-    /// transport error or a non-2xx status (`curl` returns exit 0 on HTTP errors, so we don't rely
-    /// on that alone — callers treat a non-JSON body as "unavailable").
+    /// transport error, a timeout, or a non-2xx status (`curl` returns exit 0 on HTTP errors, so we
+    /// don't rely on that alone — callers treat a non-JSON body as "unavailable").
+    ///
+    /// **The bounds are load-bearing, not hygiene.** `curl` has no default *transfer* timeout, and
+    /// this call is made from a worker thread whose only exit is a result: the checkpoint renders a
+    /// "grounding…" view with no cancel and no error path, so a `curl` that never returns is a
+    /// permanent silent spinner and a wedged thread. A refused connection is fine — that errors and
+    /// falls back to the recorded fixture. The killer is a connection that is *accepted and then
+    /// stalls*: a captive portal that answers the handshake and blackholes, a Wi-Fi roam, a laptop
+    /// resuming from sleep with a half-open socket. Without `--max-time` those hang forever.
+    ///
+    /// `--max-filesize` bounds the other end: a large filer's submissions JSON is multi-MB, and we
+    /// only ever read the first few entries. Both values match the convention the rest of the tree
+    /// already follows (see `model::system_cmd` callers, requirement SEC-004).
     fn get(&self, url: &str) -> Option<Vec<u8>> {
-        let output = std::process::Command::new("curl")
+        let output = crate::no_window(std::process::Command::new("curl"))
             .args([
                 "-sS",
                 "--compressed",
+                "--max-time",
+                "8",
+                "--max-filesize",
+                "5000000",
                 "-H",
                 &format!("User-Agent: {}", self.user_agent),
                 url,
@@ -237,4 +277,66 @@ mod tests {
         // Unknown tickers degrade honestly — no invented fixture.
         assert!(fixture_filings("ZZZZ").is_none());
     }
+
+    /// The shipped contact must be a mailbox **the project owns**.
+    ///
+    /// This string rides every SEC request every installed copy ever makes, so the harm in
+    /// `aisling.ld@pursuit.org` — the address that was hardcoded here and shipped — was never that
+    /// it named a person. It was that it named a *third party*: the fellowship's domain, made the
+    /// point of contact for strangers' traffic without Pursuit ever agreeing to it, and dead the
+    /// moment that affiliation ends. A personal-looking local part on the project's own domain has
+    /// neither problem, which is why this checks the domain rather than banning names.
+    ///
+    /// Forks and partner deployments identify as themselves via `ZIQPU_EDGAR_UA` (tested below);
+    /// this guard only constrains what *we* ship as the default.
+    #[test]
+    fn the_contact_address_belongs_to_the_project() {
+        let ua = DEFAULT_EDGAR_UA.to_ascii_lowercase();
+        // SEC's policy is about reachability, so the format has to actually be a contact.
+        assert!(
+            ua.contains('@'),
+            "SEC requires a contact in the User-Agent: {DEFAULT_EDGAR_UA}"
+        );
+        assert!(
+            ua.contains("@nisabacapitalcharting.com"),
+            "DEFAULT_EDGAR_UA must be a mailbox this project owns, not a third party's \
+             (school, employer, a maintainer's private account): {DEFAULT_EDGAR_UA}"
+        );
+        // The specific leak, named so it cannot quietly return.
+        assert!(
+            !ua.contains("pursuit.org"),
+            "DEFAULT_EDGAR_UA is back to the fellowship's domain: {DEFAULT_EDGAR_UA}"
+        );
+    }
+
+    /// `ZIQPU_EDGAR_UA` overrides the default, and a blank value is treated as unset rather than
+    /// sending SEC an empty contact — a policy violation dressed as a configuration.
+    ///
+    /// Serialized with the test below: both mutate the same process-wide env var, and Rust runs
+    /// tests in parallel threads by default.
+    #[test]
+    fn env_override_wins_but_blank_does_not() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("ZIQPU_EDGAR_UA", "Acme research (ops@acme.example)");
+        assert_eq!(
+            EdgarSource::default().user_agent,
+            "Acme research (ops@acme.example)"
+        );
+        // Whitespace-only must fall back, not send an empty contact.
+        std::env::set_var("ZIQPU_EDGAR_UA", "   ");
+        assert_eq!(EdgarSource::default().user_agent, DEFAULT_EDGAR_UA);
+        std::env::remove_var("ZIQPU_EDGAR_UA");
+    }
+
+    /// With nothing set, the shipped default is what goes out.
+    #[test]
+    fn unset_falls_back_to_the_role_address() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("ZIQPU_EDGAR_UA");
+        assert_eq!(EdgarSource::default().user_agent, DEFAULT_EDGAR_UA);
+    }
+
+    /// Guards the two env tests against each other — `set_var`/`remove_var` are process-wide, so
+    /// without this they race and flake.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }

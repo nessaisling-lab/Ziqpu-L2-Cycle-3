@@ -17,8 +17,13 @@ plain `cargo build` produces a fully-branded app with no external assets.
 - **The loop, visibly** — rank choices by fit → pick one → the human-in-the-loop **checkpoint** (the
   gate before the costed grounded pull) → the grounded briefing. A **Backstage** strip shows
   Hamun-ana's raw JSON beneath Ungasaga's prose.
-- **Reading-source toggle** — **Raw** (deterministic template) · **Local** (your LM Studio / llama.cpp
-  on `:1234`) · **Live** (OpenRouter → Anthropic). Each mode's prose is cached, so switching is instant.
+- **Reading-source toggle** — **Raw** (deterministic template) · **Local** (a model on your own GPU) ·
+  **Live** (OpenRouter → Anthropic). Each mode's prose is cached, so switching is instant.
+- **In-app model panel** (Settings + onboarding) — benchmark the machine (tier · GPU · RAM), search
+  Hugging Face (with an uncensored-model flag), and **download & serve** a local model with no CLI:
+  CUDA-first GPU pinning, quant-aware fit, single-active serve, reconnect-not-reload. The **wheat
+  loader** shows progress (download = stalks grow; VRAM load = sway, red→green→gold). See the
+  [`model`](../model/README.md) crate.
 - **Layered grounding** — at the checkpoint the local model drafts the frontier's brief; the grounded
   read is badged by rung (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` / `GROUNDED`).
   See [docs/PRD-layered-grounding-pipeline.md](../../docs/PRD-layered-grounding-pipeline.md).
@@ -31,6 +36,16 @@ plain `cargo build` produces a fully-branded app with no external assets.
 
 ## Config
 
-In-app **Settings** stores an OpenRouter key + model + local URL on this machine — no env vars needed.
-Env still wins where set; see the repo `.env.example` (`ZIQPU_LLM_URL`, `ZIQPU_LOCAL_MODEL`,
-`ZIQPU_MOCK`, `ZIQPU_ONBOARD`). Birth data and the API key live in the OS data dir (`0o600` on Unix).
+In-app **Settings** (a page — `⚙ settings` in the header) holds the provider choice, the model, and
+an optional local endpoint. No env vars needed; env still wins where set — see the repo
+`.env.example` (`ZIQPU_LLM_URL`, `ZIQPU_LOCAL_MODEL`, `ZIQPU_MOCK`, `ZIQPU_ONBOARD`).
+
+**Two stores, split by sensitivity:**
+
+- **API keys → the OS credential vault** (Windows Credential Manager · macOS Keychain · Linux Secret
+  Service), via `src/vault.rs`. Never written to disk in the clear, never placed on a command line,
+  and **never displayed** — the UI asks `vault::key_source()` for presence and origin, never for a
+  value, and a test fails the build if any component calls `get_key`. A key from a pre-vault install
+  is migrated out of `settings.json` on startup.
+- **Non-secrets → `<data_dir>/settings.json`**; birth data → `<data_dir>/profile.json`. Both are
+  `0o600` on Unix (the profile holds birth PII).

@@ -308,6 +308,23 @@ pub fn run_recommend(mut ctx: AppCtx) {
     });
 }
 
+/// Trim a reading down to what a card should DISPLAY: drop a leading redundant `FIT: … — name` line
+/// (the card header already shows band/score/name), and drop the trailing `REMINDER: measured, not
+/// fate — not financial advice` (now shown ONCE in the persistent footer + carried by the rung badge,
+/// per the owner's "say it once" ask — no longer repeated on every reading). The disclaimer stays in
+/// the reading DATA (the no-advice guardrail and the interpreter tests are untouched); this only
+/// affects rendering.
+pub fn strip_reading_chrome(text: &str) -> String {
+    let body = match text.split_once('\n') {
+        Some((first, rest)) if first.trim_start().starts_with("FIT:") => rest.trim_start(),
+        _ => text,
+    };
+    match body.rfind("REMINDER") {
+        Some(i) => body[..i].trim_end().to_string(),
+        None => body.trim_end().to_string(),
+    }
+}
+
 /// Advance the display mode one step in the header toggle's cycle: **Raw → Local → Live → Raw**.
 pub fn next_mode(mode: ReadMode) -> ReadMode {
     match mode {
@@ -328,12 +345,19 @@ pub fn ensure_local_readings(mut ctx: AppCtx) {
     let recs = ctx.recs.read().clone();
     let measures = ctx.measures.read().clone();
 
-    // The uncached, not-in-flight cards to fetch — with their Measures + band captured up front.
+    // The cards to fetch — uncached, OR previously fell back to the TEMPLATE (source None), so a
+    // warm-up-race template result gets retried on the next Local entry instead of sticking forever.
+    // Not-in-flight either way.
     let to_fetch: Vec<(String, String, Measures, Fit)> = {
         let cached = ctx.local_readings.read();
+        let sources = ctx.local_sources.read();
         let in_flight = ctx.local_pending.read();
         recs.iter()
-            .filter(|r| !cached.contains_key(&r.choice) && !in_flight.contains(&r.choice))
+            .filter(|r| {
+                let done_by_model = cached.contains_key(&r.choice)
+                    && sources.get(&r.choice).map(Option::is_some).unwrap_or(false);
+                !done_by_model && !in_flight.contains(&r.choice)
+            })
             .filter_map(|r| {
                 let m = measures.get(&r.choice)?.clone();
                 let fit = Fit::from_score(m.score);
@@ -354,8 +378,21 @@ pub fn ensure_local_readings(mut ctx: AppCtx) {
 
     let tx = ctx.local_reader.tx();
     std::thread::spawn(move || {
+        // Wait for the local server to finish LOADING the model before firing any reads — otherwise
+        // the first cards hit a not-yet-ready server, fall back to the template, and (being cached)
+        // never recover. Up to 45 s (a big quant can take a while to load); `false` = still not up, in
+        // which case the reads below just fall back to the template once (no wasted retries).
+        let ready = agents::wait_for_local(std::time::Duration::from_secs(45));
         for (ticker, name, m, fit) in to_fetch {
-            let (prose, model) = agents::reading_for_mode(&m, fit, &name, ReadMode::Local);
+            let (mut prose, mut model) = agents::reading_for_mode(&m, fit, &name, ReadMode::Local);
+            // One retry on a transient fallback, but only when the server IS up (else don't hammer a
+            // down server — a single template fallback is the right answer there).
+            if ready && model.is_none() {
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                let (p, mdl) = agents::reading_for_mode(&m, fit, &name, ReadMode::Local);
+                prose = p;
+                model = mdl;
+            }
             let _ = tx.unbounded_send((ticker, prose, model));
         }
     });

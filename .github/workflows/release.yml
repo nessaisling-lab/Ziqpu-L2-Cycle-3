@@ -35,27 +35,34 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 jobs:
-  # ---- guard: only publish a tag that is on `main` (stable) or is a pre-release (nightfall) ----
+  # ---- guard: classify the tag as a stable (on-main) or nightfall (off-main) release ----
+  # A tag whose commit is an ancestor of `main` is a stable release → published as "Latest". Any other
+  # tag is a build-ahead **nightfall** release → published as a GitHub pre-release, never marked Latest,
+  # so it can never overtake the stable release even though the version is plain semver (v1.3.2, not a
+  # hyphenated -nightfall.N). This keeps the "no unmerged tag becomes Latest" safety without forcing the
+  # hyphen scheme. The classification is an output the bundle/publish job reads.
   guard:
-    name: guard (on main, or a pre-release)
+    name: guard (classify stable vs nightfall)
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.classify.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
-      - name: Tag must be on main, or be a hyphenated pre-release
+      - name: Classify the tag
+        id: classify
         run: |
           set -euo pipefail
           TAG="${RELEASE_TAG}"
           git fetch --quiet origin main
           if git merge-base --is-ancestor HEAD origin/main; then
-            echo "the commit for $TAG is an ancestor of main — stable release, ok"
-          elif [[ "$TAG" == *-* ]]; then
-            echo "$TAG is a hyphenated pre-release (nightfall) — ok"
+            echo "the commit for $TAG is an ancestor of main — STABLE release (Latest)"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::$TAG is neither on main nor a hyphenated pre-release; refusing to publish an unmerged, non-prerelease tag"
-            exit 1
+            echo "$TAG is off main — NIGHTFALL pre-release (never Latest)"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
   # ---- the full gauntlet (shared with CI): test/smoke/integration/security on the tagged code ----
@@ -66,7 +73,7 @@ jobs:
   # ---- bundle: build the Dioxus desktop app on each OS, package it, attach to the Release ----
   bundle:
     name: bundle (${{ matrix.os }})
-    needs: checks
+    needs: [guard, checks]
     permissions:
       contents: write
     strategy:
@@ -79,6 +86,14 @@ jobs:
       # balloons link time (and can OOM the linker) on the runners, so force it off for release
       # bundles. The bundle is a distributable build, not a perf benchmark.
       CARGO_PROFILE_RELEASE_LTO: false
+      # The built-in free tier is baked at COMPILE time by `option_env!` in crates/ui/src/main.rs.
+      # It must be passed here or it silently resolves to None and the tier is absent from the
+      # binary — which is exactly what happened to v1.4.0: the feature was code-complete, the
+      # changelog advertised it, and no artifact contained it, because nothing on this path had any
+      # reason to notice. Empty secrets are legal (the tier is optional) — see the guard below,
+      # which makes the outcome *visible* instead of silent.
+      ZIQPU_PROXY_URL: ${{ secrets.ZIQPU_PROXY_URL }}
+      ZIQPU_PROXY_TOKEN: ${{ secrets.ZIQPU_PROXY_TOKEN }}
     steps:
       - name: Checkout the tag being released
         uses: actions/checkout@v4
@@ -88,16 +103,50 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # Say out loud which tier this build will contain, so "the free tier is missing again" is a
+      # line in the log rather than a discovery a user makes.
+      - name: Report the built-in tier this build will contain
+        shell: bash
+        run: |
+          if [ -n "${ZIQPU_PROXY_URL:-}" ] && [ -n "${ZIQPU_PROXY_TOKEN:-}" ]; then
+            echo "::notice title=Built-in tier::CONFIGURED — this build ships the built-in free Live tier."
+          else
+            echo "::warning title=Built-in tier::ABSENT — ZIQPU_PROXY_URL/ZIQPU_PROXY_TOKEN are not set, so this build has NO built-in free tier. A seeker with no key of their own gets the offline template (Raw) or a local model. Do not advertise the tier in the release notes for this build."
+          fi
+
       - name: Linux WebKitGTK/GTK system deps (Dioxus desktop)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
 
       - name: Build desktop UI (release, LTO off)
+        if: runner.os != 'macOS'
         run: cargo build --release -p ui --locked
 
-      # ---- macOS: assemble an unsigned Ziqpu.app and pack it into a UDZO .dmg ----
+      # macOS builds BOTH architectures and fuses them with `lipo`: the people downloading this run
+      # Apple Silicon AND Intel Macs, and one universal .app means nobody has to know which chip
+      # they have. Cross-compiling x86_64 on the arm64 runner works because the Xcode SDKs are
+      # themselves universal. `lipo -info` prints the fused architectures into the log so a
+      # single-arch regression is a visible line, not a discovery an Intel user makes.
+      - name: Build desktop UI (release, universal arm64 + x86_64, LTO off)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --release -p ui --locked --target aarch64-apple-darwin
+          cargo build --release -p ui --locked --target x86_64-apple-darwin
+          mkdir -p target/universal/release
+          lipo -create \
+            target/aarch64-apple-darwin/release/ziqpu-ui \
+            target/x86_64-apple-darwin/release/ziqpu-ui \
+            -output target/universal/release/ziqpu-ui
+          lipo -info target/universal/release/ziqpu-ui
+
+      # ---- macOS: assemble an unsigned universal Ziqpu.app and pack it into a UDZO .dmg ----
       # Unsigned: first launch needs a right-click -> Open (or `xattr -dr com.apple.quarantine`)
-      # to get past Gatekeeper. Documented in the release notes.
+      # to get past Gatekeeper. That is stated in .github/INSTALL_NOTES.md, which is published as
+      # the release body. (This comment used to claim it was "documented in the release notes"
+      # while the workflow published `--generate-notes` alone: a bare compare link. The claim is
+      # now true.)
       - name: Package macOS .dmg
         if: runner.os == 'macOS'
         run: |
@@ -106,9 +155,14 @@ jobs:
           VERSION="${TAG#v}"          # strip a leading "v": v1.1.0 -> 1.1.0
           APP="Ziqpu.app"
           rm -rf "$APP"
-          mkdir -p "$APP/Contents/MacOS"
-          cp target/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp target/universal/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
           chmod +x "$APP/Contents/MacOS/ziqpu-ui"
+          # Licences travel INSIDE the bundle — PolyForm Noncommercial plus the embedded OFL fonts
+          # and permissive crates carry obligations that only bind if they ship with the binary.
+          # Contents/Resources is the conventional home and survives drag-installing the .app.
+          cp LICENSE NOTICE "$APP/Contents/Resources/"
+          cp -R LICENSES "$APP/Contents/Resources/"
           cat > "$APP/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -135,25 +189,43 @@ jobs:
           </dict>
           </plist>
           PLIST
-          hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos.dmg"
-          echo "built Ziqpu-${TAG}-macos.dmg (unsigned)"
+          hdiutil create -volname "Ziqpu" -srcfolder "$APP" -ov -format UDZO "Ziqpu-${TAG}-macos-universal.dmg"
+          echo "built Ziqpu-${TAG}-macos-universal.dmg (unsigned, arm64 + x86_64)"
 
-      # ---- Windows: zip the .exe ----
+      # ---- Windows: zip the .exe + the licences + a readable first-run note ----
+      # The zip used to be the bare .exe. Ziqpu is PolyForm Noncommercial and embeds OFL fonts and
+      # permissive Rust crates; NOTICE and LICENSES/ carry obligations that only bind if they
+      # travel WITH the binary. Shipping them in the repo and not in the artifact satisfies nobody.
+      # README.txt is here because a stranger who unzips this and gets nothing on double-click needs
+      # the WebView2 answer in the folder, not on a web page they have no reason to visit.
       - name: Package Windows .zip
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $tag = $env:RELEASE_TAG
-          Compress-Archive -Path target/release/ziqpu-ui.exe -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
-          Write-Host "built Ziqpu-$tag-windows-x64.zip"
+          $stage = "pkg/Ziqpu"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item target/release/ziqpu-ui.exe $stage
+          Copy-Item LICENSE, NOTICE $stage
+          Copy-Item -Recurse LICENSES $stage
+          Copy-Item .github/INSTALL_NOTES.md "$stage/README.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
+          Write-Host "built Ziqpu-$tag-windows-x64.zip (exe + LICENSE + NOTICE + LICENSES/ + README.txt)"
 
-      # ---- Linux: tar.gz the binary ----
+      # ---- Linux: tar.gz the binary + the licences + the first-run note ----
       - name: Package Linux .tar.gz
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           TAG="${RELEASE_TAG}"
-          tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C target/release ziqpu-ui
+          STAGE="pkg/Ziqpu"
+          mkdir -p "$STAGE"
+          cp target/release/ziqpu-ui "$STAGE/"
+          cp LICENSE NOTICE "$STAGE/"
+          cp -r LICENSES "$STAGE/"
+          cp .github/INSTALL_NOTES.md "$STAGE/README.txt"
+          tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C pkg Ziqpu
+          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (binary + LICENSE + NOTICE + LICENSES/ + README.txt)"
           echo "built Ziqpu-${TAG}-linux-x64.tar.gz"
 
       # ---- attach the packaged artifact to the Release for the tag ----
@@ -169,13 +241,23 @@ jobs:
           TAG="${RELEASE_TAG}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG not found; creating it"
-            # A hyphenated tag is a semver pre-release (e.g. v1.2.0-nightfall.1): publish it as a
-            # GitHub pre-release and never mark it "Latest", so a nightfall build never overtakes the
-            # stable release. `|| true` tolerates a create race between the three OS bundle jobs — the
-            # loser just attaches its asset to the winner's release.
+            # The guard classified this tag: off-main = a NIGHTFALL build-ahead release → publish it as
+            # a GitHub pre-release and never mark it "Latest", so it can't overtake the stable release
+            # (even though the version is plain semver). On-main = stable → Latest. `|| true` tolerates
+            # a create race between the three OS bundle jobs — the loser just attaches to the winner's.
             PRE=""
-            case "$TAG" in *-*) PRE="--prerelease --latest=false" ;; esac
-            gh release create "$TAG" --title "$TAG" --generate-notes $PRE || true
+            TITLE="$TAG"
+            if [ "${{ needs.guard.outputs.prerelease }}" = "true" ]; then
+              PRE="--prerelease --latest=false"
+              TITLE="Ziqpu Nightfall $TAG"
+            fi
+            # Install notes FIRST, auto-generated commit list after. `--generate-notes` alone
+            # publishes a bare compare link — which is what v1.4.0 shipped with, while a comment in
+            # this very file claimed the Gatekeeper workaround was "documented in the release
+            # notes". It was not, and a first-launch prerequisite nobody can find is a broken
+            # download. `--notes-file` + `--generate-notes` composes: our text, then the log.
+            gh release create "$TAG" --title "$TITLE" \
+              --notes-file .github/INSTALL_NOTES.md --generate-notes $PRE || true
           else
             echo "release $TAG already exists; attaching asset"
           fi

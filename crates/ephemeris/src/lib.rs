@@ -1,9 +1,18 @@
 //! Pluggable ephemeris layer for Ziqpu.
 //!
 //! The [`Ephemeris`] trait is the seam that keeps the public tree free of copyleft.
-//! The default `anise-backend` (wired in Phase 0) computes positions from permissive
-//! JPL DE440 data; the high-accuracy Swiss Ephemeris backend lives behind the private
-//! `swisseph` feature and never ships in the public repository.
+//!
+//! - **`analytic`** — the **default**, and what every shipped build uses: pure-Rust VSOP87 planets
+//!   with a Meeus Moon. **No data files**, no download, no I/O — a chart is arithmetic. This is why
+//!   the desktop app works offline the moment it is installed.
+//! - **`anise-backend`** — opt-in. ANISE over a JPL DE440 kernel; adds Pluto and higher accuracy,
+//!   but needs `de440s.bsp` (~32 MB) at runtime, which is gitignored and never shipped.
+//!   `scripts/fetch-ephemeris.sh` gets it. The two agree to <1°, enforced by a CI cross-check.
+//! - **`swisseph`** — a private/commercial backend stub; never ships in the public repository.
+//!
+//! (This paragraph used to say the default was `anise-backend`, which stopped being true when the
+//! feature list settled on `default = ["analytic"]`. It mattered: a reader would conclude the app
+//! needs a 32 MB kernel it has never shipped.)
 
 /// A geocentric ecliptic position of a body at an instant.
 ///

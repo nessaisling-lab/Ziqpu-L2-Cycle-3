@@ -25,6 +25,7 @@
   --carnelian:#b1452c; --carnelian-deep:#8f3621; --malachite:#2f7d57;
   --line:rgba(42,32,23,.12); --line-soft:rgba(42,32,23,.07);
   --shadow:0 1px 2px rgba(42,32,23,.05), 0 8px 28px rgba(42,32,23,.06);
+  --shadow-lift:0 4px 12px rgba(42,32,23,.10), 0 20px 44px rgba(42,32,23,.14);
 
   --f-display:"Cinzel Decorative","Trajan Pro",Optima,"Palatino Linotype",Georgia,serif;
   --f-body:"Spectral","Palatino Linotype",Palatino,Georgia,serif;
@@ -47,6 +48,7 @@
   --carnelian:#c25a3c; --carnelian-deep:#a8492f; --malachite:#6fa86b;
   --line:rgba(201,164,74,.18); --line-soft:rgba(243,236,216,.08);
   --shadow:0 1px 2px rgba(0,0,0,.40), 0 10px 30px rgba(0,0,0,.45);
+  --shadow-lift:0 6px 16px rgba(0,0,0,.50), 0 24px 52px rgba(0,0,0,.60);
 
   --band-strong:#6fa86b;
   --band-aligned:#9cb25a;
@@ -109,7 +111,16 @@ svg.i{width:1em;height:1em;vertical-align:-.14em;stroke-width:1.8;flex:none}
 .muted{color:var(--ink-soft);max-width:62ch}
 
 /* ---- layout wrap + sticky top bar ---- */
-.wrap{max-width:940px;margin:0 auto;padding:0 26px 64px}
+.wrap{max-width:940px;margin:0 auto;padding:0 26px 80px}
+/* The one persistent disclaimer — pinned to the bottom, always on screen (replaces the per-reading
+   REMINDER). Slim, gold-hairline top, page-tinted so it reads as chrome, not a card. */
+.disclaimer-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  padding:8px 20px;text-align:center;
+  font:600 11.5px/1.4 var(--f-mono);letter-spacing:.03em;color:var(--ink-soft);
+  background:color-mix(in srgb,var(--parchment) 88%,var(--gold));
+  border-top:1px solid var(--gold-line);
+}
 
 header{
   position:sticky;top:0;z-index:50;
@@ -156,16 +167,24 @@ header{
   border:1px solid var(--gold-line);border-radius:999px;padding:8px 13px;transition:.15s;
 }
 .gear:hover{color:var(--gold-deep);border-color:var(--gold)}
-.settings-backdrop{
-  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;
-  background:rgba(15,10,7,.42);backdrop-filter:blur(2px);
+/* Settings is a PAGE, not an overlay.
+   No `position:fixed` (an ancestor can trap it — that collapsed the modal into the header row), no
+   backdrop, no grid centering (a too-tall item overflows ABOVE the viewport, unreachable), no
+   height cap (nothing to clip), no z-index. It's ordinary content in ordinary flow, and it scrolls
+   with the document like every other page. There is nothing left to misbehave. */
+.settings-page{display:block;max-width:640px;margin:0 auto;padding:8px 0 24px;animation:rise .18s ease-out}
+.settings-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 0 12px;border-bottom:1px solid var(--gold-line);margin-bottom:16px;
 }
-.settings-modal{
-  width:min(460px,100%);max-height:90vh;overflow:auto;
-  background:var(--parchment);border:1px solid var(--gold-line);border-radius:14px;
-  box-shadow:var(--shadow);padding:22px 22px 18px;
+.settings-body{display:block}
+/* Sticky, not fixed: laid out by its own scroll container, so no ancestor can trap it. Save stays
+   reachable however far down the page you are. */
+.settings-page .settings-foot{
+  position:sticky;bottom:0;margin-top:18px;padding:12px 0;
+  border-top:1px solid var(--gold-line);
+  background:linear-gradient(to bottom, transparent, var(--alabaster) 40%);
 }
-.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .settings-title{font-family:var(--f-display);font-weight:600;font-size:20px;line-height:1}
 .settings-x{
   font-size:20px;line-height:1;color:var(--ink-faint);background:transparent;cursor:pointer;
@@ -238,7 +257,32 @@ header{
 }
 .card--fit{cursor:pointer}
 .card--fit:hover{border-color:var(--gold-line);transform:translateY(-2px)}
-.card--selected{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold-line),var(--shadow)}
+
+/* ---- selected-choice indicator: "spotlight" (owner-chosen, review 0714) ----
+   The picked card stays full and rises; the rest of the ranked list dims and desaturates so the
+   one you chose is unmistakable from across a room. No new chrome — selection reads by contrast.
+   Selection always exists (defaults to best-fit index 0), so the top card is spotlit on arrival.
+   Hovering a dimmed card restores it to full for reading before you commit the click. */
+.card--fit.card--selected{
+  border-color:var(--gold);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+  transform:translateY(-3px);
+  z-index:1;
+}
+/* The rest of the list simply recedes — a gentle fade, kept above WCAG AA so the readings stay
+   legible + comparable. No desaturate or scale: those muted the color-coded compare cues (band
+   badge, meter gradient, living-wheat hue) and softened the prose in the webview. The selected
+   card's gold ring + lift is what actually spotlights; this only pushes the others back. */
+.card--fit:not(.card--selected){opacity:.72}
+.card--fit:not(.card--selected):hover{opacity:1;transform:translateY(-2px)}
+/* Keyboard selection is real (see FitCard onkeydown) — give it a visible focus ring. */
+.card--fit:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* The grounded ACT card carries the chosen treatment forward — it IS the choice you selected, now
+   grounded — so it wears the same gold ring + lift for visual continuity from list → briefing. */
+.card--chosen{
+  border-color:var(--gold);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+}
 .card__top{display:flex;align-items:center;gap:13px;padding:20px 22px 8px}
 .rune{
   width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:13px;
@@ -386,6 +430,10 @@ td.b{color:var(--ink)}
 .btn--go{background:var(--carnelian);color:#fff8f0;border-color:transparent;box-shadow:var(--shadow)}
 .btn--go:hover{background:var(--carnelian-deep);color:#fff8f0;border-color:transparent;transform:translateY(-2px)}
 .btn--go:disabled{background:color-mix(in srgb,var(--carnelian) 45%,var(--parchment));color:#fff8f0}
+/* Destructive confirm only — deliberately NOT the carnelian "go" red, so the eye can't mistake
+   "delete this key forever" for the ordinary primary action sitting next to it. */
+.btn--danger{background:#8f3120;color:#fff3ee;border-color:transparent;box-shadow:var(--shadow)}
+.btn--danger:hover{background:#7a2919;color:#fff3ee;border-color:transparent;transform:translateY(-2px)}
 .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:6px}
 
 /* ---- checkpoint — the seal ---- */
@@ -513,6 +561,132 @@ td.b{color:var(--ink)}
 .onboarding-card .setup{text-align:left}
 .onboarding-card .identity{text-align:left;margin-bottom:0}
 
+/* ---- provider chooser (onboarding "live readings" step + Settings) ---- */
+.provider-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 14px;text-align:left}
+@media (max-width:440px){.provider-grid{grid-template-columns:1fr}}
+.provider-card{
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;
+  padding:13px 15px;border:1px solid var(--gold-line);border-radius:12px;
+  background:var(--parchment-2);color:var(--ink);cursor:pointer;transition:.15s;
+}
+.provider-card:hover{border-color:var(--gold);transform:translateY(-1px)}
+.provider-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.provider-card--on{
+  border-color:var(--gold);background:var(--parchment);
+  box-shadow:0 0 0 1.5px var(--gold),var(--shadow-lift);
+}
+.provider-card .pc-name{font:600 14px/1.2 var(--f-body);color:var(--ink)}
+.provider-card .pc-sub{font:400 11.5px/1.4 var(--f-mono);color:var(--ink-faint)}
+.provider-card--on .pc-name{color:var(--gold-deep)}
+.provider-err{font:500 12px/1.5 var(--f-mono);color:#a1442e;margin:6px 0 0}
+
+/* ---- API key: proof of presence, never the value ---- */
+/* There is deliberately no reveal control here. The row states THAT a key exists and where it
+   lives; the value has no path back to any screen. See components/key_field.rs. */
+.keyfield{
+  margin:0 0 10px;padding:11px 13px;text-align:left;
+  border:1px solid var(--gold-line);border-radius:12px;background:var(--parchment-2);
+}
+.keyfield-status{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.keyfield-name{font:600 13px/1.2 var(--f-body);color:var(--ink)}
+.keyfield-line{font:500 11px/1.4 var(--f-mono);color:var(--ink-faint)}
+.keyfield-line--on{color:var(--ink-soft)}
+/* The dot carries the state in form as well as in words — lit means a key is there. Green = ours,
+   in this device's keychain. Gold = detected in the environment, used but not ours to manage. */
+.key-dot{flex:none;width:8px;height:8px;border-radius:50%;background:transparent;border:1.5px solid var(--ink-faint)}
+.key-dot--on{background:#3f7d4e;border-color:#3f7d4e;box-shadow:0 0 0 3px color-mix(in srgb,#3f7d4e 18%,transparent)}
+.key-dot--env{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 20%,transparent)}
+.keyfield-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.settings-reveal--add{color:var(--gold-deep);border-color:var(--gold)}
+.keyfield-hint{margin:8px 0 0}
+.keyfield-hint code{font:500 11px/1 var(--f-mono);color:var(--ink-soft)}
+.keyfield-confirm{
+  margin:10px 0 0;padding:10px 12px;border:1px solid #c9705c;border-radius:10px;
+  background:color-mix(in srgb,#a1442e 7%,var(--parchment));
+}
+.keyfield-warn{font:500 12px/1.55 var(--f-body);color:#8f3120;margin:0 0 9px}
+.keyfield-confirm .keyfield-actions{margin-left:0;justify-content:flex-end}
+.keyfield-add{display:flex;gap:8px;align-items:stretch;margin:10px 0 0;flex-wrap:wrap}
+.keyfield-add .settings-input{flex:1;min-width:180px}
+.keyfield-add .keyfield-actions{margin-left:0}
+
+/* ---- onboarding: what's already on this machine ---- */
+/* Someone arriving with a key already configured shouldn't be asked to hunt it down and paste it
+   again. This states what was found, and where — never a value. */
+.detected{
+  margin:4px 0 16px;padding:11px 13px;text-align:left;
+  border:1px solid var(--gold-line);border-radius:12px;
+  background:color-mix(in srgb,var(--gold) 6%,var(--parchment-2));
+}
+.detected-head{
+  font:600 10px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 8px;
+}
+.detected-row{display:flex;align-items:center;gap:9px;padding:3px 0;flex-wrap:wrap}
+.detected-name{font:600 12.5px/1.2 var(--f-body);color:var(--ink)}
+.detected-line{font:500 11px/1.4 var(--f-mono);color:var(--ink-soft);margin-left:auto}
+
+/* ---- model picker (live catalog list) ---- */
+.picker{margin:2px 0 14px;text-align:left}
+.picker-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.picker-status{font:500 11px/1.4 var(--f-mono);color:var(--ink-faint)}
+
+/* Built from ordinary elements, never a native <select>: the OS draws that popup OUTSIDE the page,
+   so it escaped the panel, ignored the theme, and covered the app. This expands INLINE instead —
+   it's just markup, so it stays inside its container by construction. */
+.combo{position:relative;text-align:left}
+.combo-trigger{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  font:400 13px/1.4 var(--f-mono);color:var(--ink);background:var(--parchment-2);
+  border:1px solid var(--gold-line);border-radius:9px;padding:9px 11px;cursor:pointer;transition:.15s;
+}
+.combo-trigger:hover{border-color:var(--gold)}
+.combo-trigger:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.combo-trigger--busy{color:var(--ink-faint);cursor:default}
+/* The value can be long; let it ellipsize rather than blow out the panel width. */
+.combo-value{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo-caret{flex:none;color:var(--ink-faint);font-size:11px}
+.combo-panel{
+  margin-top:6px;border:1px solid var(--gold-line);border-radius:9px;
+  background:var(--parchment);overflow:hidden;
+}
+.combo-filter{
+  width:100%;font:400 13px/1.4 var(--f-mono);color:var(--ink);background:var(--parchment-2);
+  border:none;border-bottom:1px solid var(--gold-line);padding:9px 11px;
+}
+.combo-filter:focus{outline:none;background:var(--parchment)}
+/* Bounded height: the list scrolls WITHIN itself, so a 320-model catalog can never stretch the
+   panel past the frame. */
+.combo-list{max-height:240px;overflow-y:auto;margin:0;padding:4px;list-style:none}
+.combo-opt{
+  font:400 12.5px/1.45 var(--f-mono);color:var(--ink);
+  padding:7px 9px;border-radius:7px;cursor:pointer;transition:.1s;
+}
+.combo-opt:hover{background:var(--parchment-2)}
+.combo-opt--cursor{background:var(--parchment-2);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.combo-opt--on{color:var(--gold-deep);font-weight:600}
+/* Listed so its existence and its coming support are visible — but not choosable today. */
+.combo-opt--off{color:var(--ink-faint);cursor:not-allowed;opacity:.6}
+.combo-opt--off:hover{background:transparent}
+.combo-empty{font:400 12.5px/1.45 var(--f-mono);color:var(--ink-faint);padding:10px 9px}
+.combo-more{
+  font:400 11px/1.4 var(--f-mono);color:var(--ink-faint);
+  margin:0;padding:7px 11px;border-top:1px solid var(--gold-line);background:var(--parchment-2);
+}
+/* Collapsible sections. Everything past the everyday controls (provider + model) folds away, so the
+   default modal stays short enough to never need scrolling at all — the benchmark panel alone is
+   taller than the rest of the settings combined. */
+.settings-advanced{
+  display:block;width:100%;text-align:left;margin:4px 0 10px;
+  font:600 11px/1.4 var(--f-mono);letter-spacing:.04em;
+}
+.settings-advanced:hover{border-color:var(--gold);color:var(--gold-deep)}
+/* Give the folded-out contents a hairline so it reads as belonging to its section. */
+.settings-drawer{
+  border-left:2px solid var(--gold-line);padding-left:12px;margin:0 0 14px;
+}
+.provider-saved{font:600 11px/1.4 var(--f-mono);letter-spacing:.06em;color:var(--gold-deep);margin:6px 0 0}
+
 /* ---- birth-input form ---- */
 .birth-title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 /* The "chart saved" / "Saved ✓" affirmation — a small gold pill, never shouting. */
@@ -581,7 +755,28 @@ td.b{color:var(--ink)}
 .ticker-result{display:flex;align-items:baseline;gap:10px}
 .ticker-result .sym{font:600 12px/1 var(--f-mono);color:var(--gold-deep);letter-spacing:.05em;min-width:56px}
 .ticker-result .co{color:var(--ink-soft);font-size:14.5px}
+/* Which birth this row charts — quiet, so ticker + name still lead. A LISTING (real market debut,
+   at the opening bell) reads as a solid chip; a FOUNDING (no listing on record → no bell → no
+   houses) wears a dashed border, the same "honest partial" language as an unknown time elsewhere. */
+.ticker-result .moment{
+  font:600 9px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 6px;border-radius:999px;white-space:nowrap;
+}
+.ticker-result .moment--listing{color:var(--lapis);background:color-mix(in srgb,var(--lapis) 8%,transparent);border:1px solid color-mix(in srgb,var(--lapis) 30%,transparent)}
+.ticker-result .moment--founding{color:var(--ink-faint);background:transparent;border:1px dashed var(--line)}
 .ticker-empty{font:500 12.5px/1.6 var(--f-mono);color:var(--ink-faint);padding:2px}
+/* A real entity we hold no day-precise moment for: 3,418 of 7,671 have no SEC listing date and no
+   day-precise Wikidata founding (or a founding CONFLICT, like Coca-Cola). Listed, not hidden —
+   someone who searched for it deserves to learn that we don't know, rather than wonder if they
+   misspelled it. Recedes and doesn't respond to the
+   cursor, because the only way to chart it would be to invent the date. */
+.ticker-result--unchartable{cursor:not-allowed}
+.ticker-result--unchartable .sym,.ticker-result--unchartable .co{color:var(--ink-faint)}
+.ticker-result--unchartable:hover{background:transparent}
+.univ--none{
+  color:var(--ink-faint);background:transparent;border-style:dashed;
+  border-color:var(--line);
+}
 .basket{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--parchment);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
 .basket-label{font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep)}
 .basket-chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -753,4 +948,172 @@ td.b{color:var(--ink)}
   color:var(--ink-faint);
   background:color-mix(in srgb,var(--ink-faint) 12%,transparent);
   border-color:color-mix(in srgb,var(--ink-faint) 34%,transparent);
+}
+
+/* ---- Local-model panel (Settings) — benchmark + recommendation + HF search ---- */
+.settings-sep{border:none;border-top:1px solid var(--gold-line);margin:16px 0 4px}
+.modelpanel{display:flex;flex-direction:column;gap:9px}
+.modelpanel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.modelpanel-btn{font-size:12px;padding:7px 13px}
+.modelpanel-specs{font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft)}
+/* RuntimeHealth: which backend + GPU the serve lands on. Green = discrete (CUDA/Metal/ROCm);
+   carnelian = a Vulkan integrated-GPU fallback (the OOM trap). */
+.modelpanel-runtime{
+  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
+  font:600 12px/1.5 var(--f-mono);letter-spacing:.02em;
+  padding:6px 11px;border-radius:8px;
+}
+.modelpanel-runtime-dot{
+  align-self:center;width:7px;height:7px;border-radius:50%;flex:none;
+}
+.modelpanel-runtime--ok{
+  color:var(--malachite);
+  background:color-mix(in srgb,var(--malachite) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--malachite) 30%,transparent);
+}
+.modelpanel-runtime--ok .modelpanel-runtime-dot{background:var(--malachite);box-shadow:0 0 6px var(--malachite)}
+.modelpanel-runtime--warn{
+  color:var(--carnelian);
+  background:color-mix(in srgb,var(--carnelian) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--carnelian) 30%,transparent);
+}
+.modelpanel-runtime--warn .modelpanel-runtime-dot{background:var(--carnelian)}
+.modelpanel-runtime-note{color:var(--ink-soft);font-weight:500}
+/* "downloaded" cue — the fitted model is already in the HF cache, so serving only loads it. */
+.modelpanel-cached{display:flex;align-items:center;gap:7px;margin:2px 0 6px;font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--malachite)}
+.modelpanel-cached-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--malachite);box-shadow:0 0 5px color-mix(in srgb,var(--malachite) 55%,transparent)}
+/* Serve progress: a phase label + a bar. Determinate (download %) sets an explicit width; the
+   indeterminate bar (preparing / loading into VRAM) slides a short fill across the track. Colors:
+   neutral gold, ok = malachite, fail = carnelian (no bar). */
+.modelpanel-serve{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.modelpanel-serve-label{
+  margin:0;font:600 12.5px/1.45 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft);
+}
+.modelpanel-serve--ok .modelpanel-serve-label{color:var(--malachite)}
+.modelpanel-serve--fail .modelpanel-serve-label{color:var(--carnelian)}
+.progress{
+  height:7px;border-radius:6px;overflow:hidden;
+  background:color-mix(in srgb,var(--ink-faint) 16%,transparent);
+  border:1px solid var(--gold-line);
+}
+.progress-fill{
+  height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--gold-deep),var(--gold));
+  transition:width .3s ease;
+}
+.modelpanel-serve--ok .progress-fill{
+  width:100%;
+  background:linear-gradient(90deg,var(--malachite),color-mix(in srgb,var(--malachite) 60%,white));
+}
+.progress-fill--indeterminate{
+  width:40%;animation:progress-slide 1.2s ease-in-out infinite;
+}
+@keyframes progress-slide{
+  0%{transform:translateX(-110%)}
+  100%{transform:translateX(275%)}
+}
+/* Ranked-page "reading on your machine — N of M ready" cue while local reads land off-thread. */
+.local-progress{
+  display:flex;flex-direction:column;gap:6px;max-width:360px;margin:2px 0 14px;
+}
+.local-progress-label{
+  font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-faint);
+}
+
+/* ── Wheat loader — the loading indicator (owner-chosen over 4 other styles) ─────────────────────
+   Its own `.wload*` namespace so it never collides with the FitCard's living `.wheat` health plots.
+   Download: stalks grow in left→right, a grown stalk turns gold. Loading into VRAM: the field sways
+   and its color washes red→green→gold (gold reserved for done). Done: every stalk solid gold, still.
+   Pure SVG + CSS, no runtime dependency — see components/wheat_loader.rs. */
+.wload{display:flex;align-items:flex-end;justify-content:flex-start;gap:6px;height:42px;margin-top:2px}
+.wload-stalk{height:42px;width:14px;display:flex;align-items:flex-end;transform-box:fill-box;transform-origin:bottom center}
+.wload-stalk svg{display:block;height:42px;width:100%;overflow:visible}
+.wload-grow{
+  transform-box:fill-box;transform-origin:bottom center;
+  transform:scaleY(.1) rotate(-14deg);opacity:.3;
+  transition:transform .45s cubic-bezier(.34,1.4,.5,1),opacity .35s;
+}
+.wload-grown{transform:scaleY(1) rotate(0);opacity:1}
+.wload-stem,.wload-grain{
+  fill:none;stroke:color-mix(in srgb,var(--ink-faint) 34%,transparent);
+  stroke-width:1.9;stroke-linecap:round;transition:stroke .18s linear;
+}
+.wload-grown .wload-stem,.wload-grown .wload-grain{stroke:var(--gold)}
+/* loading beat: the whole field sways + washes red → green → gold */
+.wload--loading .wload-grow{transform:scaleY(1) rotate(0);opacity:1}
+.wload--loading .wload-stalk{animation:wload-sway 2.6s ease-in-out infinite}
+.wload--loading .wload-stem,.wload--loading .wload-grain{animation:wload-wash 3.6s ease-in-out infinite}
+@keyframes wload-sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes wload-wash{0%,100%{stroke:var(--carnelian)}38%{stroke:var(--malachite)}72%{stroke:var(--gold)}}
+/* done beat: solid gold, still */
+.wload--done .wload-grow{transform:scaleY(1) rotate(0);opacity:1}
+.wload--done .wload-stem,.wload--done .wload-grain{stroke:var(--gold)}
+/* FitCard's living wheat while ITS reading loads — washes red→green→gold over the health sway
+   (stems/leaves = stroke, grain heads = fill), then settles to the health color when the read lands. */
+.wheat--pending .stalk path{animation:wload-wash 3.2s ease-in-out infinite}
+.wheat--pending .stalk ellipse{animation:wload-wash-fill 3.2s ease-in-out infinite}
+@keyframes wload-wash-fill{0%,100%{fill:var(--carnelian)}38%{fill:var(--malachite)}72%{fill:var(--gold)}}
+/* The tier EMBLEM — a card-sized stand whose color names the machine's tier (seed→red→green→gold),
+   still (a verdict, not a process). Wild = below the floor: bent, scattered, muted. */
+.wtier{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:10px 14px 8px;
+  border:1px solid var(--gold-line);border-radius:11px;
+  background:color-mix(in srgb,var(--parchment) 70%,transparent)}
+.wtier-field{display:flex;align-items:flex-end;gap:5px;height:52px}
+.wtier-field .wload-stalk{height:52px;width:13px}
+.wtier-field .wload-stalk svg{height:52px}
+.wtier-caption{font-size:12px;letter-spacing:.04em;color:var(--ink-soft)}
+.wtier--seed  .wload-stem,.wtier--seed  .wload-grain{stroke:color-mix(in srgb,var(--gold-deep) 45%,var(--ink-faint))}
+.wtier--red   .wload-stem,.wtier--red   .wload-grain{stroke:var(--carnelian)}
+.wtier--green .wload-stem,.wtier--green .wload-grain{stroke:var(--malachite)}
+.wtier--gold  .wload-stem,.wtier--gold  .wload-grain{stroke:var(--gold)}
+.wtier--wild  .wload-stem,.wtier--wild  .wload-grain{stroke:color-mix(in srgb,var(--ink-faint) 55%,transparent)}
+/* wild wheat: each stalk leans its own way; one is half-broken. Growth transform is safe to
+   override here — the emblem always renders grown. */
+.wtier--wild .wtier-field .wload-stalk:nth-child(1) .wload-grow{transform:rotate(-16deg)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(2) .wload-grow{transform:rotate(9deg) scaleY(.8)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(3) .wload-grow{transform:rotate(-5deg) scaleY(.55)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(4) .wload-grow{transform:rotate(14deg)}
+.wtier--wild .wtier-field .wload-stalk:nth-child(5) .wload-grow{transform:rotate(-10deg) scaleY(.7)}
+.wtier--wild .wtier-caption{color:var(--ink-faint)}
+.modelpanel-pick{
+  font-size:14px;color:var(--ink);padding:9px 12px;border-radius:9px;
+  background:color-mix(in srgb,var(--malachite) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--malachite) 32%,transparent);
+}
+.modelpanel-nolocal{
+  font-size:13.5px;color:var(--ink-soft);padding:9px 12px;border-radius:9px;
+  background:color-mix(in srgb,var(--ink-faint) 10%,transparent);
+  border:1px solid var(--line);
+}
+.modelpanel-cmd{
+  display:inline-block;font-family:var(--f-mono);font-size:12.5px;color:var(--gold-deep);
+  background:color-mix(in srgb,var(--gold) 10%,transparent);padding:4px 9px;border-radius:6px;
+}
+.modelpanel-warn{color:var(--carnelian)}
+.modelpanel-search{margin-top:4px}
+.modelpanel-results{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.modelpanel-results li{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-family:var(--f-mono);font-size:12px;padding:6px 10px;border-radius:7px;
+  border:1px solid var(--line);background:color-mix(in srgb,var(--parchment) 60%,transparent);
+}
+.modelpanel-repo{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modelpanel-dl{color:var(--ink-faint);flex:none}
+
+/* uncensored/abliterated flag in the model search */
+.modelpanel-repo--warn{color:var(--ink-faint)}
+.modelpanel-uncensored{
+  flex:none;font:600 9.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--carnelian);background:color-mix(in srgb,var(--carnelian) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--carnelian) 34%,transparent);
+  border-radius:999px;padding:3px 7px;white-space:nowrap;cursor:help;
+}
+
+/* the fitted-quant line (best quant this machine can run) */
+.modelpanel-plan{
+  font:600 13px/1.45 var(--f-mono);letter-spacing:.01em;color:var(--gold-deep);
+  padding:7px 12px;border-radius:9px;
+  background:color-mix(in srgb,var(--gold) 9%,transparent);
+  border:1px solid var(--gold-line);
+  overflow-wrap:anywhere;
 }

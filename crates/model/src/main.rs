@@ -15,6 +15,8 @@ fn main() {
         "list" => list(),
         "resolve" => resolve(args.get(2).map(String::as_str)),
         "get" => get(force_local),
+        "plan" => plan_cmd(force_local),
+        "runtime" => runtime_cmd(),
         "serve" => serve(force_local, port_arg(&args)),
         "-h" | "--help" | "help" => usage(),
         other => {
@@ -140,10 +142,13 @@ fn port_arg(args: &[String]) -> u16 {
         .unwrap_or(1234)
 }
 
-/// Resolve the model this machine should serve → `(hf_repo, quant, human_label)`. Below the floor,
-/// requires `--force-local` (else prints the Raw/Live guidance and returns None). Needs the network
-/// to resolve the current HF repo.
-fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
+/// Detect this machine + resolve the recommended pick → `(pick, spec, gpu)`, honoring `--force-local`
+/// below the floor (else prints the Raw/Live guidance and returns None). No network — the caller
+/// resolves the concrete repo/quant. `spec`/`gpu` are returned so the caller can fit the quant to the
+/// machine's memory budget (`plan_serve`) rather than serving the static pick's quant.
+fn resolve_pick(
+    force_local: bool,
+) -> Option<(model::ModelPick, model::DeviceSpec, Option<model::GpuInfo>)> {
     let gpu = model::detect_gpu();
     let spec = model::detect_spec_with(gpu.as_ref());
     let pick = match model::recommend_for(&spec) {
@@ -162,6 +167,14 @@ fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
             return None;
         }
     };
+    Some((pick, spec, gpu))
+}
+
+/// Resolve the model this machine should serve → `(hf_repo, quant, human_label)` at the pick's
+/// **static** quant (what `get` reports as "next steps"; `serve` fits the quant per machine instead).
+/// Needs the network to resolve the current HF repo.
+fn resolve_target(force_local: bool) -> Option<(String, String, String)> {
+    let (pick, _spec, _gpu) = resolve_pick(force_local)?;
     let Some(cand) = model::resolve_current_repo(&pick) else {
         eprintln!(
             "couldn't resolve a current Hugging Face repo for {} (offline?)",
@@ -193,9 +206,120 @@ fn get(force_local: bool) {
         println!("\nRun this to download + serve (leave it running):");
         println!("  ziqpu-model serve{flag}");
     } else {
-        println!("  llama.cpp NOT found — install it first:");
-        println!("    {}", model::llama_install_hint());
-        println!("  then: ziqpu-model serve{flag}");
+        println!("  llama.cpp NOT found — `ziqpu-model serve{flag}` installs it for you");
+        println!(
+            "  (or install it yourself: {})",
+            model::llama_install_hint()
+        );
+    }
+}
+
+/// `runtime` — install (or report) the app-managed llama.cpp build for this machine's GPU, then
+/// show which devices it can see and which one a serve would pin.
+fn runtime_cmd() {
+    println!("Ziqpu · llama.cpp runtime");
+    let bin = match model::ensure_runtime(&mut |line| println!("  {line}")) {
+        Ok(bin) => bin,
+        Err(why) => {
+            eprintln!("  runtime install failed: {why}");
+            eprintln!("  manual fallback: {}", model::llama_install_hint());
+            std::process::exit(1);
+        }
+    };
+    println!("  binary     {}", bin.display());
+    let devices = model::probe_devices(&bin);
+    match model::select_device(&devices) {
+        Some(d) => println!(
+            "  serves on  {} → {} ({:.0} GB)",
+            d.backend.label(),
+            d.name,
+            d.vram_gb()
+        ),
+        None => println!("  serves on  CPU (no GPU visible to this build)"),
+    }
+    println!("\nNext: `ziqpu-model serve` downloads the model and runs it on :1234.");
+}
+
+/// `plan` — dry-run the serve decision: show the repo's real GGUFs (quant + size), this machine's
+/// memory budget, which quants fit, and the quant the panel/serve would actually pick. Downloads
+/// nothing — a diagnostic for "why did it grab THAT quant".
+fn plan_cmd(force_local: bool) {
+    let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
+        std::process::exit(1);
+    };
+    let budget = model::device_model_budget_gb(&spec, gpu.as_ref());
+    println!("Ziqpu · serve plan for this machine");
+    // Runtime + the GPU this build will actually serve on (the RuntimeHealth line).
+    match model::resolve_llama_server() {
+        Some(bin) => {
+            let devices = model::probe_devices(&bin);
+            match model::select_device(&devices) {
+                Some(d) => println!(
+                    "  runtime    {} → {} ({:.0} GB){}",
+                    d.backend.label(),
+                    d.name,
+                    d.vram_gb(),
+                    if d.backend == model::Backend::Vulkan {
+                        "  ⚠ may be an integrated GPU"
+                    } else {
+                        ""
+                    }
+                ),
+                None => println!("  runtime    CPU (no GPU visible to this llama.cpp build)"),
+            }
+        }
+        None => println!(
+            "  runtime    (llama.cpp not found — {})",
+            model::llama_install_hint()
+        ),
+    }
+    println!("  model      {} ({})", pick.name, pick.params);
+    println!(
+        "  budget     {:.2} GB  (weights must fit under this; the rest is KV cache + overhead)",
+        budget
+    );
+    let Some(cand) = model::resolve_current_repo(&pick) else {
+        println!(
+            "  repo       (offline / none found — would serve the static {})",
+            pick.quant
+        );
+        return;
+    };
+    println!("  repo       {}", cand.repo);
+    let ggufs = model::list_repo_ggufs(&cand.repo);
+    if ggufs.is_empty() {
+        println!(
+            "  (no GGUFs listed — offline? would fall back to the static {})",
+            pick.quant
+        );
+        return;
+    }
+    println!("  --- quants in the repo (rank · size · fits budget?) ---");
+    let mut rows: Vec<_> = ggufs.iter().collect();
+    rows.sort_by(|a, b| b.size_gb.total_cmp(&a.size_gb));
+    for g in rows {
+        let fits = if g.size_gb <= budget {
+            "FITS"
+        } else {
+            "too big"
+        };
+        println!(
+            "    rank {:>3} · {:>6.2} GB · {:<12} {}",
+            model::quant_rank(&g.quant),
+            g.size_gb,
+            g.quant,
+            fits
+        );
+    }
+    match model::plan_serve(&pick, &spec, gpu.as_ref()) {
+        Some(p) => println!(
+            "  >>> PICK   {}:{}  (~{:.2} GB) — headroom ~{:.2} GB",
+            p.repo,
+            p.quant,
+            p.size_gb,
+            budget - p.size_gb
+        ),
+        None => println!("  >>> PICK   (none — offline)"),
     }
 }
 
@@ -203,31 +327,100 @@ fn get(force_local: bool) {
 /// app's Local default). Blocks while serving; the seeker leaves it running and Ziqpu's Local mode
 /// talks to it. No settings change needed at the default port.
 fn serve(force_local: bool, port: u16) {
-    let Some((repo, quant, label)) = resolve_target(force_local) else {
+    let Some((pick, spec, gpu)) = resolve_pick(force_local) else {
         std::process::exit(1);
     };
-    if !model::have_llama_server() {
-        eprintln!("llama.cpp not found. Install it, then re-run `ziqpu-model serve`:");
-        eprintln!("  {}", model::llama_install_hint());
-        std::process::exit(1);
-    }
+    // No llama.cpp anywhere? Install the backend-correct build for this machine right now —
+    // `serve` is meant to be the one command a stranger runs, so it must not dead-end on a
+    // prerequisite the app can satisfy itself.
+    let bin = match model::resolve_llama_server() {
+        Some(bin) => bin,
+        None => {
+            println!("llama.cpp not found — installing the right build for this machine:");
+            match model::ensure_runtime(&mut |line| println!("  {line}")) {
+                Ok(bin) => bin,
+                Err(why) => {
+                    eprintln!("  runtime install failed: {why}");
+                    eprintln!("  manual fallback: {}", model::llama_install_hint());
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+    // Fit the quant to this machine's memory budget (the largest-quality GGUF that fits, NOT the
+    // static pick's quant — that hardcoded a quant a smaller card can't hold). Offline → static pick.
+    let (repo, quant, size_gb, fits_gpu) = match model::plan_serve(&pick, &spec, gpu.as_ref()) {
+        Some(p) => (p.repo, p.quant, Some(p.size_gb), p.fits_gpu),
+        None => {
+            let Some(cand) = model::resolve_current_repo(&pick) else {
+                eprintln!(
+                    "couldn't resolve a current Hugging Face repo for {} (offline?)",
+                    pick.name
+                );
+                eprintln!(
+                    "try `ziqpu-model resolve {}` when online.",
+                    pick.search_term
+                );
+                std::process::exit(1);
+            };
+            (cand.repo, pick.quant.to_string(), None, true)
+        }
+    };
+    // Which GPU will this binary actually use? Probe --list-devices and pin the discrete one, so we
+    // never silently land on a hybrid laptop's integrated GPU (the whole OOM saga). No device line =
+    // CPU-only build/machine. And NO pin when the fitted quant is bigger than the card's pool —
+    // forcing `-ngl 99` there allocates itself to death; CPU-side (RAM-fitted) is the honest serve.
+    let device = if fits_gpu {
+        model::select_device(&model::probe_devices(&bin))
+    } else {
+        None
+    };
     let hf = format!("{repo}:{quant}");
-    println!("Ziqpu · serving {label}");
+    println!("Ziqpu · serving {} ({quant})", pick.name);
+    match &device {
+        Some(d) => println!(
+            "  runtime   {} → {} ({:.0} GB)",
+            d.backend.label(),
+            d.name,
+            d.vram_gb()
+        ),
+        None if !fits_gpu => {
+            println!("  runtime   CPU (model larger than the GPU's memory — slower)")
+        }
+        None => println!("  runtime   CPU (no GPU device visible to this build)"),
+    }
+    if matches!(&device, Some(d) if d.backend == model::Backend::Vulkan) {
+        println!(
+            "  ⚠ Vulkan may bind an integrated GPU on a hybrid machine; a CUDA/Metal/ROCm build is more reliable."
+        );
+    }
     println!("  endpoint  http://127.0.0.1:{port}/v1   (Ziqpu Local mode's default is :1234)");
-    println!("  model     {hf}");
+    match size_gb {
+        Some(gb) => {
+            println!("  model     {hf}  (~{gb:.1} GB — the best quant this machine can run)")
+        }
+        None => println!("  model     {hf}"),
+    }
     println!(
         "  first run downloads the model from Hugging Face, then serves. Leave this running.\n"
     );
-    let status = std::process::Command::new("llama-server")
-        .args([
-            "-hf",
-            &hf,
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-        ])
-        .status();
+    let mut args: Vec<String> = vec![
+        "-hf".into(),
+        hf.clone(),
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string(),
+        // Cap the context (default 0 = the model's full 32k+ trained window, whose KV cache is
+        // several GB) so weights + KV fit in VRAM — a real contributor to the earlier OOM.
+        "-c".into(),
+        model::SERVE_CTX_SIZE.to_string(),
+        "-lv".into(),
+        "1".into(),
+    ];
+    // Full GPU offload + an explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
+    args.extend(model::gpu_serve_args(device.as_ref()));
+    let status = std::process::Command::new(&bin).args(&args).status();
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => std::process::exit(s.code().unwrap_or(1)),
@@ -248,5 +441,11 @@ fn usage() {
     eprintln!(
         "  get [--force-local]         resolve the model + check llama.cpp; print next steps"
     );
-    eprintln!("  serve [--force-local] [--port N]  download + serve the model (default :1234)");
+    eprintln!(
+        "  plan [--force-local]        dry-run the serve pick: repo quants, sizes, budget, fit (no download)"
+    );
+    eprintln!(
+        "  runtime                     install the right llama.cpp build for this machine's GPU"
+    );
+    eprintln!("  serve [--force-local] [--port N]  download + serve the model (default :1234; installs llama.cpp if missing)");
 }

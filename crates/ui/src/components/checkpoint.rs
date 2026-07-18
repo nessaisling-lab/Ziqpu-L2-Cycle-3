@@ -21,7 +21,7 @@ pub fn Checkpoint() -> Element {
             div { class: "gate gate--grounding",
                 div { class: "ask-reading ask-reading--pending",
                     span { class: "wheat-caption",
-                        "Pulling the real record (SEC EDGAR) and writing the grounded briefing… the window stays live."
+                        "Pulling the real record (SEC EDGAR + Wikipedia) and writing the grounded briefing… the window stays live."
                     }
                 }
             }

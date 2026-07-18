@@ -86,7 +86,7 @@ fn tools() -> Value {
         },
         {
             "name": "pull_grounded_signals",
-            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL and fetches nothing; with approved=true it makes the gated, costed SEC EDGAR pull.",
+            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL and fetches nothing; with approved=true it makes the gated, costed external pull (SEC EDGAR filings and Wikipedia).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -240,9 +240,12 @@ fn call_pull(args: &Value) -> (String, bool) {
     if !approved {
         // The checkpoint, surfaced to the host: nothing external ran.
         return (
+            // Names every source the approval would spend — this text *is* the consent an MCP host
+            // shows before authorizing the pull, so it can't understate what runs.
             format!(
-                "PENDING_APPROVAL — grounding {ticker} makes a gated, costed external call (SEC EDGAR). \
-                 Nothing was fetched. Re-call with {{ \"approved\": true }} to proceed, or keep the symbolic read."
+                "PENDING_APPROVAL — grounding {ticker} makes gated, costed external calls \
+                 (SEC EDGAR filings and Wikipedia). Nothing was fetched. Re-call with \
+                 {{ \"approved\": true }} to proceed, or keep the symbolic read."
             ),
             false,
         );

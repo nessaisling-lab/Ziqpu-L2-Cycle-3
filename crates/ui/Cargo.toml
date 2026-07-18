@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 dioxus = { version = "0.6.3", features = ["desktop"] }
 agents = { path = "../agents" }
+model = { path = "../model" }
 geo = { path = "../geo" }
 tickers = { path = "../tickers" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
@@ -28,3 +29,23 @@ futures-util = { version = "0.3", default-features = false }
 # `SavedProfile`/`SavedPlace` derive Serialize/Deserialize here; the JSON codec writes/reads the file.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# OS credential vault for hosted-provider API keys (Anthropic/OpenRouter). Stores the secret in the
+# platform keystore — Windows Credential Manager (DPAPI), macOS Keychain, Linux Secret Service —
+# instead of a plaintext file. Per-OS backends are additive features that each compile only on their
+# target; `crypto-rust` keeps the Linux Secret Service path pure-Rust (no OpenSSL), matching the
+# `ureq` decision so the whole app stays a guaranteed cross-platform build.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
+# Windows only: the preflight layer (src/preflight.rs). `windows-sys` (raw FFI bindings, not the
+# higher-level `windows` wrapper) gives us the two calls preflight needs — MessageBoxW so a startup
+# failure is VISIBLE (a release build has no console, so a pre-window panic used to exit in total
+# silence), and RegGetValueW to detect the WebView2 Runtime *before* launching so we can offer to
+# install it instead of dying. Already in the lock several times over via tao/wry, and
+# MIT/Apache-2.0, so this adds no new dependency weight or licence surface.
+#
+# `ureq` downloads Microsoft's Evergreen Bootstrapper (~2 MB) for that offer — same pure-Rust
+# rustls-with-bundled-roots build the `agents` crate already uses for live LLM calls, so it is in
+# the lock at this exact version/feature set and adds nothing new either.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry"] }
+ureq = { version = "2", default-features = false, features = ["tls"] }

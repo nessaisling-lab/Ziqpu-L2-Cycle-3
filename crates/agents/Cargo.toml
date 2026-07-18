@@ -20,3 +20,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 chrono-tz = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# HTTPS for the live interpreter paths (Anthropic + OpenAI-compatible/OpenRouter). Pure-Rust rustls
+# TLS with bundled Mozilla roots — no OpenSSL, no OS cert store, no `curl.exe` dependency — so it is a
+# guaranteed cross-platform build/run (Windows/macOS/Linux). Crucially the API key is set as an
+# in-process header and never appears on a process command line (the old curl `-H` argv leak).
+ureq = { version = "2", default-features = false, features = ["tls"] }

@@ -202,13 +202,20 @@ fn wheat_stalk(i: usize, n: usize, h: &WheatHealth) -> Element {
 /// persistently on every card (a living health indicator, not just a loader); while the reading is
 /// pending it doubles as the loader with the "Consulting the viziers…" caption beside it. Pure inline
 /// SVG; each `.stalk` sways via the CSS `sway` keyframes (always-on, ungated from OS reduce-motion).
-fn wheat_field(fit: Fit) -> Element {
+fn wheat_field(fit: Fit, pending: bool) -> Element {
     let h = WheatHealth::from_fit(fit);
     let n = h.stalks;
     let stalks = (0..n).map(|i| wheat_stalk(i, n, &h)).collect::<Vec<_>>();
+    // While the reading is being fetched, the plot doubles as the loader: it washes red → green →
+    // gold (the owner-chosen loading beat) over the top of the sway, then settles to its health color.
+    let cls = if pending {
+        "wheat wheat--pending"
+    } else {
+        "wheat"
+    };
     rsx! {
         svg {
-            class: "wheat",
+            class: "{cls}",
             view_box: "0 0 104 92",
             "preserveAspectRatio": "xMidYMax meet",
             fill: "none",
@@ -294,15 +301,10 @@ pub fn FitCard(index: usize) -> Element {
         }
     };
 
-    // The card header already shows band + score + name, so strip a leading redundant
-    // "FIT: <band> (score) — name" line from the prose if the interpreter emitted one; keep the
-    // warm reading + why + REMINDER intact.
-    let reading = match source_text.split_once('\n') {
-        Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
-            rest.trim_start().to_string()
-        }
-        _ => source_text,
-    };
+    // Strip the display chrome: the redundant leading "FIT: … — name" line (the header shows it) and
+    // the trailing "REMINDER: … not financial advice" (now shown once in the persistent footer, not
+    // on every card). The disclaimer stays in the reading data + the guardrail — see strip_reading_chrome.
+    let reading = crate::state::strip_reading_chrome(&source_text);
     let card_cls = if is_selected {
         "card card--fit card--selected"
     } else {
@@ -314,9 +316,26 @@ pub fn FitCard(index: usize) -> Element {
         article {
             class: "{card_cls}",
             style: "--band:var({band});--pct:{score}%;--wheat-color:{wheat_base};--wheat-tip:{wheat_tip}",
+            // Each ranked card is a real, keyboard-operable choice control — not a mouse-only div — so
+            // a keyboard/screen-reader user can move the selection the spotlight makes visible.
+            // `aria-current` announces which card is the chosen one (WCAG 2.1.1 / 4.1.2, Level A).
+            role: "button",
+            "aria-current": "{is_selected}",
+            tabindex: "0",
             onclick: {
                 let mut ctx = ctx.clone();
                 move |_| ctx.selected.set(index)
+            },
+            onkeydown: {
+                let mut ctx = ctx.clone();
+                move |e: KeyboardEvent| {
+                    // Enter/Space pick this card, matching the app's tablist keyboard contract.
+                    let key = e.key();
+                    if key == Key::Enter || matches!(&key, Key::Character(c) if c == " ") {
+                        e.prevent_default();
+                        ctx.selected.set(index);
+                    }
+                }
             },
 
             div { class: "card__top",
@@ -350,7 +369,7 @@ pub fn FitCard(index: usize) -> Element {
                         {source_badge}
                     }
                 }
-                aside { class: "wheat-field", "aria-hidden": "true", {wheat_field(rec.fit)} }
+                aside { class: "wheat-field", "aria-hidden": "true", {wheat_field(rec.fit, is_pending)} }
             }
 
             Backstage { choice }

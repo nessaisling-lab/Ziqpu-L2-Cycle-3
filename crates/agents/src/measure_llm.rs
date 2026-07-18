@@ -138,10 +138,19 @@ impl LocalMeasurer {
 }
 
 /// POST a JSON body to a local model via `curl` and return the raw response bytes.
+///
+/// `--max-time` is required even though this is a loopback call. The measurer runs once per choice
+/// on the UI's event-loop thread (`state::measures_for` holds a `!Send` session in a `RefCell`), so
+/// five serial unbounded POSTs would freeze the window rather than merely stalling a worker. An
+/// accepting-but-silent listener on the configured port is the realistic trigger: LM Studio holds a
+/// POST open while it JIT-loads a large quant, and a wedged server or an unrelated process squatting
+/// :1234 does the same. Timing out is cheap — `None` degrades to the deterministic measurer below.
 fn curl_post(url: &str, body: &str) -> Option<Vec<u8>> {
-    let mut child = Command::new("curl")
+    let mut child = crate::no_window(Command::new("curl"))
         .args([
             "-sS",
+            "--max-time",
+            "20",
             url,
             "-H",
             "content-type: application/json",

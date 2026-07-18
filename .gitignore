@@ -32,8 +32,18 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Cloudflare Worker key proxy — local dev secrets + tooling (real secrets go via `wrangler secret put`)
+proxy/.dev.vars
+**/node_modules/
+.wrangler/
+
 # route-3 enrichment working dir (temp)
 /route3/
 
 # docx build tooling (temp)
 /.docbuild/
+
+# CC0/public-domain date re-derivation: HTTP cache + raw intermediate (regenerate with
+# scripts/derive-dates.py then scripts/build-tickers-csv.py). The SHIPPED artefact is
+# crates/tickers/data/company_metadata.csv, which IS committed.
+/scripts/out/

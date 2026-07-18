@@ -7,9 +7,13 @@
 //! and parsed **once, lazily** into its own in-memory index — **no network, no build-time codegen,
 //! no filesystem at runtime.**
 //!
-//! - **Stocks** (`company_metadata.csv`, ≈5.3k US-listed symbols): every symbol is dated by its IPO
-//!   on a US exchange, so a choice's birth moment is `ipo_date @ 09:30 America/New_York` at the
-//!   exchange's coordinates (both already in the CSV).
+//! - **Stocks** (`company_metadata.csv`, ~7.7k US-listed symbols): each row carries TWO moments —
+//!   a **conception** (founding, Wikidata P571) and a **birth** (listing, SEC 424B4). A stock is
+//!   charted on its listing at the opening bell when known, else on a day-precise founding without a
+//!   bell. **4,253 are chartable**; the rest are searchable but **unchartable** ([`TickerRow`])
+//!   rather than charted on a date we made up. All sources are CC0 / public-domain (Polygon purged
+//!   for licence + because its `list_date` was a founding field mislabelled as a listing).
+//!   Regenerate with `scripts/derive-dates.py` then `scripts/build-tickers-csv.py`.
 //! - **Airlines / Insurers** (`aviation.csv` / `insurance.csv`): each entity is dated by its
 //!   founding `birth_date`, at the time in `birth_time` **if present, else left unknown** (industry
 //!   birth times are usually blank — honest time-unknown, never invented), with `tz` + `latitude` +
@@ -26,8 +30,9 @@ use agents::{BirthMoment, Choice};
 use chrono::{NaiveDate, NaiveTime};
 use chrono_tz::Tz;
 
-/// The committed stock table (a copy of the repo-root `company_metadata.csv`). Header:
-/// `ticker,company_name,ipo_date,ipo_time,exchange,latitude,longitude,founding_date,data_source,notes`.
+/// The committed stock table, re-derived from CC0 + public-domain sources by
+/// `scripts/build-tickers-csv.py`. Header: `ticker,name,exchange,cik,conception_date,
+/// conception_prec,conception_src,birth_date,birth_prec,birth_src,note`.
 static CSV: &str = include_str!("../data/company_metadata.csv");
 
 /// The committed airline table (a copy of `datasets/aviation/entities.csv`). Header:
@@ -90,53 +95,92 @@ const MARKET_OPEN: NaiveTime = match NaiveTime::from_hms_opt(9, 30, 0) {
     None => unreachable!(),
 };
 
-/// Neutral listing date used when a row has neither a parseable `ipo_date` nor `founding_date`, so
-/// every symbol in the table is still datable (and thus addable) rather than silently dropped.
-const DEFAULT_LISTING_DATE: NaiveDate = match NaiveDate::from_ymd_opt(2000, 1, 1) {
-    Some(d) => d,
-    None => unreachable!(),
-};
+// There used to be a `DEFAULT_LISTING_DATE` here — 2000-01-01, handed to any row with no date at
+// all "so every symbol is still datable (and thus addable) rather than silently dropped". It was
+// added to fix a UI bug where undated symbols didn't hold when picked: a UX problem solved by
+// inventing data.
+//
+// It applied to 2,917 of 5,271 rows (the SEC 8-A harvest cut that to 764), and each one produced a
+// full synastry reading — a score, a band, a "why" — computed from a date that never happened and
+// closed with "measured, not fate". That is fiction presented as measurement, which is the one thing
+// this product exists to refuse; `UNGASAGA_SYSTEM` forbids inventing a measure in words while the
+// data layer did it upstream, and the Postgres seed the data came from was more honest than we were
+// (db/README: implausible dates are NULLed "so not fabricated into a bogus chart").
+//
+// Undated rows are now unchartable and say so. See [`TickerRow::chartable`] and [`choice_in`].
 
-/// Trading-floor coordinates used to backfill a row whose `latitude`/`longitude` are missing or out
-/// of range, keyed by exchange; `NEUTRAL_US_MARKET` (lower Manhattan) covers anything else.
+/// A stock's chart location — the exchange's trading floor, where the listing actually happened.
+/// `NEUTRAL_US_MARKET` (lower Manhattan) covers an unrecognized exchange.
 const NYSE_COORDS: (f64, f64) = (40.707, -74.011);
 const NASDAQ_COORDS: (f64, f64) = (40.757, -73.986);
+const CBOE_COORDS: (f64, f64) = (41.8789, -87.6359); // Chicago — CBOE Global Markets
 const NEUTRAL_US_MARKET: (f64, f64) = (40.7128, -74.0060);
 
-/// A search hit: the symbol and the company's display name. Just enough to render a result row and
-/// to feed [`choice`] when the seeker picks it.
+/// A search hit: the symbol, the company's display name, and whether we can actually chart it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TickerRow {
     pub ticker: String,
     pub name: String,
+    /// Whether we hold a **day-precise** moment for this entity, and can therefore chart it.
+    ///
+    /// `false` for the 3,418 rows (of 7,671) with no SEC listing date and no day-precise Wikidata
+    /// founding — or a founding *conflict*, like Coca-Cola. They are still returned from a search on
+    /// purpose — a seeker who types "Coca-Cola" should be told we don't know its birth moment, not
+    /// silently handed nothing and left to wonder whether they misspelled it. Absence of data is
+    /// data; hiding it is its own small lie.
+    ///
+    /// [`choice_in`] returns `None` for these, so an unchartable row can never become a reading.
+    pub chartable: bool,
+    /// Which lifecycle moment this row would be charted on — `Some(Listing)` / `Some(Founding)` —
+    /// or `None` when it isn't chartable. Lets the UI say *which* birth it is reading.
+    pub moment: Option<Moment>,
 }
 
-/// One parsed row from any universe, normalized into a common shape: the display fields, their
-/// lowercased search keys (plus a space-bracketed normalized name for whole-word matching), and the
-/// pre-resolved birth-moment inputs [`choice_in`] needs. `lat`/`lon` are `None` when the CSV value
-/// is missing or out of range, in which case `choice_in` falls back to [`fallback`](Self::fallback).
+/// Which moment of an entity's lifecycle a chart is cast for. An entity has several (founding,
+/// incorporation, listing, …); Ziqpu names the one it read rather than pretending there is only one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Moment {
+    /// The company became publicly tradeable — its IPO/listing. The v1 stock framing, and preferred
+    /// when known because it is day-precise and carries a real time (the opening bell).
+    Listing,
+    /// The entity was founded. Used for a stock only when no listing date exists (most pre-1994
+    /// companies), and always for the industry universes. No opening bell — a founding has no bell.
+    Founding,
+}
+
+impl Moment {
+    /// A short human label for the UI — "charted on its listing" / "charted on its founding".
+    pub fn label(self) -> &'static str {
+        match self {
+            Moment::Listing => "listing",
+            Moment::Founding => "founding",
+        }
+    }
+}
+
+/// One parsed row from any universe. The date logic is **resolved at parse time** into a single
+/// chart moment, so nothing downstream re-derives it (that is how a stock's founding date used to
+/// leak into a listing slot). `chart_date` is `Some` only when we hold a **day-precise** moment — a
+/// chart needs a day for its angles, and a year-only founding is honestly unchartable, not rounded
+/// up to January 1st.
 struct Entity {
     ticker: String,
     name: String,
     ticker_lc: String,
     name_lc: String,
     name_norm: String,
-    /// Primary birth date string: `ipo_date` (Stocks) or `birth_date` (industry).
-    date: String,
-    /// Secondary date tried when `date` is blank: `founding_date` for Stocks, empty for industry.
-    alt_date: String,
-    /// Raw birth-time column: `ipo_time` (Stocks) or `birth_time` (industry).
-    time: String,
-    /// Timezone: fixed `America/New_York` for Stocks; the CSV `tz` column for industry.
+    /// The day-precise moment to cast the chart for, or `None` when the entity is unchartable
+    /// (no listing date and no day-precise founding). Search still lists it; it just can't be picked.
+    chart_date: Option<NaiveDate>,
+    /// The time of that moment: `Some(09:30)` for a listing (the opening bell), `None` for a
+    /// founding (no bell — charts without angles, honestly flagged). Never invented.
+    chart_time: Option<NaiveTime>,
+    /// Which moment `chart_date` names, for the UI. Meaningful only when `chart_date` is `Some`.
+    moment: Moment,
     tz: Tz,
-    lat: Option<f64>,
-    lon: Option<f64>,
-    /// Coordinates used when `lat`/`lon` are absent: the exchange's trading floor (Stocks) or a
-    /// neutral point (industry).
-    fallback: (f64, f64),
-    /// Time to use when the `time` column is blank/unparseable: `Some(09:30)` for Stocks (the
-    /// opening bell), `None` for industry (honest time-unknown — never invented).
-    blank_time: Option<NaiveTime>,
+    /// The chart location — the exchange's trading floor (stocks) or the CSV point (industry).
+    lat: f64,
+    lon: f64,
 }
 
 /// Parse and cache a universe's table once, on first use.
@@ -182,6 +226,8 @@ pub fn search_in(u: Universe, query: &str) -> Vec<TickerRow> {
         .map(|(_, r)| TickerRow {
             ticker: r.ticker.clone(),
             name: r.name.clone(),
+            chartable: r.chart_date.is_some(),
+            moment: r.chart_date.map(|_| r.moment),
         })
         .collect()
 }
@@ -301,6 +347,8 @@ pub fn find_in_text(text: &str) -> Option<TickerRow> {
     Some(TickerRow {
         ticker: chosen.ticker.clone(),
         name: chosen.name.clone(),
+        chartable: chosen.chart_date.is_some(),
+        moment: chosen.chart_date.map(|_| chosen.moment),
     })
 }
 
@@ -331,6 +379,14 @@ fn name_in_text(text: &str) -> Option<&'static Entity> {
     for r in rows() {
         let core = core_name(&r.name_lc);
         if core.len() < 4 {
+            continue;
+        }
+        // A single-word core name that is an ordinary English word must not resolve from free text —
+        // the same protection the ticker path gets from [`STOPWORDS`], which the expanded SEC
+        // universe made load-bearing: it lists real companies named "Here Group", "Nothing", etc.,
+        // so "buy nothing here" would otherwise chart a holding company. A multi-word name
+        // ("under armour") is specific enough to keep.
+        if !core.contains(' ') && STOPWORDS.contains(&core.as_str()) {
             continue;
         }
         if !phrase_contains(&hay, &core) {
@@ -399,37 +455,38 @@ fn phrase_contains(hay: &str, core: &str) -> bool {
 /// - **Airlines / Insurers**: the founding `birth_date`, at `birth_time` if present else `None`
 ///   (honest time-unknown), with `tz` + `latitude` + `longitude` straight from the CSV.
 ///
-/// **Every listed entity yields `Some`**, so the UI's `if let Some(choice) = …` can always add it.
-/// Missing or unparseable data degrades gracefully rather than dropping the row:
-/// - date: primary date, else the secondary (`founding_date` for Stocks), else
-///   [`DEFAULT_LISTING_DATE`] (2000-01-01);
-/// - time: the time column when parseable, else the universe's blank-time default
-///   ([`MARKET_OPEN`] for Stocks, `None` for industry);
-/// - coordinates: the CSV `latitude`/`longitude` when both are present and in range, else the
-///   universe's fallback (the exchange's trading floor for Stocks, a neutral point for industry).
+/// Returns `None` when the id isn't in that universe's table, **or when we have no real birth date
+/// for it** — 764 rows have neither a Polygon listing date nor a Form 8-A on record, and a chart
+/// cannot be computed from a date we don't have. Those rows are still *searchable*; they are marked
+/// unchartable ([`TickerRow::chartable`]) rather than hidden, so the seeker learns we don't know
+/// instead of quietly getting a reading built on an invented moment.
+///
+/// Everything softer than the date still degrades gracefully, because these are honest partials
+/// rather than inventions:
+/// - time: the time column when parseable, else the universe's blank-time default ([`MARKET_OPEN`]
+///   for Stocks — the real moment trading opens; `None` for industry, which charts without angles
+///   and is flagged);
+/// - coordinates: the CSV `latitude`/`longitude` when present and in range, else the universe's
+///   fallback (the exchange's trading floor for Stocks — where the listing actually happened; a
+///   neutral point for industry).
 ///
 /// `cik`/`wiki` are `None` (these universes carry no curated grounding handles; the seeded demo's
-/// five stocks do). Returns `None` only for an id not present in that universe's table.
+/// five stocks do).
 pub fn choice_in(u: Universe, id: &str) -> Option<Choice> {
     let key = id.trim().to_lowercase();
     let r = entities(u).iter().find(|r| r.ticker_lc == key)?;
-    let date = parse_date(&r.date)
-        .or_else(|| parse_date(&r.alt_date))
-        .unwrap_or(DEFAULT_LISTING_DATE);
-    let time = parse_time(&r.time).or(r.blank_time);
-    let (lat, lon) = match (r.lat, r.lon) {
-        (Some(lat), Some(lon)) => (lat, lon),
-        _ => r.fallback,
-    };
+    // No day-precise moment, no chart. The one thing we will not do is make one up. `chart_date` was
+    // resolved once, at parse time, so this can never disagree with what search marked chartable.
+    let date = r.chart_date?;
     Some(Choice {
         ticker: r.ticker.clone(),
         name: r.name.clone(),
         birth: BirthMoment {
             date,
-            time,
+            time: r.chart_time,
             tz: r.tz,
-            lat,
-            lon,
+            lat: r.lat,
+            lon: r.lon,
         },
         cik: None,
         wiki: None,
@@ -441,7 +498,14 @@ pub fn choice(ticker: &str) -> Option<Choice> {
     choice_in(Universe::Stocks, ticker)
 }
 
-/// Parse a `YYYY-MM-DD` date, tolerating surrounding whitespace; `None` if blank or malformed.
+/// Parse a **full-day** `YYYY-MM-DD` date, tolerating surrounding whitespace; `None` if blank,
+/// malformed, or reduced-precision (`1978` or `1978-10`).
+///
+/// The reduced-precision rejection is the point, not an accident: the dataset stores year-only and
+/// month-only facts as exactly that (`1978`, `1978-10`), and this returning `None` for them is what
+/// makes such an entity **unchartable** rather than charted on a rounded-up January 1st. The 904
+/// Jan-1 charts we deleted came from a pipeline that had no way to express "year"; here the year is
+/// expressible and simply doesn't yield a castable moment.
 fn parse_date(s: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok()
 }
@@ -460,16 +524,24 @@ fn fallback_coords(exchange: &str) -> (f64, f64) {
     match exchange.trim().to_ascii_uppercase().as_str() {
         "NYSE" => NYSE_COORDS,
         "NASDAQ" => NASDAQ_COORDS,
+        "CBOE" => CBOE_COORDS,
         _ => NEUTRAL_US_MARKET,
     }
 }
 
 /// Parse the committed stock CSV into entities, skipping the header and any blank lines. Columns:
-/// `ticker,company_name,ipo_date,ipo_time,exchange,latitude,longitude,founding_date,…`. Every
-/// stock's timezone is `America/New_York`, blank times fall back to the opening bell, and missing
-/// coordinates fall back to the exchange's trading floor. Malformed rows (too few columns, empty
-/// ticker) are dropped rather than panicking — the committed artifact is well-formed, but a
-/// resilient parse keeps the UI alive if a future regeneration slips.
+/// `ticker,name,exchange,cik,conception_date,conception_prec,conception_src,birth_date,birth_prec,
+/// birth_src,note` (regenerate with `scripts/build-tickers-csv.py`).
+///
+/// **The chart moment is resolved here, once.** A stock is charted on its **listing** when we hold
+/// one — day-precise, at the opening bell — because that is the v1 "born onto the market" framing.
+/// Otherwise it falls back to a **day-precise founding** (no bell — charts without angles, flagged),
+/// which is the only date most pre-1994 companies have. A year-only or month-only founding yields no
+/// castable moment, so the entity is unchartable: listed in search, marked, never invented.
+///
+/// Coordinates are the exchange's trading floor (where the listing happened), mapped from the
+/// exchange column — not stored per row. Malformed rows (too few columns, empty ticker) are dropped
+/// rather than panicking.
 fn parse_stocks(csv: &str) -> Vec<Entity> {
     csv.lines()
         .skip(1)
@@ -478,7 +550,7 @@ fn parse_stocks(csv: &str) -> Vec<Entity> {
                 return None;
             }
             let f = split_csv(line);
-            if f.len() < 7 {
+            if f.len() < 8 {
                 return None;
             }
             let ticker = f[0].trim().to_string();
@@ -488,17 +560,26 @@ fn parse_stocks(csv: &str) -> Vec<Entity> {
             let name = f[1].trim().to_string();
             let name_lc = name.to_lowercase();
             let name_norm = normalize(&name_lc);
+            let (lat, lon) = fallback_coords(f[2].trim());
+
+            // Listing first (day-precise, opening bell), else a day-precise founding (no bell).
+            let birth = parse_date(f[7].trim());
+            let conception = parse_date(f[4].trim());
+            let (chart_date, chart_time, moment) = match (birth, conception) {
+                (Some(b), _) => (Some(b), Some(MARKET_OPEN), Moment::Listing),
+                (None, Some(c)) => (Some(c), None, Moment::Founding),
+                (None, None) => (None, None, Moment::Founding),
+            };
+
             Some(Entity {
                 ticker_lc: ticker.to_lowercase(),
                 name_norm,
-                date: f[2].trim().to_string(),
-                alt_date: f.get(7).map(|s| s.trim().to_string()).unwrap_or_default(),
-                time: f[3].trim().to_string(),
+                chart_date,
+                chart_time,
+                moment,
                 tz: chrono_tz::America::New_York,
-                lat: parse_coord(f[5].trim(), 90.0),
-                lon: parse_coord(f[6].trim(), 180.0),
-                fallback: fallback_coords(f[4].trim()),
-                blank_time: Some(MARKET_OPEN),
+                lat,
+                lon,
                 ticker,
                 name,
                 name_lc,
@@ -536,17 +617,27 @@ fn parse_industry(csv: &str) -> Vec<Entity> {
                 .trim()
                 .parse::<Tz>()
                 .unwrap_or(chrono_tz::America::New_York);
+            let (lat, lon) = match (
+                parse_coord(f[6].trim(), 90.0),
+                parse_coord(f[7].trim(), 180.0),
+            ) {
+                (Some(la), Some(lo)) => (la, lo),
+                _ => NEUTRAL_US_MARKET,
+            };
+            // Industry entities are dated by their FOUNDING — always a Founding moment. A blank or
+            // reduced-precision founding date means unchartable (listed, marked), never invented. A
+            // blank founding TIME stays unknown (charts without angles), never the opening bell.
+            let chart_date = parse_date(f[2].trim());
+            let chart_time = chart_date.and_then(|_| parse_time(f[3].trim()));
             Some(Entity {
                 ticker_lc: ticker.to_lowercase(),
                 name_norm,
-                date: f[2].trim().to_string(),
-                alt_date: String::new(),
-                time: f[3].trim().to_string(),
+                chart_date,
+                chart_time,
+                moment: Moment::Founding,
                 tz,
-                lat: parse_coord(f[6].trim(), 90.0),
-                lon: parse_coord(f[7].trim(), 180.0),
-                fallback: NEUTRAL_US_MARKET,
-                blank_time: None,
+                lat,
+                lon,
                 ticker,
                 name,
                 name_lc,
@@ -621,17 +712,30 @@ mod tests {
     }
 
     #[test]
-    fn choice_carries_ipo_date_and_a_known_time() {
-        let c = choice("AAPL").expect("AAPL resolves to a choice");
-        assert_eq!(c.ticker, "AAPL");
-        assert_eq!(c.name, "Apple Inc.");
-        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(1980, 12, 12).unwrap());
+    fn a_listing_charts_at_the_opening_bell() {
+        // Tesla has a real SEC listing date (2010-06-29). A listing is charted AT the opening bell,
+        // because that is a real fact about when trading began.
+        let c = choice("TSLA").expect("TSLA has a listing date and resolves");
+        assert_eq!(c.ticker, "TSLA");
+        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(2010, 6, 29).unwrap());
         assert_eq!(
             c.birth.time,
-            Some(NaiveTime::from_hms_opt(9, 30, 0).unwrap())
+            Some(MARKET_OPEN),
+            "a listing carries the bell"
         );
         assert_eq!(c.birth.tz, chrono_tz::America::New_York);
         assert!(c.cik.is_none() && c.wiki.is_none());
+    }
+
+    #[test]
+    fn a_founding_charts_without_a_bell() {
+        // Apple listed in 1980, but that IPO predates EDGAR, so we have no listing date — only its
+        // day-precise FOUNDING (1976-04-01). It charts on the founding, and a founding has NO opening
+        // bell (that would be inventing a time), so it charts without angles, honestly.
+        let c = choice("AAPL").expect("AAPL has a day-precise founding and resolves");
+        assert_eq!(c.name, "Apple Inc.");
+        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(1976, 4, 1).unwrap());
+        assert_eq!(c.birth.time, None, "a founding has no opening bell");
     }
 
     #[test]
@@ -672,47 +776,88 @@ mod tests {
         assert_eq!(r.ticker, "AAPL");
     }
 
+    /// The listing dates are the CC0/public-domain re-derivation, not Polygon — and a listing is
+    /// day-precise from the SEC prospectus.
     #[test]
-    fn choice_is_some_for_a_row_with_blank_ipo_date() {
-        // MU (Micron) ships with an empty ipo_date. It must still resolve — this is the exact bug
-        // that made some symbols "not hold" in the UI. It falls back to a neutral listing date and,
-        // being NASDAQ-listed, keeps NASDAQ coordinates and the 09:30 open.
-        let c = choice("MU").expect("a blank ipo_date must not drop the symbol");
-        assert_eq!(c.ticker, "MU");
-        assert_eq!(c.birth.date, DEFAULT_LISTING_DATE);
+    fn a_listing_is_day_precise_from_sec() {
+        // UAA/UA (Under Armour) listed 2005-11-18 — an EDGAR-era IPO the 424B4 discriminator dates
+        // exactly. This is the birth path, sourced from public-domain SEC filings.
+        let c = choice("UAA").expect("UAA has a listing date");
+        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(2005, 11, 18).unwrap());
         assert_eq!(c.birth.time, Some(MARKET_OPEN));
-        assert_eq!(c.birth.tz, chrono_tz::America::New_York);
+    }
+
+    /// **A row we hold no day-precise moment for is never charted, and never invented.** (Nathan's
+    /// P2, and the whole point of the CC0 re-derivation.)
+    ///
+    /// This is the honest end state of a long fight. Undated rows once got a fabricated 2000-01-01;
+    /// then a `founding_date` fallback that stamped the opening bell; now: no day-precise moment ->
+    /// no chart. Coca-Cola is the sharpest case — its Wikidata inception is a genuine CONFLICT
+    /// (1892 incorporation vs 1886 "first Coke sold"), so we refuse to guess, and its 1919 NYSE
+    /// listing predates EDGAR. Unchartable, and honest about it.
+    #[test]
+    fn a_row_with_no_castable_moment_is_unchartable_not_invented() {
         assert!(
-            c.birth.lat.abs() <= 90.0 && c.birth.lon.abs() <= 180.0,
-            "fallback coordinates must be in range, got {},{}",
-            c.birth.lat,
-            c.birth.lon
+            choice("KO").is_none(),
+            "KO's founding is a conflict and its listing is pre-EDGAR — it must not resolve, \
+             because the only way to chart it is to pick one of two contested dates or invent one"
         );
+
+        // ...but it is still findable, and search knows it isn't chartable.
+        let hit = search("KO")
+            .into_iter()
+            .find(|r| r.ticker == "KO")
+            .expect("an unchartable row must still be searchable — hiding it is its own small lie");
+        assert!(!hit.chartable, "KO has no castable moment");
+        assert!(hit.moment.is_none(), "an unchartable row names no moment");
     }
 
+    /// Every symbol search marks chartable must actually resolve, and every one it doesn't must not.
+    ///
+    /// The invariant is agreement, not totality. `chart_date` is resolved once at parse time and
+    /// both `search` and `choice` read it, so they cannot disagree — a row shown as pickable that
+    /// then refuses to be picked is worse than either answer alone. The counts are pinned so a
+    /// regenerated CSV that silently loses the SEC/Wikidata enrichment fails loudly.
     #[test]
-    fn every_symbol_in_the_table_is_addable() {
-        // The core robustness guarantee: choice() returns Some for every ticker that exists.
+    fn chartable_and_resolvable_never_disagree() {
+        let (mut chartable, mut unchartable) = (0, 0);
         for r in rows() {
-            assert!(
-                choice(&r.ticker).is_some(),
-                "choice({}) returned None — symbol would silently fail to add",
-                r.ticker
+            let flag = r.chart_date.is_some();
+            let resolves = choice(&r.ticker).is_some();
+            assert_eq!(
+                flag,
+                resolves,
+                "{}: chartable={flag} but choice() {} — search and the resolver disagree",
+                r.ticker,
+                if resolves {
+                    "resolved"
+                } else {
+                    "returned None"
+                }
             );
+            if flag {
+                chartable += 1
+            } else {
+                unchartable += 1
+            }
         }
+        assert_eq!(chartable, 4_253, "chartable stock count drifted");
+        assert_eq!(unchartable, 3_418, "unchartable stock count drifted");
     }
 
     #[test]
-    fn choice_leaves_a_normal_row_unchanged() {
-        // A fully-populated row (AAPL) must be byte-for-byte what it was before the fallbacks.
-        let c = choice("AAPL").expect("AAPL resolves");
-        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(1980, 12, 12).unwrap());
-        assert_eq!(
-            c.birth.time,
-            Some(NaiveTime::from_hms_opt(9, 30, 0).unwrap())
-        );
-        assert_eq!(c.birth.lat, 40.7589);
-        assert_eq!(c.birth.lon, -73.9851);
+    fn a_founding_row_carries_the_founding_moment_and_exchange_coords() {
+        // Apple: founding moment, NASDAQ trading-floor coordinates (where it would have listed).
+        let c = choice("AAPL").expect("AAPL resolves on its founding");
+        assert_eq!(c.birth.date, NaiveDate::from_ymd_opt(1976, 4, 1).unwrap());
+        assert_eq!(c.birth.time, None);
+        assert_eq!((c.birth.lat, c.birth.lon), NASDAQ_COORDS);
+        // Search reports which moment it is.
+        let hit = search("AAPL")
+            .into_iter()
+            .find(|r| r.ticker == "AAPL")
+            .unwrap();
+        assert_eq!(hit.moment, Some(Moment::Founding));
     }
 
     #[test]
@@ -848,36 +993,60 @@ mod tests {
         );
     }
 
+    /// The same agreement rule across the industry universes — where the gap is proportionally
+    /// worse: 27 of 61 insurers ship a blank `birth_date`. Every one of them used to be charted on
+    /// an invented 2000-01-01, which for a company founded in 1922 is not a rounding error, it is a
+    /// different company.
     #[test]
-    fn every_industry_entity_is_addable() {
-        // The robustness guarantee extends to both industry universes.
+    fn industry_chartable_and_resolvable_never_disagree() {
         for u in [Universe::Airlines, Universe::Insurance] {
             for r in entities(u) {
-                assert!(
+                assert_eq!(
+                    r.chart_date.is_some(),
                     choice_in(u, &r.ticker).is_some(),
-                    "choice_in({:?}, {}) returned None",
+                    "{:?} {}: the search flag and the resolver disagree",
                     u,
                     r.ticker
                 );
             }
         }
+        // Airlines are fully dated; insurance has a real, known hole. Named so a future data drop
+        // that quietly widens it has to argue with a number.
+        let undated = |u| {
+            entities(u)
+                .iter()
+                .filter(|r| r.chart_date.is_none())
+                .count()
+        };
+        assert_eq!(
+            undated(Universe::Airlines),
+            0,
+            "airlines gained an undated row"
+        );
+        assert_eq!(
+            undated(Universe::Insurance),
+            27,
+            "insurance date coverage drifted"
+        );
     }
 
     #[test]
     fn stocks_path_is_unchanged_via_universe() {
-        // The Stocks wrappers and the universe-taking form must agree, and still match the old
-        // spot-check: AAPL @ 1980-12-12, 09:30, at Apple's coordinates.
+        // The Stocks wrappers and the universe-taking form must agree: AAPL charts on its founding
+        // (1976-04-01, no bell), at NASDAQ's coordinates.
         let via_wrapper = choice("AAPL").expect("AAPL resolves");
         let via_universe = choice_in(Universe::Stocks, "AAPL").expect("AAPL resolves in Stocks");
         assert_eq!(via_wrapper.birth, via_universe.birth);
         assert_eq!(
             via_universe.birth.date,
-            NaiveDate::from_ymd_opt(1980, 12, 12).unwrap()
+            NaiveDate::from_ymd_opt(1976, 4, 1).unwrap()
         );
-        assert_eq!(via_universe.birth.time, Some(MARKET_OPEN));
+        assert_eq!(via_universe.birth.time, None);
         assert_eq!(via_universe.birth.tz, chrono_tz::America::New_York);
-        assert_eq!(via_universe.birth.lat, 40.7589);
-        assert_eq!(via_universe.birth.lon, -73.9851);
+        assert_eq!(
+            (via_universe.birth.lat, via_universe.birth.lon),
+            NASDAQ_COORDS
+        );
         assert_eq!(search("aapl"), search_in(Universe::Stocks, "aapl"));
     }
 }

@@ -178,8 +178,10 @@ fn MarketPanel() -> Element {
             .filter_map(|t| choice_from_token(t))
             .collect::<Vec<(Universe, Choice)>>()
     });
-    // A rare-path note: `choice_in()` is total over each table, so a click virtually always adds.
-    // If it somehow returns `None`, we surface a tiny inline "couldn't add {id}" note.
+    // `choice_in()` is no longer total: it returns `None` for the 764 rows with no real birth date,
+    // rather than charting them on an invented one. Those rows never render as a button (see the
+    // `!row.chartable` arm below), so this stays a rare path — but it is now a real one, not a
+    // theoretical one, and a click that silently did nothing would be the worst of both worlds.
     let mut add_error = use_signal(|| None::<String>);
 
     let current_universe = *universe.read();
@@ -242,11 +244,47 @@ fn MarketPanel() -> Element {
                     div { class: "ticker-results",
                         {results.read().iter().map(|row| {
                             let id = row.ticker.clone();
+                            // We know this one exists but have no birth moment for it: no listing
+                            // date in Polygon, no Form 8-A on record. Show it — a seeker who typed
+                            // its name deserves an answer, and "we don't know when it was born" IS
+                            // the answer — but it cannot be picked, because the only way to chart it
+                            // would be to invent the date. (It used to be pickable: it got
+                            // 2000-01-01 and a reading built on a day that never happened.)
+                            if !row.chartable {
+                                return rsx! {
+                                    div {
+                                        key: "{row.ticker}",
+                                        class: "ticker-result ticker-result--unchartable",
+                                        "aria-disabled": "true",
+                                        title: "Ziqpu has no birth moment for this one, so it can't be charted.",
+                                        span { class: "sym", "{row.ticker}" }
+                                        span { class: "co", "{row.name}" }
+                                        span { class: "univ univ--none", "date unknown — can't chart" }
+                                    }
+                                };
+                            }
+                            // Which birth moment this row charts — "listing" (day it went public,
+                            // at the opening bell) or "founding" (the company began; no bell, so no
+                            // angles). Saying which one is the honest half of "measured, not fate":
+                            // the seeker knows whether they're reading a market debut or an origin.
+                            let (moment_word, moment_help) = match row.moment {
+                                Some(tickers::Moment::Listing) => (
+                                    "listing",
+                                    "Charted on the day it went public — at the opening bell.",
+                                ),
+                                Some(tickers::Moment::Founding) => (
+                                    "founding",
+                                    "Charted on the day the company was founded (no listing date on \
+                                     record). No opening bell, so the reading omits the houses.",
+                                ),
+                                None => ("", ""),
+                            };
                             rsx! {
                                 button {
                                     key: "{row.ticker}",
                                     class: "ticker-result",
                                     r#type: "button",
+                                    title: "{moment_help}",
                                     onclick: move |_| {
                                         let u = *universe.read();
                                         // Resolve to a datable Choice and add it once (dedupe by the
@@ -271,6 +309,13 @@ fn MarketPanel() -> Element {
                                     },
                                     span { class: "sym", "{row.ticker}" }
                                     span { class: "co", "{row.name}" }
+                                    span {
+                                        class: match row.moment {
+                                            Some(tickers::Moment::Listing) => "moment moment--listing",
+                                            _ => "moment moment--founding",
+                                        },
+                                        "{moment_word}"
+                                    }
                                     span { class: "univ", "{current_universe.label()}" }
                                 }
                             }

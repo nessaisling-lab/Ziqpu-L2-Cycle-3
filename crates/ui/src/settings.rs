@@ -1,14 +1,20 @@
-//! Persist the downloader's **own** model credentials so they never have to touch an env var or a
-//! `.env` file. A single, best-effort JSON file — `<data_dir>/settings.json` (see
-//! [`crate::profile::data_dir`]) — holds an OpenRouter API key, an optional model id, and an
-//! optional local-model URL. All three feed the same env vars the `agents` crate already reads
+//! Persist the downloader's **own** model preferences so they never have to touch an env var or a
+//! `.env` file. Two stores, split by sensitivity:
+//! - **Secrets** — hosted-provider API keys (Anthropic / OpenRouter) — live in the OS credential
+//!   vault (see [`crate::vault`]), never on disk in the clear.
+//! - **Non-secrets** — the model id and local-model URL — live in a best-effort JSON file,
+//!   `<data_dir>/settings.json` (see [`crate::profile::data_dir`]).
+//!
+//! Both feed the same env vars the `agents` crate already reads
 //! ([`build_interpreter`](agents::build_interpreter) / [`reading_for`](agents::reading_for)), so
-//! nothing downstream changes: the file just fills the environment.
+//! nothing downstream changes: startup just fills the environment from the vault + the file.
 //!
 //! ## Security
-//! - The file lives in the user's OS data dir, **outside the repo** — never committed.
-//! - On Unix it is chmod'd to `0o600` (owner read/write only) right after each write.
-//! - The key is **never logged** and never printed; the UI masks it (a password field).
+//! - Keys never touch `settings.json` — they go to the OS keychain. A pre-vault install's plaintext
+//!   key is migrated out on startup (see [`migrate_plaintext_keys_to_vault`]).
+//! - The JSON lives in the user's OS data dir, **outside the repo** — never committed. On Unix it is
+//!   chmod'd to `0o600` (owner read/write only) right after each write.
+//! - Keys are **never logged** and never printed; the UI masks them (a password field).
 //!
 //! ## Precedence — env wins
 //! [`apply_settings_to_env`] only sets a var that is **not already present**, so a power user or CI
@@ -21,13 +27,33 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::vault::{self, Provider};
+
 /// The on-disk settings schema. Every field is optional so a partially-filled file (or one written
-/// by an older build) still loads. `openrouter_key` → `OPENROUTER_API_KEY`, `model` → `ZIQPU_MODEL`,
-/// `local_url` → `ZIQPU_LLM_URL`.
+/// by an older build) still loads. `model` → `ZIQPU_MODEL`, `local_url` → `ZIQPU_LLM_URL`.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SettingsFile {
+    /// **Legacy** — hosted-provider keys now live in the OS vault ([`crate::vault`]). Retained only
+    /// so a pre-vault file still deserializes; [`migrate_plaintext_keys_to_vault`] moves any value
+    /// here into the keychain and nulls it out. New writes always leave this `None`.
     #[serde(default)]
     pub openrouter_key: Option<String>,
+    /// The model chosen for Anthropic, as picked from its live catalog → `ZIQPU_ANTHROPIC_MODEL`.
+    /// `None` = use the app's default. Per-provider because model ids are provider-specific: a
+    /// single shared setting is what let an OpenRouter id reach Anthropic and silently degrade the
+    /// reading to the template.
+    #[serde(default)]
+    pub anthropic_model: Option<String>,
+    /// The model chosen for OpenRouter → `ZIQPU_OPENROUTER_MODEL`. See [`Self::anthropic_model`].
+    #[serde(default)]
+    pub openrouter_model: Option<String>,
+    /// The seeker's **explicit** live-provider choice — `"anthropic"`, `"openrouter"`, or
+    /// `"built_in"` — as picked in onboarding / Settings. Exported as `ZIQPU_PROVIDER` so the
+    /// interpreter honors it instead of silently defaulting to whatever key happens to be exported
+    /// (the bug where picking Anthropic still read through a stale `OPENROUTER_API_KEY`). `None` =
+    /// no explicit choice → the historical precedence.
+    #[serde(default)]
+    pub provider: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
@@ -40,10 +66,19 @@ pub struct SettingsFile {
     pub dev_build: Option<bool>,
 }
 
-/// Whether the developer build is on — premium features unlocked. Defaults to **on** while we're
-/// building (so the developer sees everything); flip it off to preview the free-customer experience.
+/// Whether the developer build is on — premium features unlocked.
+///
+/// Defaults to the **build kind**, not to a constant: on in a debug build (the developer sees
+/// everything), off in a release build (a stranger sees what a customer sees). A saved choice always
+/// wins, so flipping the header switch still sticks.
+///
+/// It used to default to `true` unconditionally, which was right while the only builds were on this
+/// machine and wrong the moment we published installers: every downloader with no `settings.json`
+/// got a "⚙ dev build" pill in the header and every paywalled feature unlocked. That is not a
+/// generous free tier — it is the product failing to be itself, and it makes the entitlement gate
+/// untestable in the one build where it matters.
 pub fn dev_build_default() -> bool {
-    load_settings().dev_build.unwrap_or(true)
+    load_settings().dev_build.unwrap_or(cfg!(debug_assertions))
 }
 
 /// Persist just the developer-build switch, leaving the credential fields untouched. Best-effort
@@ -127,40 +162,158 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
             }
         }
     }
+    // Non-secret prefs still live in the JSON. `openrouter_key` is kept only as a back-compat path
+    // for a file written before the vault migration ran; normally it's `None` (see
+    // [`migrate_plaintext_keys_to_vault`]).
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
     set_if_absent("ZIQPU_MODEL", &settings.model);
     set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
+    // Per-provider model picks. Scoped, so an id chosen for one provider can never be sent to the
+    // other (see `agents::interpret_llm::anthropic_model`).
+    set_if_absent("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
+    set_if_absent("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
+    // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
+    // attempts so the seeker's pick wins over a merely-present key.
+    set_if_absent("ZIQPU_PROVIDER", &settings.provider);
+
+    // Hosted-provider keys live in the OS credential vault now. Fill each provider's env var from the
+    // vault only when the environment doesn't already carry it — an exported key (shell/CI) still
+    // wins. This is what makes a vaulted key "always available": every startup re-homes it into the
+    // env the `agents` interpreter reads.
+    fill_env_from_vault(Provider::Anthropic);
+    fill_env_from_vault(Provider::OpenRouter);
 }
 
-/// Apply the settings to the live environment **authoritatively** — set each var to the chosen
-/// value, or remove it when the field was cleared. Used by the Settings panel's Save so a new key
-/// takes effect on the next reading (`agents::reading_for` reads the env fresh per call) without a
-/// restart. Unlike [`apply_settings_to_env`], this deliberately overrides any existing var, because
-/// the user just picked these values by hand.
-pub fn apply_settings_live(settings: &SettingsFile) {
-    fn set_or_clear(key: &str, val: &Option<String>) {
-        match val {
-            Some(v) if !v.is_empty() => std::env::set_var(key, v),
-            _ => std::env::remove_var(key),
+/// Copy `provider`'s vaulted key into its env var, but only if the env doesn't already have one
+/// (env — shell/CI — wins). No-op when the vault has no key or can't be read.
+fn fill_env_from_vault(provider: Provider) {
+    if std::env::var_os(provider.env_var()).is_none() {
+        if let Some(key) = vault::get_key(provider) {
+            std::env::set_var(provider.env_var(), key);
         }
     }
-    set_or_clear("OPENROUTER_API_KEY", &settings.openrouter_key);
-    set_or_clear("ZIQPU_MODEL", &settings.model);
-    set_or_clear("ZIQPU_LLM_URL", &settings.local_url);
+}
+
+/// One-time, best-effort migration: move a plaintext OpenRouter key out of `settings.json` and into
+/// the OS credential vault, then scrub it from the JSON. Older builds wrote that key to disk in the
+/// clear; this upgrades those installs in place. Call once at startup, **before**
+/// [`apply_settings_to_env`]. If the vault write fails (no keystore available), the plaintext key is
+/// **left in place** so Live still works — we never drop a key we can't re-home.
+pub fn migrate_plaintext_keys_to_vault() {
+    let mut settings = load_settings();
+    let Some(key) = settings
+        .openrouter_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .map(str::to_string)
+    else {
+        return;
+    };
+    if vault::set_key(Provider::OpenRouter, &key).is_ok() {
+        settings.openrouter_key = None;
+        save_settings(&settings);
+    }
+}
+
+/// Persist the seeker's explicit live-provider choice (`"anthropic"` / `"openrouter"` / `"built_in"`)
+/// and apply it to the live environment, leaving every other field untouched. Called from onboarding
+/// and Settings the moment a provider is chosen, so the very next reading honors it without a
+/// restart. Best-effort (a failed read/write is swallowed — never panics).
+pub fn save_provider(provider: &str) {
+    let mut settings = load_settings();
+    settings.provider = Some(provider.to_string());
+    save_settings(&settings);
+    std::env::set_var("ZIQPU_PROVIDER", provider);
+}
+
+/// Persist the model chosen for `provider` from its live catalog, and apply it to the live
+/// environment so the very next reading uses it. An empty `model` means "use Ziqpu's default" and
+/// clears both the setting and the env var. Scoped per provider — a single shared model setting is
+/// what let an OpenRouter id reach Anthropic and silently degrade the reading to the template.
+/// Best-effort (a failed read/write is swallowed — never panics).
+pub fn save_model_for(provider: Provider, model: &str) {
+    let model = model.trim();
+    let mut settings = load_settings();
+    let value = (!model.is_empty()).then(|| model.to_string());
+    match provider {
+        Provider::Anthropic => settings.anthropic_model = value.clone(),
+        Provider::OpenRouter => settings.openrouter_model = value.clone(),
+    }
+    save_settings(&settings);
+    let var = match provider {
+        Provider::Anthropic => "ZIQPU_ANTHROPIC_MODEL",
+        Provider::OpenRouter => "ZIQPU_OPENROUTER_MODEL",
+    };
+    match value {
+        Some(m) => std::env::set_var(var, m),
+        None => std::env::remove_var(var),
+    }
+}
+
+/// Persist the optional local-model endpoint and apply it live, **clearing both when empty**.
+///
+/// Mirrors [`save_model_for`], and exists for the same reason: [`apply_settings_live`] deliberately
+/// never removes a var, so an emptied field saved through it would report success while the old
+/// endpoint stayed live in the environment for the rest of the session. Best-effort (a failed
+/// read/write is swallowed — never panics).
+pub fn save_local_url(url: &str) {
+    let url = url.trim();
+    let mut settings = load_settings();
+    let value = (!url.is_empty()).then(|| url.to_string());
+    settings.local_url = value.clone();
+    save_settings(&settings);
+    match value {
+        Some(u) => std::env::set_var("ZIQPU_LLM_URL", u),
+        None => std::env::remove_var("ZIQPU_LLM_URL"),
+    }
+}
+
+/// Apply a provider key to the **live** process environment right now (called after a vault write on
+/// Save) so the next reading uses it without a restart — `agents::reading_for` reads the env fresh
+/// per call. An empty `key` removes the var: unlike the credential-preserving [`apply_settings_live`],
+/// clearing a provider key here is an explicit user action (the Settings field is seeded from the
+/// vault, so blank means "clear this provider"), so we honor it.
+pub fn apply_provider_key_live(provider: Provider, key: &str) {
+    let key = key.trim();
+    if key.is_empty() {
+        std::env::remove_var(provider.env_var());
+    } else {
+        std::env::set_var(provider.env_var(), key);
+    }
+}
+
+// `apply_settings_live` used to live here: one whole-file "apply everything" that could only ever
+// SET a var, never remove one. That rule was written to stop a blank key field wiping a live key —
+// a real hazard at the time, because the key fields were seeded from the vault. Keys have since
+// moved to `KeyField` + `apply_provider_key_live`, so the hazard is gone, but the never-remove rule
+// outlived it and quietly cost correctness everywhere else: clearing a model back to "Ziqpu's
+// default", or clearing the local URL, reported "Saved ✓" while the old value stayed live in the
+// environment until a restart.
+//
+// It's replaced by the per-field helpers above — `save_provider`, `save_model_for`,
+// `save_local_url`, `apply_provider_key_live` — each of which is load-modify-save on the file plus
+// set-or-remove on the env. Per-field is also what killed the sharper bug in the same area: an
+// "apply everything" caller had to name every field, and naming a field it didn't mean to change
+// (`openrouter_key: None`) silently deleted an unrecoverable key.
+
+/// Whether the **built-in free tier** is configured in this build — both the proxy URL and the app
+/// token are present (baked in at release time; see `main.rs` + `proxy/README.md`). When true, a
+/// seeker with no key of their own still gets live readings through the Ziqpu key proxy.
+pub fn built_in_available() -> bool {
+    std::env::var_os("ZIQPU_PROXY_URL").is_some() && std::env::var_os("ZIQPU_PROXY_TOKEN").is_some()
 }
 
 /// A short, human-readable label for which interpreter the **current environment** selects — shown
 /// in the Settings panel so Save gives immediate, truthful feedback about what a reading will use.
-/// Mirrors [`agents::build_interpreter`]'s precedence (OpenAI-compat/OpenRouter → Anthropic →
-/// template). Reads only presence, never the key value.
-pub fn active_mode_label() -> &'static str {
-    if std::env::var_os("OPENROUTER_API_KEY").is_some()
-        || std::env::var_os("OPENAI_API_KEY").is_some()
-    {
-        "Live · OpenRouter / OpenAI-compatible"
-    } else if std::env::var_os("ANTHROPIC_API_KEY").is_some() {
-        "Live · Anthropic (Claude)"
-    } else {
-        "Offline template · no key set"
-    }
+///
+/// Delegates to [`agents::active_source_label`] rather than deciding anything. This function used to
+/// re-implement the precedence, and a release audit caught what that cost: it checked key *presence*
+/// only, so it never saw `ZIQPU_PROVIDER`, and since startup re-homes any vaulted OpenRouter key
+/// into the environment on every launch, a seeker who picked Anthropic or the built-in tier was told
+/// "Live · OpenRouter" indefinitely. The routing was correct the whole time — only this label lied,
+/// and it is the provider picker's only confirmation. A second copy of a rule is a second thing to
+/// forget to update, so there is now one copy, in the module that makes the choice.
+pub fn active_mode_label() -> String {
+    agents::active_source_label()
 }

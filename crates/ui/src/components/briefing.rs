@@ -75,15 +75,10 @@ pub fn Briefing() -> Element {
         .map(|s| s.source.clone())
         .unwrap_or_default();
 
-    // The card header already shows name + band + score, so strip a leading redundant
-    // "FIT: <band> (score) — name" line if the interpreter emitted one; keep the warm body, the
-    // grounded/reality beat (or the unsourced note), and the REMINDER intact.
-    let reading = match reading.split_once('\n') {
-        Some((first, rest)) if first.trim_start().starts_with("FIT:") => {
-            rest.trim_start().to_string()
-        }
-        _ => reading,
-    };
+    // Strip the display chrome: the redundant leading "FIT: … — name" line and the trailing REMINDER
+    // (now in the persistent footer). The grounded/reality beat + the rung badge's unsourced signal
+    // survive; the disclaimer stays in the data + guardrail. See strip_reading_chrome.
+    let reading = crate::state::strip_reading_chrome(&reading);
 
     // The rung badge's tone: unsourced reads out in a cautionary hue, the rest in the grounded gold.
     let rung_cls = if sourced {
@@ -94,7 +89,7 @@ pub fn Briefing() -> Element {
 
     rsx! {
         p { class: "eyebrow", "Act · grounded, still reflection" }
-        article { class: "card", style: "--band:var({band});--pct:{score}%",
+        article { class: "card card--chosen", style: "--band:var({band});--pct:{score}%",
             div { class: "card__top",
                 h2 { class: "card__name", "{name}" }
                 if !ticker.is_empty() {

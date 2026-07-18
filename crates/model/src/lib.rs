@@ -18,6 +18,21 @@
 //! / [`detect_gpu`] read the real machine; that thin I/O is kept out of the tested core. Layer 2 (the
 //! online best-GGUF check) and the fetch/serve step build on top.
 
+/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
+/// elsewhere. Wrap every `Command::new(...)` this crate spawns from the GUI so a windowless release
+/// build stays windowless (the CLI binary `model/src/main.rs` intentionally does NOT use it). Two
+/// cfg'd defs keep it warning-clean on non-Windows.
+#[cfg(windows)]
+pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
+}
+#[cfg(not(windows))]
+pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+    cmd
+}
+
 /// The five capability tiers, weakest→strongest. The *same* tier name maps to different models
 /// across device classes in the hierarchy; this crate implements the **Desktop** class (the desktop
 /// agent's home), which also covers laptops running llama.cpp.
@@ -211,14 +226,18 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         min_ram_gb: 16.0,
         search_term: "Qwen3.5-9B-Instruct",
     },
+    // Medium = a 16 GB dedicated-VRAM card (e.g. RTX 5080 Laptop). A DENSE 14B at Q4_K_M (~9 GB) fits
+    // with real headroom for the KV cache + compute (a 20B's ~12 GB quants left almost none and OOM'd),
+    // and Qwen3-14B has a strong native tool-calling template — the load-bearing capability for the
+    // reading agent. Gemma 3 4B (the Low pick) is the safe fallback if a machine struggles with 14B.
     ModelPick {
         tier: Tier::Medium,
-        name: "GPT-OSS 20B",
-        params: "20B",
-        quant: "MXFP4",
-        download_gb: 14.0,
+        name: "Qwen3 14B",
+        params: "14B",
+        quant: "Q4_K_M",
+        download_gb: 9.0,
         min_ram_gb: 16.0,
-        search_term: "gpt-oss-20b",
+        search_term: "Qwen3-14B",
     },
     ModelPick {
         tier: Tier::Strong,
@@ -233,7 +252,7 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         tier: Tier::Ultra,
         name: "GPT-OSS 120B",
         params: "120B",
-        quant: "MXFP4",
+        quant: "Q4_K_M",
         download_gb: 65.0,
         min_ram_gb: 64.0,
         search_term: "gpt-oss-120b",
@@ -258,6 +277,37 @@ pub const SUBFLOOR_PICK: ModelPick = ModelPick {
 /// "download a different model" affordance.
 pub fn all_models() -> &'static [ModelPick] {
     &DESKTOP_MODELS
+}
+
+/// The committed models this machine can actually **hold**, weakest→strongest — the curated set the
+/// UI's dropdown may offer, and nothing else. Empty below the floor (a machine that can't run any
+/// model gets no list to pick from, by design). "Runnable" is the same fit rule `recommend_for`
+/// applies: weights + headroom within RAM. A model *above* the machine's gated tier can still be in
+/// this list — it runs, just slower than its home tier would (that's the "Max" trade, below).
+pub fn runnable_models(spec: &DeviceSpec) -> Vec<ModelPick> {
+    if !meets_floor(spec) {
+        return Vec::new();
+    }
+    all_models()
+        .iter()
+        .copied()
+        .filter(|m| model_fits(spec, m))
+        .collect()
+}
+
+/// The **"#2 Max"** option: the biggest model this machine can hold, offered beside the
+/// tier-correct **"#1 Stable"** pick of [`recommend_for`]. `None` below the floor, and `None` when
+/// it would just repeat the Stable pick (the caller then shows no second option). Max may exceed
+/// the machine's gated tier — bigger model, slower tokens; the seeker chooses the trade.
+pub fn max_runnable(spec: &DeviceSpec) -> Option<ModelPick> {
+    let max = runnable_models(spec)
+        .into_iter()
+        .max_by(|a, b| a.download_gb.total_cmp(&b.download_gb))?;
+    match recommend_for(spec) {
+        Recommendation::Local(stable) if stable.name == max.name => None,
+        Recommendation::Local(_) => Some(max),
+        Recommendation::NoLocal { .. } => None,
+    }
 }
 
 /// Which non-local path a below-floor machine should use instead. Mirrors the app's
@@ -419,10 +469,20 @@ const HF_USER_AGENT: &str =
     "ziqpu-model/0.1 (+https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3)";
 
 /// A system tool's spawn target, pinned to an absolute path on Windows and left as the Unix name
-/// elsewhere. On Windows, `CreateProcess` searches the current directory before System32, so a bare
-/// executable name lets a planted exe in the run directory hijack the call (CWE-427); Unix does not
-/// put the CWD on the search path, so the bare name is safe there. `win_rel` is the path under
-/// `%SystemRoot%\System32`; `unix` is the Unix command (bare name or absolute path).
+/// elsewhere (CWE-427). `win_rel` is the path under `%SystemRoot%\System32`; `unix` is the Unix
+/// command (bare name or absolute path).
+///
+/// **The vector is the application directory, not the CWD.** An earlier version of this comment
+/// blamed `CreateProcess` searching the current directory — that is true of raw `CreateProcess` but
+/// *not* of Rust's `std::process::Command`, whose `resolve_exe` deliberately excludes the CWD.
+/// Measured on Windows 11 / rustc 1.96: a planted `curl.exe` in the CWD is **not** picked up, while
+/// one sitting **beside our own exe** is, because Rust's order is child-PATH → application
+/// directory → System32 → Windows → PATH. Pinning the System32 path defeats it (also measured).
+///
+/// That distinction is load-bearing for us: we ship Windows as a plain zip, so users extract and run
+/// from wherever they downloaded it — typically Downloads, which is exactly where attacker-supplied
+/// files land. The app directory is therefore a live planting surface, not a theoretical one.
+/// (Impact is code execution at the user's own privileges, not elevation.)
 fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(windows)]
     {
@@ -449,7 +509,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
     use std::process::{Command, Stdio};
     use std::time::Duration;
     use wait_timeout::ChildExt;
-    let mut child = Command::new(cmd)
+    let mut child = no_window(Command::new(cmd))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -477,7 +537,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
     use std::process::Command;
     let url = hf_api_url(term);
-    let Ok(out) = Command::new(system_cmd("curl.exe", "curl"))
+    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "--max-time",
@@ -514,8 +574,10 @@ const AGENT_DISQUALIFIERS: [&str; 9] = [
     "roleplay",
 ];
 
-/// Whether a repo id carries a guardrail-hostile marker (see [`AGENT_DISQUALIFIERS`]).
-fn agent_disqualified(repo: &str) -> bool {
+/// Whether a repo id carries a guardrail-hostile marker (see [`AGENT_DISQUALIFIERS`]) — an
+/// abliterated / uncensored / jailbroken / NSFW variant. Public so the UI can flag such repos in the
+/// model search (the recommendation already skips them via [`pick_for_agent`]).
+pub fn agent_disqualified(repo: &str) -> bool {
     let lower = repo.to_ascii_lowercase();
     AGENT_DISQUALIFIERS.iter().any(|m| lower.contains(m))
 }
@@ -536,6 +598,241 @@ pub fn pick_for_agent(cands: &[Candidate]) -> Option<Candidate> {
 /// most-downloaded match that respects the agent's guardrails.
 pub fn resolve_current_repo(pick: &ModelPick) -> Option<Candidate> {
     pick_for_agent(&resolve_candidates(pick.search_term))
+}
+
+// ---- Layer 2b: pick the QUANT — list a repo's GGUFs, choose the largest that fits the machine ----
+
+/// One GGUF quantization available in a repo — its quant tag (e.g. `Q4_K_M`) and total size in GB
+/// (summed across shards). What llama.cpp downloads for `-hf <repo>:<quant>`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GgufOption {
+    pub quant: String,
+    pub size_gb: f64,
+}
+
+/// Does a hyphen-separated filename segment look like a quant tag? A quant starts with `Q`/`F`/`BF`/
+/// `IQ` and the next char is a digit — so a model name like `qwen2.5` (`Q` then a letter) is NOT a
+/// quant. Checked uppercased.
+fn looks_like_quant(seg: &str) -> bool {
+    let up = seg.to_ascii_uppercase();
+    for pre in ["IQ", "BF", "Q", "F"] {
+        if let Some(rest) = up.strip_prefix(pre) {
+            return rest.chars().next().is_some_and(|c| c.is_ascii_digit());
+        }
+    }
+    false
+}
+
+/// The quant tag from a GGUF filename — the last quant-looking segment, so shard suffixes
+/// (`…-00001-of-00002`) and the model name are skipped. Splits on BOTH `-` and `.` (repos differ:
+/// `gpt-oss-20b-Q4_K_M.gguf` uses dashes, `Qwen3-14B.Q4_K_M.gguf` uses a dot) — but NOT `_`, since a
+/// quant tag itself contains underscores (`Q4_K_M`). `None` when the name isn't `.gguf` or has no
+/// quant segment. E.g. both examples above → `Q4_K_M`; `m-UD-Q4_K_XL-00001-of-00002.gguf` → `Q4_K_XL`.
+fn quant_from_filename(name: &str) -> Option<String> {
+    if !name.to_ascii_lowercase().ends_with(".gguf") {
+        return None;
+    }
+    let stem = &name[..name.len() - 5];
+    stem.split(['-', '.'])
+        .rev()
+        .find(|s| looks_like_quant(s))
+        .map(|s| s.to_string())
+}
+
+/// Parse a Hugging Face `/tree` response into the repo's GGUF quants, summing shard sizes per quant.
+/// Pure; unit-tested. Full-precision (`F16`/`F32`/`BF16`) files are kept here — [`best_gguf_for`]
+/// filters them out of a recommendation. Malformed/empty JSON → empty (offline-safe, never panics).
+pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
+    let arr: Vec<serde_json::Value> = serde_json::from_str(json).unwrap_or_default();
+    let mut by_quant: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    for v in &arr {
+        let Some(path) = v.get("path").and_then(|x| x.as_str()) else {
+            continue;
+        };
+        let Some(quant) = quant_from_filename(path) else {
+            continue;
+        };
+        let bytes = v
+            .get("lfs")
+            .and_then(|l| l.get("size"))
+            .and_then(|s| s.as_u64())
+            .or_else(|| v.get("size").and_then(|s| s.as_u64()))
+            .unwrap_or(0);
+        *by_quant.entry(quant).or_insert(0) += bytes;
+    }
+    by_quant
+        .into_iter()
+        .map(|(quant, bytes)| GgufOption {
+            quant,
+            size_gb: bytes as f64 / 1_073_741_824.0,
+        })
+        .collect()
+}
+
+/// Fetch a repo's GGUF quants from the Hub (`/api/models/<repo>/tree/main`). Thin I/O (the parser is
+/// tested); same `curl` discipline as [`resolve_candidates`] (System32-pinned, time/size-bounded,
+/// User-Agent). Empty on any failure (offline-safe).
+pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
+    use std::process::Command;
+    let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
+    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
+        .args([
+            "-sS",
+            "--max-time",
+            "8",
+            "--max-filesize",
+            "5000000",
+            "-A",
+            HF_USER_AGENT,
+            url.as_str(),
+        ])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !out.status.success() {
+        return Vec::new();
+    }
+    parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Context window (tokens) the served model is capped to. `llama-server`'s default is 0 = "use the
+/// model's full trained context" — for GPT-OSS-20B that's 32k+, whose KV cache is several GB and was
+/// the real cause of the 16 GB card's OOM (weights fit; weights + full-context KV did not). A reading
+/// needs far less, so we cap it: the KV cache shrinks to a fraction of a GB and the weight budget below
+/// can be generous again. Passed as `-c` by every serve path (CLI + panel).
+pub const SERVE_CTX_SIZE: u32 = 8192;
+
+/// Fraction of VRAM the model **weights** may occupy — the rest (~a fifth) covers the (now capped, see
+/// [`SERVE_CTX_SIZE`]) KV cache, compute buffers, and driver overhead, ~2–3 GB for a 20B MoE at an 8k
+/// context. With the context capped this can be generous; the earlier 0.68 (set before the context cap)
+/// overcorrected and dropped a 16 GB card to a low-quality Q3 fallback on a model it runs comfortably.
+const VRAM_USABLE_FRACTION: f64 = 0.80;
+
+/// How much memory the model **weights** may occupy on this machine — the budget the quant is fitted
+/// to. A discrete GPU gets `vram * VRAM_USABLE_FRACTION` (the rest is runtime headroom) so the pick
+/// runs fully on the GPU without OOM; a CPU / unified-memory machine gets `ram_gb * FIT_FRACTION`.
+pub fn device_model_budget_gb(spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> f64 {
+    match gpu {
+        Some(g) if !g.unified && g.vram_gb >= 1.0 => g.vram_gb * VRAM_USABLE_FRACTION,
+        _ => spec.ram_gb * FIT_FRACTION,
+    }
+}
+
+/// A coarse **quality** rank for a GGUF quant — higher is better. Needed because for a compact model
+/// (GPT-OSS is MoE/MXFP4-native) the quant file sizes barely differ, so size alone is a poor quality
+/// signal; the pick should be the highest-quality quant that fits, not merely the largest file.
+pub fn quant_rank(quant: &str) -> u32 {
+    let q = quant.to_ascii_uppercase();
+    let base = if q.starts_with("F32") {
+        100
+    } else if q.starts_with("BF16") || q.starts_with("F16") {
+        95
+    } else if q.starts_with("Q8") {
+        80
+    } else if q.starts_with("Q6") {
+        60
+    } else if q.starts_with("Q5") {
+        50
+    } else if q.starts_with("Q4") || q.starts_with("IQ4") {
+        40
+    } else if q.starts_with("Q3") || q.starts_with("IQ3") {
+        30
+    } else if q.starts_with("Q2") || q.starts_with("IQ2") {
+        20
+    } else {
+        10
+    };
+    // K-quant size modifier: S < (none) < M < L < XL.
+    let modi = if q.ends_with("_XL") {
+        4
+    } else if q.ends_with("_L") {
+        3
+    } else if q.ends_with("_M") {
+        2
+    } else if q.ends_with("_S") {
+        1
+    } else {
+        0
+    };
+    base + modi
+}
+
+/// Pick the **highest-quality quant that fits** `budget_gb` — the best the machine can actually run.
+/// Ranks by [`quant_rank`] (not file size, which is near-constant for a compact model), tie-breaking
+/// toward the smaller file (safer headroom). Full-precision (`F16`/`F32`/`BF16`) is excluded (overkill
+/// for a guarded reader) unless nothing else exists. Nothing fits → the smallest file. Pure; tested.
+pub fn best_gguf_for(files: &[GgufOption], budget_gb: f64) -> Option<GgufOption> {
+    let is_quant = |q: &str| {
+        let up = q.to_ascii_uppercase();
+        up.starts_with('Q') || up.starts_with("IQ")
+    };
+    let quants: Vec<&GgufOption> = files.iter().filter(|f| is_quant(&f.quant)).collect();
+    let pool: Vec<&GgufOption> = if quants.is_empty() {
+        files.iter().collect()
+    } else {
+        quants
+    };
+    pool.iter()
+        .filter(|f| f.size_gb <= budget_gb)
+        .max_by(|a, b| {
+            quant_rank(&a.quant)
+                .cmp(&quant_rank(&b.quant))
+                // Same rank → prefer the smaller file (more runtime headroom).
+                .then_with(|| b.size_gb.total_cmp(&a.size_gb))
+        })
+        .or_else(|| pool.iter().min_by(|a, b| a.size_gb.total_cmp(&b.size_gb)))
+        .map(|f| (*f).clone())
+}
+
+/// The full serve plan for a machine: the current repo for the tier's model + the largest quant it can
+/// run, fitted to [`device_model_budget_gb`]. `None` offline (no repo / no files) — the caller then
+/// falls back to the static [`ModelPick`] quant.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServePlan {
+    pub repo: String,
+    pub quant: String,
+    pub size_gb: f64,
+    /// Whether the chosen quant fits the **GPU** budget, i.e. whether forcing full offload
+    /// (`-ngl 99 -dev …`) is safe. `false` = the model is bigger than the card's pool (a "Max"
+    /// pick on a small card): the serve must NOT pin the GPU — it runs CPU-side (RAM-fitted,
+    /// slower) instead of allocating itself to death after a multi-GB download.
+    pub fits_gpu: bool,
+}
+
+/// Fit a quant to the machine: the highest-quality quant within the **GPU** budget when one exists
+/// (→ full offload is safe); otherwise re-fit against the **RAM** budget for a CPU-side serve —
+/// which both rescues the serve AND usually yields a *better* quant than the old
+/// fall-back-to-smallest did (the smallest file was still over the GPU budget anyway, so it OOM'd
+/// full-offload while wasting quality). Returns `(quant, fits_gpu)`. Pure; unit-tested.
+pub fn fit_quant(
+    files: &[GgufOption],
+    gpu_budget_gb: f64,
+    ram_budget_gb: f64,
+) -> Option<(GgufOption, bool)> {
+    let best = best_gguf_for(files, gpu_budget_gb)?;
+    if best.size_gb <= gpu_budget_gb {
+        return Some((best, true));
+    }
+    // Nothing fits the GPU's pool. Serve CPU-side, fitted to RAM.
+    let best = best_gguf_for(files, ram_budget_gb)?;
+    Some((best, false))
+}
+
+/// Resolve the recommended pick to a concrete `repo:quant` fitted to this machine's memory budget.
+pub fn plan_serve(pick: &ModelPick, spec: &DeviceSpec, gpu: Option<&GpuInfo>) -> Option<ServePlan> {
+    let repo = resolve_current_repo(pick)?.repo;
+    let (best, fits_gpu) = fit_quant(
+        &list_repo_ggufs(&repo),
+        device_model_budget_gb(spec, gpu),
+        spec.ram_gb * FIT_FRACTION,
+    )?;
+    Some(ServePlan {
+        repo,
+        quant: best.quant,
+        size_gb: best.size_gb,
+        fits_gpu,
+    })
 }
 
 /// A detected GPU: name + video memory. `unified` marks Apple-Silicon-style shared memory, where the
@@ -739,15 +1036,860 @@ pub fn llama_install_hint() -> &'static str {
     }
 }
 
-/// Whether `llama-server` is runnable on PATH — best-effort (it spawns at all). Used by `get`/`serve`
-/// to decide between "run it" and "here's how to install llama.cpp first".
-pub fn have_llama_server() -> bool {
-    std::process::Command::new("llama-server")
+/// Locate a runnable `llama-server` binary: first on `PATH`, then — on Windows — the winget install
+/// location (`%LOCALAPPDATA%\Microsoft\WinGet\Packages\ggml.llamacpp_*\llama-server.exe`), which is
+/// NOT added to `PATH` until the shell restarts. Returns the path to spawn (`"llama-server"` itself
+/// when it's on `PATH`). `None` when llama.cpp isn't installed anywhere we look.
+pub fn llama_server_path() -> Option<std::path::PathBuf> {
+    let bin = if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    };
+    // 1. On PATH? (a spawn that succeeds — the exit code doesn't matter).
+    let on_path = no_window(std::process::Command::new(bin))
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .is_ok()
+        .is_ok();
+    if on_path {
+        return Some(std::path::PathBuf::from(bin));
+    }
+    // 2. Windows winget install location (off-PATH until a shell restart).
+    #[cfg(windows)]
+    if let Ok(local) = std::env::var("LOCALAPPDATA") {
+        let pkgs = std::path::Path::new(&local)
+            .join("Microsoft")
+            .join("WinGet")
+            .join("Packages");
+        if let Ok(entries) = std::fs::read_dir(&pkgs) {
+            for entry in entries.flatten() {
+                if entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("ggml.llamacpp")
+                {
+                    let cand = entry.path().join("llama-server.exe");
+                    if cand.exists() {
+                        return Some(cand);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Whether a runnable `llama-server` exists (PATH or the winget location) — see [`llama_server_path`].
+/// Used by `get`/`serve` and the UI to decide between "run it" and "here's how to install llama.cpp".
+pub fn have_llama_server() -> bool {
+    resolve_llama_server().is_some()
+}
+
+/// The user's home directory (`%USERPROFILE%` / `$HOME`) — where the Hugging Face cache lives.
+fn home_dir() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    let key = "USERPROFILE";
+    #[cfg(not(windows))]
+    let key = "HOME";
+    std::env::var(key).ok().map(std::path::PathBuf::from)
+}
+
+/// Is the GGUF for `repo`:`quant` ALREADY in the local Hugging Face cache? When it is, a serve only
+/// LOADS the model — the (large, one-time) download is skipped — so the UI can say "downloaded ✓" and
+/// label the button "Serve" instead of "Download & serve". Matches a `.gguf` under the repo's snapshot
+/// whose name contains the quant tag (case-insensitive).
+pub fn model_cached(repo: &str, quant: &str) -> bool {
+    let Some(home) = home_dir() else {
+        return false;
+    };
+    let snaps = home
+        .join(".cache")
+        .join("huggingface")
+        .join("hub")
+        .join(format!("models--{}", repo.replace('/', "--")))
+        .join("snapshots");
+    let ql = quant.to_ascii_lowercase();
+    let Ok(entries) = std::fs::read_dir(&snaps) else {
+        return false;
+    };
+    for snap in entries.flatten() {
+        if let Ok(files) = std::fs::read_dir(snap.path()) {
+            for f in files.flatten() {
+                let name = f.file_name().to_string_lossy().to_ascii_lowercase();
+                if name.ends_with(".gguf") && name.contains(&ql) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// A local port [1234, 1245] with a **healthy** `llama-server` (`/health` → `{"status":"ok"}`), or
+/// `None`. Lets the app RECONNECT to an already-loaded model instead of reloading it, and auto-detect
+/// a server still running from a prior session on startup. Only `llama-server` answers `/health` with
+/// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
+/// Runs at startup, before the window opens, so it probes up to 12 ports on every launch — which is
+/// why the spawn target is pinned via [`system_cmd`] like the file's other `curl` callers rather
+/// than left bare. (Known gap: on a machine with no `curl` at all this simply finds nothing and the
+/// app declines to reconnect — a soft, honest degrade, unlike the health probes in `agents`/`ui`
+/// which are now in-process.)
+pub fn running_server_port() -> Option<u16> {
+    let curl = system_cmd("curl.exe", "curl");
+    (1234u16..=1245).find(|&p| {
+        no_window(std::process::Command::new(&curl))
+            .args([
+                "-sS",
+                "--max-time",
+                "2",
+                &format!("http://127.0.0.1:{p}/health"),
+            ])
+            .output()
+            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
+            .unwrap_or(false)
+    })
+}
+
+// ─── GPU runtime backend + device selection ──────────────────────────────────────────────────────
+//
+// The runtime bug this solves: the winget `ggml.llamacpp` is a Vulkan-only build, and on a hybrid
+// laptop (AMD iGPU + NVIDIA dGPU) its Vulkan ICD enumerates ONLY the AMD iGPU (`Vulkan0`) — so a big
+// model loads onto shared system RAM and OOMs, never touching the discrete RTX 5080. The fix is to
+// run a backend build that actually targets the discrete GPU (CUDA on NVIDIA, Metal on Apple, ROCm on
+// AMD) and to PIN the served device explicitly with `-dev`, never trusting auto-pick on a hybrid.
+
+/// The compute backend a `llama-server` build talks to the GPU through. Which one is available is a
+/// property of the *binary* (chosen at compile time), surfaced at runtime by `--list-devices`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    Cuda,
+    Metal,
+    Rocm,
+    Sycl,
+    Vulkan,
+    Cpu,
+}
+
+impl Backend {
+    /// Classify a `--list-devices` token prefix (`CUDA0` → Cuda, `Vulkan0` → Vulkan, …).
+    fn from_token(token: &str) -> Backend {
+        let t = token.to_ascii_uppercase();
+        if t.starts_with("CUDA") {
+            Backend::Cuda
+        } else if t.starts_with("METAL") {
+            Backend::Metal
+        } else if t.starts_with("ROCM") || t.starts_with("HIP") {
+            Backend::Rocm
+        } else if t.starts_with("SYCL") {
+            Backend::Sycl
+        } else if t.starts_with("VULKAN") {
+            Backend::Vulkan
+        } else {
+            Backend::Cpu
+        }
+    }
+
+    /// A short human label for the RuntimeHealth line.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Backend::Cuda => "CUDA",
+            Backend::Metal => "Metal",
+            Backend::Rocm => "ROCm",
+            Backend::Sycl => "SYCL",
+            Backend::Vulkan => "Vulkan",
+            Backend::Cpu => "CPU",
+        }
+    }
+
+    /// Whether this backend targets a discrete/dedicated GPU well. Vulkan is deprioritized because on
+    /// a hybrid machine it tends to bind the integrated GPU (the whole bug); CPU is not a GPU at all.
+    fn is_preferred_gpu(&self) -> bool {
+        matches!(
+            self,
+            Backend::Cuda | Backend::Metal | Backend::Rocm | Backend::Sycl
+        )
+    }
+}
+
+/// One compute device as reported by `llama-server --list-devices`, e.g.
+/// `CUDA0: NVIDIA GeForce RTX 5080 Laptop GPU (16302 MiB, 15067 MiB free)`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Device {
+    /// The `-dev` token, e.g. `CUDA0` / `Vulkan0` / `Metal0`.
+    pub token: String,
+    pub backend: Backend,
+    pub name: String,
+    pub total_mib: u64,
+    pub free_mib: u64,
+}
+
+impl Device {
+    pub fn vram_gb(&self) -> f64 {
+        self.total_mib as f64 / 1024.0
+    }
+
+    /// Whether this looks like a discrete GPU (by name) — a dedicated card, not an integrated one
+    /// sharing system RAM. Used to keep the RuntimeHealth warning honest: Vulkan on a discrete NVIDIA
+    /// is fine (green); Vulkan on an integrated GPU is the OOM-risk case (carnelian).
+    pub fn is_discrete(&self) -> bool {
+        name_discreteness_rank(&self.name) == 2
+    }
+
+    /// A healthy serving path: a preferred backend (CUDA/Metal/ROCm/SYCL) OR at least a discrete GPU.
+    /// Integrated-GPU or CPU serving of a multi-GB model is the risky case the UI warns about.
+    pub fn is_healthy(&self) -> bool {
+        self.backend.is_preferred_gpu() || self.is_discrete()
+    }
+}
+
+/// Parse the `--list-devices` block into [`Device`]s. Pure + unit-tested. Tolerant: a line without the
+/// `(… MiB, … MiB free)` tail still yields a device (memory 0) so a format drift never drops a GPU.
+/// The `Available devices:` header and any stray `E`/log lines are ignored (a device line starts with
+/// `<TOKEN>:` where TOKEN is alphanumeric).
+pub fn parse_list_devices(output: &str) -> Vec<Device> {
+    let mut out = Vec::new();
+    for raw in output.lines() {
+        let line = raw.trim();
+        // A device line is `TOKEN: name (....)`. Split once on ':'; the token must be a bare
+        // alnum run (CUDA0, Vulkan1) — this rejects timestamped log lines like `0.02.5 E ...`.
+        let Some((token, rest)) = line.split_once(':') else {
+            continue;
+        };
+        let token = token.trim();
+        if token.is_empty()
+            || !token.chars().all(|c| c.is_ascii_alphanumeric())
+            || !token.chars().any(|c| c.is_ascii_alphabetic())
+            || !token.chars().any(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        let rest = rest.trim();
+        // Split the trailing "(total MiB, free MiB free)" if present.
+        let (name, total_mib, free_mib) = match rest.rsplit_once('(') {
+            Some((name, mem)) => {
+                let nums: Vec<u64> = mem
+                    .split(|c: char| !c.is_ascii_digit())
+                    .filter(|s| !s.is_empty())
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                (
+                    name.trim(),
+                    nums.first().copied().unwrap_or(0),
+                    nums.get(1).copied().unwrap_or(0),
+                )
+            }
+            None => (rest, 0, 0),
+        };
+        out.push(Device {
+            token: token.to_string(),
+            backend: Backend::from_token(token),
+            name: name.to_string(),
+            total_mib,
+            free_mib,
+        });
+    }
+    out
+}
+
+/// A coarse discrete-vs-integrated rank from a GPU's name: 2 = clearly discrete, 0 = clearly an
+/// integrated GPU (shares system RAM), 1 = unknown. Needed because a hybrid laptop's Vulkan build
+/// enumerates BOTH the iGPU and the dGPU as `Vulkan0`/`Vulkan1`, and the iGPU often reports MORE
+/// "VRAM" (a slice of system RAM) than the discrete card's dedicated pool — so picking by memory alone
+/// lands on the iGPU (the OOM trap). Name is the reliable signal.
+fn name_discreteness_rank(name: &str) -> u8 {
+    let n = name.to_ascii_uppercase();
+    // Discrete markers first (an AMD "Radeon RX"/"Radeon Pro" is discrete despite the "Radeon").
+    const DISCRETE: [&str; 8] = [
+        "NVIDIA",
+        "GEFORCE",
+        "RTX",
+        "GTX",
+        "QUADRO",
+        "RADEON RX",
+        "RADEON PRO",
+        "ARC ",
+    ];
+    if DISCRETE.iter().any(|m| n.contains(m)) {
+        return 2;
+    }
+    // Integrated markers: AMD/Intel iGPUs are "… Graphics"; Apple/Intel iGPU families.
+    const INTEGRATED: [&str; 6] = ["GRAPHICS", "UHD", "IRIS", "VEGA", "890M", "RADEON(TM)"];
+    if INTEGRATED.iter().any(|m| n.contains(m)) {
+        return 0;
+    }
+    1
+}
+
+/// Choose the device to serve on: a preferred-GPU backend (CUDA/Metal/ROCm/SYCL) over Vulkan over CPU;
+/// then a DISCRETE GPU over an integrated one (by name — the iGPU can falsely report more shared RAM);
+/// then the highest total VRAM. `None` = no device line at all (CPU-only build/machine). Pure +
+/// unit-tested. This is the anti-iGPU-trap rule — on a hybrid it must land on the dedicated card.
+pub fn select_device(devices: &[Device]) -> Option<Device> {
+    devices
+        .iter()
+        .max_by(|a, b| {
+            a.backend
+                .is_preferred_gpu()
+                .cmp(&b.backend.is_preferred_gpu())
+                .then(name_discreteness_rank(&a.name).cmp(&name_discreteness_rank(&b.name)))
+                .then(a.total_mib.cmp(&b.total_mib))
+        })
+        .cloned()
+}
+
+/// The app-managed runtime root — where [`ensure_runtime`] lays down the per-vendor llama.cpp build
+/// it fetches, e.g. `%LOCALAPPDATA%\Ziqpu\runtime\llama-b10064-bin-win-cuda-13.3-x64\`. Kept
+/// separate from the winget location so the managed (correct-backend) build always wins.
+pub fn managed_runtime_root() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var("LOCALAPPDATA")
+            .ok()
+            .map(|l| std::path::Path::new(&l).join("Ziqpu").join("runtime"))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::env::var("HOME").ok().map(|h| {
+            std::path::Path::new(&h)
+                .join("Library")
+                .join("Application Support")
+                .join("Ziqpu")
+                .join("runtime")
+        })
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        std::env::var("HOME")
+            .ok()
+            .map(|h| std::path::Path::new(&h).join(".local/share/ziqpu/runtime"))
+    }
+}
+
+/// The platform name of the `llama-server` binary.
+fn llama_server_bin_name() -> &'static str {
+    if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    }
+}
+
+/// Find `bin` under `dir`, descending at most `depth` directory levels. Bounded because the
+/// runtime archives differ in shape — the Windows zips are flat, the macOS/Linux tarballs nest a
+/// `llama-bNNNNN/` directory — and a depth-capped walk handles both without ever crawling a
+/// user's whole disk if the root is misconfigured.
+fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
+    let direct = dir.join(bin);
+    if direct.is_file() {
+        return Some(direct);
+    }
+    if depth == 0 {
+        return None;
+    }
+    let entries = std::fs::read_dir(dir).ok()?;
+    entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .find_map(|e| find_bin_under(&e.path(), bin, depth - 1))
+}
+
+/// A `llama-server` inside the managed runtime root, if one has been laid down. This is the
+/// backend-correct build for the machine, so it takes priority over PATH/winget in
+/// [`resolve_llama_server`].
+fn managed_llama_server() -> Option<std::path::PathBuf> {
+    find_bin_under(&managed_runtime_root()?, llama_server_bin_name(), 3)
+}
+
+/// Resolve the `llama-server` to run: the app-managed (backend-correct) build first, then PATH, then
+/// the winget location. Supersedes bare [`llama_server_path`] in the serve paths so a machine with the
+/// managed CUDA build serves on the dGPU instead of the winget Vulkan build's iGPU.
+pub fn resolve_llama_server() -> Option<std::path::PathBuf> {
+    managed_llama_server().or_else(llama_server_path)
+}
+
+/// Probe a specific `llama-server` binary for its visible devices (`--list-devices`, 8 s cap). Empty
+/// on a CPU-only build/machine or if the probe fails. Used to build the RuntimeHealth line and to pick
+/// the `-dev` token.
+pub fn probe_devices(bin: &std::path::Path) -> Vec<Device> {
+    run_capped(&bin.to_string_lossy(), &["--list-devices"], 8)
+        .map(|o| parse_list_devices(&o))
+        .unwrap_or_default()
+}
+
+/// The GPU serve flags for a chosen device: full offload + an explicit device pin. Empty for CPU/none
+/// (llama-server runs on CPU). Metal needs no `-dev` (one implicit device) but `-ngl 99` is harmless.
+pub fn gpu_serve_args(device: Option<&Device>) -> Vec<String> {
+    match device {
+        Some(d) if d.backend == Backend::Metal => vec!["-ngl".into(), "99".into()],
+        Some(d) if d.backend != Backend::Cpu => {
+            vec!["-ngl".into(), "99".into(), "-dev".into(), d.token.clone()]
+        }
+        _ => Vec::new(),
+    }
+}
+
+// ─── ensure_runtime: fetch the backend-correct llama.cpp build for this machine ──────────────────
+//
+// The distribution bug this solves: "local models need llama.cpp installed yourself" is a dead end
+// for a stranger evaluating the app — and the obvious self-serve fix (winget) installs a
+// Vulkan-only build that binds a hybrid laptop's iGPU (the OOM saga above). So the app lays down
+// the right build itself: pick the official ggml-org/llama.cpp release asset for this OS/arch/GPU,
+// download it into the app-managed runtime root, and let `resolve_llama_server` prefer it forever
+// after. One-time, per-user, no admin rights.
+
+/// Which vendor's silicon the detected GPU is — decides which llama.cpp build to fetch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuVendor {
+    Nvidia,
+    Amd,
+    Intel,
+    Apple,
+    None,
+}
+
+/// Classify a detected GPU by name. Pure; unit-tested. `None` (no GPU detected) → CPU build.
+pub fn gpu_vendor(gpu: Option<&GpuInfo>) -> GpuVendor {
+    let Some(g) = gpu else {
+        return GpuVendor::None;
+    };
+    if g.unified {
+        return GpuVendor::Apple;
+    }
+    let n = g.name.to_ascii_uppercase();
+    if ["NVIDIA", "GEFORCE", "RTX", "GTX", "QUADRO", "TESLA"]
+        .iter()
+        .any(|m| n.contains(m))
+    {
+        // Checked FIRST: "RTX" alone must not fall through to another vendor's arm.
+        GpuVendor::Nvidia
+    } else if n.contains("AMD") || n.contains("RADEON") {
+        GpuVendor::Amd
+    } else if n.contains("INTEL") || n.contains("ARC") || n.contains("IRIS") || n.contains("UHD") {
+        GpuVendor::Intel
+    } else if n.starts_with("APPLE") {
+        GpuVendor::Apple
+    } else {
+        GpuVendor::None
+    }
+}
+
+/// Does this NVIDIA card need a CUDA **13** build? CUDA 13 dropped everything older than Turing
+/// (sm_75) but is the only line that knows Blackwell (RTX 50-series, RTX PRO); CUDA 12 knows
+/// Pascal→Ada but NOT Blackwell. So: an RTX model number ≥ 5000, or the "RTX PRO" workstation
+/// line, needs 13 — everything else is safest on 12. Pure; unit-tested. (Edge checked: the
+/// "RTX 500/1000 Ada" laptop workstation cards parse as < 5000 → 12, correct for Ada; the
+/// "RTX 5000 Ada Generation" parses as ≥ 5000 → 13, also fine — CUDA 13 kept Ada.)
+pub fn nvidia_wants_cuda13(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    if n.contains("RTX PRO") {
+        return true;
+    }
+    if let Some(rest) = n.split("RTX").nth(1) {
+        let digits: String = rest
+            .trim_start()
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        if let Ok(model) = digits.parse::<u32>() {
+            return model >= 5000;
+        }
+    }
+    false
+}
+
+/// The compile target, made explicit so [`pick_runtime_asset_for`] is a pure function testable for
+/// every platform from any host (the CI matrix runs all three OSes; each must see the others'
+/// tables pass, not just its own).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetOs {
+    Windows,
+    Mac,
+    Linux,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetArch {
+    X64,
+    Arm64,
+}
+
+/// This build's platform.
+pub fn current_platform() -> (TargetOs, TargetArch) {
+    let os = if cfg!(target_os = "windows") {
+        TargetOs::Windows
+    } else if cfg!(target_os = "macos") {
+        TargetOs::Mac
+    } else {
+        TargetOs::Linux
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        TargetArch::Arm64
+    } else {
+        TargetArch::X64
+    };
+    (os, arch)
+}
+
+/// The runtime download chosen for a machine: the release asset to fetch, an optional companion
+/// (the CUDA builds need the separate `cudart-…` DLL bundle unzipped beside `llama-server.exe`),
+/// and a short label for progress lines.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimePick {
+    pub asset: String,
+    pub companion: Option<String>,
+    pub label: String,
+}
+
+/// The best CUDA asset of a given major line (`"12"` / `"13"`) — highest minor wins, compared
+/// numerically so a hypothetical `12.10` beats `12.4`. Returns `(asset_name, "12.4")`.
+fn best_cuda_asset(names: &[&str], major: &str) -> Option<(String, String)> {
+    names
+        .iter()
+        .filter(|n| !n.starts_with("cudart-"))
+        .filter_map(|n| {
+            let ver = n.split("-bin-win-cuda-").nth(1)?.strip_suffix("-x64.zip")?;
+            let (maj, min) = ver.split_once('.')?;
+            if maj != major {
+                return None;
+            }
+            Some((min.parse::<u32>().ok()?, n.to_string(), ver.to_string()))
+        })
+        .max_by_key(|(min, _, _)| *min)
+        .map(|(_, name, ver)| (name, ver))
+}
+
+/// Pick the release asset for a platform + GPU. Pure; unit-tested against the real asset list of a
+/// real release. Returns `None` only when the release carries nothing usable for the platform.
+///
+/// The vendor table, and why it deviates from the obvious per-vendor maximum:
+/// - **NVIDIA → CUDA** (12 or 13 by card generation — see [`nvidia_wants_cuda13`]) + the matching
+///   `cudart` companion. CUDA is the entire point of the managed runtime: it targets the discrete
+///   card directly and cannot land on the iGPU. Falls back to Vulkan if the release dropped CUDA.
+/// - **AMD / Intel → Vulkan**, deliberately NOT the per-vendor HIP/SYCL builds: HIP zips bake a
+///   fixed gfx-architecture list (a card outside it hard-fails) and SYCL needs the oneAPI runtime
+///   installed system-wide — both are remote failure modes we cannot check from here, on machines
+///   we will never see. Vulkan runs on every AMD/Intel driver stack, and the `-dev` pin +
+///   discreteness ranking (see `select_device`) already defuse the hybrid-iGPU trap that made
+///   Vulkan scary in the first place.
+/// - **Apple → the macOS tarball** (Metal is in the arm64 build); Intel Macs get the x64 CPU build.
+/// - **No GPU → CPU build**, never Vulkan: a Vulkan build without a Vulkan driver fails to start.
+pub fn pick_runtime_asset_for(
+    os: TargetOs,
+    arch: TargetArch,
+    names: &[&str],
+    gpu: Option<&GpuInfo>,
+) -> Option<RuntimePick> {
+    let vendor = gpu_vendor(gpu);
+    let by_suffix = |suffix: &str| -> Option<String> {
+        names
+            .iter()
+            .find(|n| n.ends_with(suffix))
+            .map(|n| n.to_string())
+    };
+    let plain = |asset: Option<String>, label: &str| -> Option<RuntimePick> {
+        asset.map(|a| RuntimePick {
+            asset: a,
+            companion: None,
+            label: label.to_string(),
+        })
+    };
+    match (os, arch) {
+        (TargetOs::Windows, TargetArch::X64) => match vendor {
+            GpuVendor::Nvidia => {
+                let major = if gpu.map(|g| nvidia_wants_cuda13(&g.name)).unwrap_or(false) {
+                    "13"
+                } else {
+                    "12"
+                };
+                if let Some((asset, ver)) = best_cuda_asset(names, major) {
+                    // The CUDA zips do NOT bundle the CUDA runtime DLLs — the release carries them
+                    // as a separate version-matched `cudart-…` zip that must land beside the exe.
+                    let companion = names
+                        .iter()
+                        .find(|n| n.starts_with("cudart-") && n.contains(&format!("cuda-{ver}-")))
+                        .map(|n| n.to_string());
+                    return Some(RuntimePick {
+                        asset,
+                        companion,
+                        label: format!("CUDA {ver} (NVIDIA)"),
+                    });
+                }
+                plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (NVIDIA)")
+                    .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU"))
+            }
+            GpuVendor::Amd => plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (AMD)")
+                .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU")),
+            GpuVendor::Intel => plain(by_suffix("-bin-win-vulkan-x64.zip"), "Vulkan (Intel)")
+                .or_else(|| plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU")),
+            GpuVendor::Apple | GpuVendor::None => plain(by_suffix("-bin-win-cpu-x64.zip"), "CPU"),
+        },
+        (TargetOs::Windows, TargetArch::Arm64) => {
+            plain(by_suffix("-bin-win-cpu-arm64.zip"), "CPU (ARM64)")
+        }
+        (TargetOs::Mac, TargetArch::Arm64) => plain(
+            by_suffix("-bin-macos-arm64.tar.gz"),
+            "Metal (Apple Silicon)",
+        ),
+        (TargetOs::Mac, TargetArch::X64) => {
+            plain(by_suffix("-bin-macos-x64.tar.gz"), "CPU (Intel Mac)")
+        }
+        (TargetOs::Linux, TargetArch::X64) => match vendor {
+            GpuVendor::None => plain(by_suffix("-bin-ubuntu-x64.tar.gz"), "CPU"),
+            _ => plain(by_suffix("-bin-ubuntu-vulkan-x64.tar.gz"), "Vulkan (GPU)")
+                .or_else(|| plain(by_suffix("-bin-ubuntu-x64.tar.gz"), "CPU")),
+        },
+        (TargetOs::Linux, TargetArch::Arm64) => match vendor {
+            GpuVendor::None => plain(by_suffix("-bin-ubuntu-arm64.tar.gz"), "CPU (ARM64)"),
+            _ => plain(
+                by_suffix("-bin-ubuntu-vulkan-arm64.tar.gz"),
+                "Vulkan (GPU, ARM64)",
+            )
+            .or_else(|| plain(by_suffix("-bin-ubuntu-arm64.tar.gz"), "CPU (ARM64)")),
+        },
+    }
+}
+
+/// [`pick_runtime_asset_for`] on the running platform.
+pub fn pick_runtime_asset(names: &[&str], gpu: Option<&GpuInfo>) -> Option<RuntimePick> {
+    let (os, arch) = current_platform();
+    pick_runtime_asset_for(os, arch, names, gpu)
+}
+
+/// One downloadable asset of a llama.cpp release.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeAsset {
+    pub name: String,
+    pub url: String,
+    pub size: u64,
+}
+
+/// A llama.cpp release: its tag + assets.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeRelease {
+    pub tag: String,
+    pub assets: Vec<RuntimeAsset>,
+}
+
+/// Parse the GitHub `releases/latest` response. Pure; unit-tested against a fixture.
+pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
+    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    let tag = v.get("tag_name")?.as_str()?.to_string();
+    let assets = v
+        .get("assets")?
+        .as_array()?
+        .iter()
+        .filter_map(|a| {
+            Some(RuntimeAsset {
+                name: a.get("name")?.as_str()?.to_string(),
+                url: a.get("browser_download_url")?.as_str()?.to_string(),
+                size: a.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
+            })
+        })
+        .collect();
+    Some(RuntimeRelease { tag, assets })
+}
+
+/// GET the latest ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
+/// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
+/// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
+pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
+    let out = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+        .args([
+            "-sS",
+            "-L",
+            "--max-time",
+            "20",
+            "--max-filesize",
+            "3000000",
+            "-A",
+            HF_USER_AGENT,
+            "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    parse_runtime_release(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
+/// bundles). Returns a human-readable reason on failure.
+fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let status = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+        .args([
+            "-sS",
+            "-L",
+            "--fail",
+            "--max-time",
+            "3600",
+            "--max-filesize",
+            "800000000",
+            "-A",
+            HF_USER_AGENT,
+            "-o",
+            &dest.to_string_lossy(),
+            url,
+        ])
+        .status()
+        .map_err(|e| format!("couldn't run curl ({e})"))?;
+    if !status.success() {
+        return Err(format!("download failed ({status})"));
+    }
+    Ok(())
+}
+
+/// Extract `archive` into `dir` with the system `tar` — which reads BOTH formats the release ships
+/// (`.tar.gz` natively everywhere; Windows' System32 `tar.exe` is bsdtar, which also reads `.zip`).
+/// Zero new dependencies, same pinned-path discipline as every other subprocess here.
+fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("couldn't create {} ({e})", dir.display()))?;
+    let status = no_window(std::process::Command::new(system_cmd("tar.exe", "tar")))
+        .args([
+            "-xf",
+            &archive.to_string_lossy(),
+            "-C",
+            &dir.to_string_lossy(),
+        ])
+        .status()
+        .map_err(|e| format!("couldn't run tar ({e})"))?;
+    if !status.success() {
+        return Err(format!("extraction failed ({status})"));
+    }
+    Ok(())
+}
+
+/// Does this `llama-server` actually start? (`--version`, output discarded.) A build with a
+/// missing DLL (a half-installed CUDA tree) or the wrong arch dies right here, as a `false`,
+/// instead of later inside a serve — where the Windows loader kills it invisibly under
+/// CREATE_NO_WINDOW and the user sees only "exited early".
+fn runtime_self_check(bin: &std::path::Path) -> bool {
+    no_window(std::process::Command::new(bin))
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Make sure a backend-correct `llama-server` exists in the app-managed runtime root, downloading
+/// and laying one down if needed. Returns the path to the binary. `progress` receives short
+/// human-readable lines as the steps run (the CLI prints them; the UI feeds its loader).
+///
+/// Steps: already laid down **and passing its self-check** → done. Else: latest release → pick the
+/// asset for this OS/arch/GPU → download → extract into `runtime/<asset-stem>/` → (CUDA) unzip the
+/// cudart DLLs beside the exe → self-check with `--version`. Every failure is a `Err(reason)` the
+/// caller can show; nothing here panics, and a failure leaves `resolve_llama_server`'s other
+/// sources (PATH, winget) untouched.
+///
+/// **No poisoned trees.** Any failure after extraction begins removes the partial install before
+/// returning — and the fast path re-runs the self-check rather than trusting a file by name. Both
+/// halves matter: `resolve_llama_server` prefers the managed build and the UI only calls this
+/// function when nothing resolves, so a broken tree left on disk (a network drop between the CUDA
+/// zip and its cudart companion; a driver too old for the picked runtime) would otherwise be
+/// trusted on every later launch, with no in-product path to repair.
+pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathBuf, String> {
+    let root = managed_runtime_root().ok_or("couldn't locate a home directory")?;
+    if let Some(bin) = managed_llama_server() {
+        if runtime_self_check(&bin) {
+            progress("llama.cpp runtime already installed");
+            return Ok(bin);
+        }
+        // A managed build that can't start is a half-install from an earlier failure. Remove its
+        // top-level dir (the component directly under the root) and lay a fresh one down.
+        progress("removing a broken llama.cpp install…");
+        if let Ok(rel) = bin.strip_prefix(&root) {
+            if let Some(top) = rel.components().next() {
+                let _ = std::fs::remove_dir_all(root.join(top.as_os_str()));
+            }
+        }
+    }
+    std::fs::create_dir_all(&root)
+        .map_err(|e| format!("couldn't create {} ({e})", root.display()))?;
+
+    progress("checking the latest llama.cpp release…");
+    let release =
+        fetch_runtime_release().ok_or("couldn't reach the llama.cpp releases (offline?)")?;
+    let names: Vec<&str> = release.assets.iter().map(|a| a.name.as_str()).collect();
+    let gpu = detect_gpu();
+    let pick = pick_runtime_asset(&names, gpu.as_ref())
+        .ok_or_else(|| format!("release {} has no build for this machine", release.tag))?;
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == pick.asset)
+        .ok_or("picked asset vanished from the release")?;
+
+    // Lay the build down under a dir named for the asset, so what is installed is legible on disk.
+    let stem = pick
+        .asset
+        .trim_end_matches(".zip")
+        .trim_end_matches(".tar.gz");
+    let dest_dir = root.join(stem);
+    let archive = root.join(&pick.asset);
+    progress(&format!(
+        "downloading {} — {} ({:.0} MB)…",
+        release.tag,
+        pick.label,
+        asset.size as f64 / 1_048_576.0
+    ));
+    download_to(&asset.url, &archive)?;
+    progress("unpacking…");
+
+    // Everything from extraction onward runs inside this closure so that ONE failure branch below
+    // can remove the partial tree — a half-install left behind would be found (by name) and
+    // trusted (by `resolve_llama_server`) on every later launch.
+    let laid = (|| -> Result<std::path::PathBuf, String> {
+        let extracted = extract_archive(&archive, &dest_dir);
+        let _ = std::fs::remove_file(&archive); // best-effort cleanup either way
+        extracted?;
+
+        let bin = find_bin_under(&dest_dir, llama_server_bin_name(), 3)
+            .ok_or("the archive did not contain llama-server")?;
+        // llama-server.exe's own directory is where Windows resolves its DLLs from — the cudart
+        // companion must land exactly there, wherever the main archive put the exe.
+        if let Some(companion) = &pick.companion {
+            let exe_dir = bin.parent().ok_or("no parent dir for llama-server")?;
+            let casset = release
+                .assets
+                .iter()
+                .find(|a| &a.name == companion)
+                .ok_or("cudart companion vanished from the release")?;
+            let carchive = root.join(companion);
+            progress(&format!(
+                "downloading CUDA runtime DLLs ({:.0} MB)…",
+                casset.size as f64 / 1_048_576.0
+            ));
+            download_to(&casset.url, &carchive)?;
+            let cextracted = extract_archive(&carchive, exe_dir);
+            let _ = std::fs::remove_file(&carchive);
+            cextracted?;
+        }
+
+        progress("verifying…");
+        if !runtime_self_check(&bin) {
+            return Err(format!(
+                "the runtime was laid down at {} but failed its self-check (a GPU driver too old \
+                 for this build is the usual cause)",
+                bin.display()
+            ));
+        }
+        Ok(bin)
+    })();
+
+    match laid {
+        Ok(bin) => {
+            progress("llama.cpp runtime ready ✓");
+            Ok(bin)
+        }
+        Err(why) => {
+            // Remove the partial tree so the next attempt starts clean instead of trusting it.
+            let _ = std::fs::remove_dir_all(&dest_dir);
+            Err(why)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1066,5 +2208,566 @@ mod tests {
         assert_eq!(vram_budget(Some(&unified), 32.0), Some(32.0 * 0.7));
         // No GPU → unknown budget.
         assert_eq!(vram_budget(None, 32.0), None);
+    }
+
+    #[test]
+    fn quant_from_filename_handles_shards_ud_and_model_names() {
+        assert_eq!(
+            quant_from_filename("gpt-oss-20b-Q4_K_M.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        assert_eq!(
+            quant_from_filename("model-F16.gguf").as_deref(),
+            Some("F16")
+        );
+        assert_eq!(
+            quant_from_filename("m-UD-Q4_K_XL.gguf").as_deref(),
+            Some("Q4_K_XL")
+        );
+        // Sharded: the shard suffix (…-00001-of-00002) is skipped, the quant is still found.
+        assert_eq!(
+            quant_from_filename("gpt-oss-120b-Q4_K_M-00001-of-00002.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        // A model name starting with Q+letter (qwen2.5) is NOT mistaken for a quant.
+        assert_eq!(
+            quant_from_filename("qwen2.5-9b-Q5_K_M.gguf").as_deref(),
+            Some("Q5_K_M")
+        );
+        // DOT separator before the quant (MaziyarPanahi/TheBloke style) — must still parse.
+        assert_eq!(
+            quant_from_filename("Qwen3-14B.Q4_K_M.gguf").as_deref(),
+            Some("Q4_K_M")
+        );
+        assert_eq!(
+            quant_from_filename("Meta-Llama-3.1-8B-Instruct.Q6_K.gguf").as_deref(),
+            Some("Q6_K")
+        );
+        assert_eq!(quant_from_filename("README.md"), None);
+    }
+
+    #[test]
+    fn parse_repo_tree_sums_shards_and_ignores_non_gguf() {
+        let json = r#"[
+            {"path":"gpt-oss-20b-Q4_K_M.gguf","lfs":{"size":12884901888}},
+            {"path":"gpt-oss-20b-Q8_0.gguf","size":23622320128},
+            {"path":"gpt-oss-20b-F16-00001-of-00002.gguf","lfs":{"size":21474836480}},
+            {"path":"gpt-oss-20b-F16-00002-of-00002.gguf","lfs":{"size":21474836480}},
+            {"path":"README.md","size":1234}
+        ]"#;
+        let opts = parse_repo_tree(json);
+        let get = |q: &str| opts.iter().find(|o| o.quant == q).map(|o| o.size_gb);
+        assert!((get("Q4_K_M").unwrap() - 12.0).abs() < 0.1);
+        assert!((get("Q8_0").unwrap() - 22.0).abs() < 0.1);
+        assert!((get("F16").unwrap() - 40.0).abs() < 0.2, "shards summed");
+        assert_eq!(opts.len(), 3, "README ignored");
+    }
+
+    #[test]
+    fn best_gguf_for_largest_that_fits_and_skips_full_precision() {
+        let files = vec![
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 12.0,
+            },
+            GgufOption {
+                quant: "Q5_K_M".into(),
+                size_gb: 14.0,
+            },
+            GgufOption {
+                quant: "Q6_K".into(),
+                size_gb: 16.0,
+            },
+            GgufOption {
+                quant: "Q8_0".into(),
+                size_gb: 22.0,
+            },
+            GgufOption {
+                quant: "F16".into(),
+                size_gb: 40.0,
+            },
+        ];
+        // Budget 13.6 → only Q4_K_M fits (Q5_K_M is 14); the highest-quality quant under budget.
+        assert_eq!(best_gguf_for(&files, 13.6).unwrap().quant, "Q4_K_M");
+        // A big budget picks Q8_0 (largest quant), NOT F16 (full precision is excluded).
+        assert_eq!(best_gguf_for(&files, 100.0).unwrap().quant, "Q8_0");
+        // Nothing fits a tiny budget → the smallest quant (least likely to swap).
+        assert_eq!(best_gguf_for(&files, 5.0).unwrap().quant, "Q4_K_M");
+        // Only full precision → last resort.
+        let f16 = vec![GgufOption {
+            quant: "F16".into(),
+            size_gb: 40.0,
+        }];
+        assert_eq!(best_gguf_for(&f16, 100.0).unwrap().quant, "F16");
+        assert_eq!(best_gguf_for(&[], 100.0), None);
+    }
+
+    #[test]
+    fn device_budget_prefers_vram_then_ram() {
+        let s = spec(31.0, 24, Some(100.0), Some(16.0));
+        let discrete = GpuInfo {
+            name: "RTX 5080".into(),
+            vram_gb: 16.0,
+            unified: false,
+        };
+        assert!(
+            (device_model_budget_gb(&s, Some(&discrete)) - 16.0 * VRAM_USABLE_FRACTION).abs()
+                < 0.01
+        );
+        assert!((device_model_budget_gb(&s, None) - 31.0 * FIT_FRACTION).abs() < 0.01);
+        let unified = GpuInfo {
+            name: "Apple M3".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        assert!((device_model_budget_gb(&s, Some(&unified)) - 31.0 * FIT_FRACTION).abs() < 0.01);
+    }
+
+    #[test]
+    fn quant_rank_orders_by_quality() {
+        assert!(quant_rank("Q8_0") > quant_rank("Q6_K"));
+        assert!(quant_rank("Q6_K") > quant_rank("Q5_K_M"));
+        assert!(quant_rank("Q5_K_M") > quant_rank("Q4_K_M"));
+        assert!(quant_rank("Q4_K_M") > quant_rank("Q4_K_S"));
+        assert!(quant_rank("Q4_K_M") > quant_rank("Q3_K_M"));
+        // Full precision outranks any quant (but best_gguf_for excludes it from the pick).
+        assert!(quant_rank("F16") > quant_rank("Q8_0"));
+    }
+
+    #[test]
+    fn best_gguf_prefers_quality_not_size_when_sizes_are_close() {
+        // GPT-OSS-like: every quant is ~11 GB. Q5_K_M should win over the slightly-BIGGER but
+        // lower-quality Q2_K_L — the bug that picked a big-by-size quant that then OOM'd.
+        let files = vec![
+            GgufOption {
+                quant: "Q2_K_L".into(),
+                size_gb: 10.95,
+            },
+            GgufOption {
+                quant: "Q5_K_M".into(),
+                size_gb: 10.91,
+            },
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 10.83,
+            },
+            GgufOption {
+                quant: "Q8_0".into(),
+                size_gb: 12.29,
+            },
+        ];
+        // Budget 11.0 → Q8_0 (12.29) doesn't fit; the highest-quality quant under budget is Q5_K_M,
+        // NOT the marginally-bigger Q2_K_L (that was the OOM bug: size-ranked, not quality-ranked).
+        assert_eq!(best_gguf_for(&files, 11.0).unwrap().quant, "Q5_K_M");
+        // A tighter budget where even Q5_K_M (10.91) is out: the pick steps down to Q4_K_M (10.83),
+        // NOT the fallback smallest-by-size — quality ranking still governs among what fits.
+        assert_eq!(best_gguf_for(&files, 10.88).unwrap().quant, "Q4_K_M");
+    }
+
+    #[test]
+    fn parse_list_devices_reads_cuda_and_vulkan() {
+        // Real CUDA build output (with a leading timestamped log line that must be ignored).
+        let cuda = "0.02.5 E ggml_cuda_init: found 1 device\nAvailable devices:\n  CUDA0: NVIDIA GeForce RTX 5080 Laptop GPU (16302 MiB, 15067 MiB free)\n";
+        let d = parse_list_devices(cuda);
+        assert_eq!(d.len(), 1);
+        assert_eq!(d[0].token, "CUDA0");
+        assert_eq!(d[0].backend, Backend::Cuda);
+        assert_eq!(d[0].name, "NVIDIA GeForce RTX 5080 Laptop GPU");
+        assert_eq!(d[0].total_mib, 16302);
+        assert_eq!(d[0].free_mib, 15067);
+        // The winget Vulkan build on the hybrid laptop — the iGPU trap.
+        let vk = "Available devices:\n  Vulkan0: AMD Radeon(TM) 890M Graphics (16276 MiB, 15462 MiB free)\n";
+        let d = parse_list_devices(vk);
+        assert_eq!(d[0].backend, Backend::Vulkan);
+        assert_eq!(d[0].name, "AMD Radeon(TM) 890M Graphics");
+    }
+
+    #[test]
+    fn select_device_prefers_discrete_cuda_over_igpu_vulkan() {
+        // A hybrid where a multi-backend build sees BOTH: must pick the CUDA dGPU, never the Vulkan iGPU.
+        let devs = vec![
+            Device {
+                token: "Vulkan0".into(),
+                backend: Backend::Vulkan,
+                name: "AMD Radeon 890M".into(),
+                total_mib: 16276,
+                free_mib: 15462,
+            },
+            Device {
+                token: "CUDA0".into(),
+                backend: Backend::Cuda,
+                name: "RTX 5080".into(),
+                total_mib: 16302,
+                free_mib: 15067,
+            },
+        ];
+        assert_eq!(select_device(&devs).unwrap().token, "CUDA0");
+        // Two CUDA devices → the higher-VRAM one.
+        let two = vec![
+            Device {
+                token: "CUDA0".into(),
+                backend: Backend::Cuda,
+                name: "A".into(),
+                total_mib: 8192,
+                free_mib: 8000,
+            },
+            Device {
+                token: "CUDA1".into(),
+                backend: Backend::Cuda,
+                name: "B".into(),
+                total_mib: 24576,
+                free_mib: 24000,
+            },
+        ];
+        assert_eq!(select_device(&two).unwrap().token, "CUDA1");
+        assert_eq!(select_device(&[]), None);
+    }
+
+    #[test]
+    fn select_device_picks_discrete_over_igpu_within_vulkan() {
+        // The real post-reboot case: a Vulkan build sees BOTH GPUs, and the AMD iGPU reports MORE
+        // "VRAM" (shared RAM) than the discrete NVIDIA — must still pick the NVIDIA (dedicated).
+        let devs = vec![
+            Device {
+                token: "Vulkan0".into(),
+                backend: Backend::Vulkan,
+                name: "AMD Radeon(TM) 890M Graphics".into(),
+                total_mib: 16276,
+                free_mib: 15462,
+            },
+            Device {
+                token: "Vulkan1".into(),
+                backend: Backend::Vulkan,
+                name: "NVIDIA GeForce RTX 5080 Laptop GPU".into(),
+                total_mib: 16003,
+                free_mib: 15235,
+            },
+        ];
+        assert_eq!(select_device(&devs).unwrap().token, "Vulkan1");
+        assert_eq!(
+            name_discreteness_rank("NVIDIA GeForce RTX 5080 Laptop GPU"),
+            2
+        );
+        assert_eq!(name_discreteness_rank("AMD Radeon(TM) 890M Graphics"), 0);
+        assert_eq!(name_discreteness_rank("Intel(R) UHD Graphics"), 0);
+        assert_eq!(name_discreteness_rank("AMD Radeon RX 7900 XTX"), 2);
+    }
+
+    #[test]
+    fn gpu_serve_args_pins_the_device() {
+        let cuda = Device {
+            token: "CUDA0".into(),
+            backend: Backend::Cuda,
+            name: "x".into(),
+            total_mib: 16302,
+            free_mib: 15067,
+        };
+        assert_eq!(
+            gpu_serve_args(Some(&cuda)),
+            vec!["-ngl", "99", "-dev", "CUDA0"]
+        );
+        let metal = Device {
+            token: "Metal0".into(),
+            backend: Backend::Metal,
+            name: "m".into(),
+            total_mib: 0,
+            free_mib: 0,
+        };
+        assert_eq!(gpu_serve_args(Some(&metal)), vec!["-ngl", "99"]); // Metal: no -dev
+        assert!(gpu_serve_args(None).is_empty()); // CPU-only: no GPU flags
+    }
+
+    // ─── ensure_runtime: the pure pick logic ─────────────────────────────────────────────────────
+
+    /// The REAL asset list of release b10064 (captured 2026-07-17), so the pick table is tested
+    /// against what the release actually ships, not what we hope it ships.
+    const B10064: [&str; 25] = [
+        "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "cudart-llama-bin-win-cuda-13.3-x64.zip",
+        "llama-b10064-bin-android-arm64.tar.gz",
+        "llama-b10064-bin-macos-arm64.tar.gz",
+        "llama-b10064-bin-macos-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-arm64.tar.gz",
+        "llama-b10064-bin-ubuntu-openvino-2026.2.1-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-rocm-7.2-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-s390x.tar.gz",
+        "llama-b10064-bin-ubuntu-sycl-fp16-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-sycl-fp32-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-vulkan-arm64.tar.gz",
+        "llama-b10064-bin-ubuntu-vulkan-x64.tar.gz",
+        "llama-b10064-bin-ubuntu-x64.tar.gz",
+        "llama-b10064-bin-win-cpu-arm64.zip",
+        "llama-b10064-bin-win-cpu-x64.zip",
+        "llama-b10064-bin-win-cuda-12.4-x64.zip",
+        "llama-b10064-bin-win-cuda-13.3-x64.zip",
+        "llama-b10064-bin-win-hip-radeon-x64.zip",
+        "llama-b10064-bin-win-opencl-adreno-arm64.zip",
+        "llama-b10064-bin-win-openvino-2026.2.1-x64.zip",
+        "llama-b10064-bin-win-sycl-x64.zip",
+        "llama-b10064-bin-win-vulkan-x64.zip",
+        "llama-b10064-ui.tar.gz",
+        "llama-b10064-xcframework.zip",
+    ];
+
+    fn gpu_named(name: &str) -> GpuInfo {
+        GpuInfo {
+            name: name.into(),
+            vram_gb: 16.0,
+            unified: false,
+        }
+    }
+
+    #[test]
+    fn vendors_classify_by_name() {
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("NVIDIA GeForce RTX 5080 Laptop GPU"))),
+            GpuVendor::Nvidia
+        );
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("AMD Radeon RX 7900 XTX"))),
+            GpuVendor::Amd
+        );
+        assert_eq!(
+            gpu_vendor(Some(&gpu_named("Intel(R) Arc(TM) A770 Graphics"))),
+            GpuVendor::Intel
+        );
+        let apple = GpuInfo {
+            name: "Apple M3 Max".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        assert_eq!(gpu_vendor(Some(&apple)), GpuVendor::Apple);
+        assert_eq!(gpu_vendor(None), GpuVendor::None);
+    }
+
+    #[test]
+    fn cuda_major_follows_the_card_generation() {
+        // Blackwell (RTX 50-series, RTX PRO) exists only in CUDA 13; Pascal exists only in ≤ 12.
+        assert!(nvidia_wants_cuda13("NVIDIA GeForce RTX 5080 Laptop GPU"));
+        assert!(nvidia_wants_cuda13("NVIDIA RTX PRO 6000 Blackwell"));
+        assert!(!nvidia_wants_cuda13("NVIDIA GeForce RTX 4090"));
+        assert!(!nvidia_wants_cuda13("NVIDIA GeForce GTX 1080 Ti"));
+        assert!(!nvidia_wants_cuda13("Tesla V100-SXM2-16GB"));
+        // The Ada laptop-workstation "RTX 500" is < 5000 → 12; "RTX 5000 Ada" ≥ 5000 → 13, and
+        // CUDA 13 kept Ada, so both roads are safe.
+        assert!(!nvidia_wants_cuda13(
+            "NVIDIA RTX 500 Ada Generation Laptop GPU"
+        ));
+        assert!(nvidia_wants_cuda13("NVIDIA RTX 5000 Ada Generation"));
+    }
+
+    #[test]
+    fn windows_nvidia_gets_cuda_plus_cudart() {
+        // A Blackwell card: the CUDA 13 build + its version-matched cudart bundle.
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("NVIDIA GeForce RTX 5080 Laptop GPU")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cuda-13.3-x64.zip");
+        assert_eq!(
+            p.companion.as_deref(),
+            Some("cudart-llama-bin-win-cuda-13.3-x64.zip")
+        );
+        // An Ada card: CUDA 12 line, 12-matched cudart.
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("NVIDIA GeForce RTX 4070")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cuda-12.4-x64.zip");
+        assert_eq!(
+            p.companion.as_deref(),
+            Some("cudart-llama-bin-win-cuda-12.4-x64.zip")
+        );
+    }
+
+    #[test]
+    fn windows_amd_and_intel_get_vulkan_not_hip_or_sycl() {
+        for name in ["AMD Radeon RX 7800 XT", "Intel(R) Arc(TM) B580"] {
+            let p = pick_runtime_asset_for(
+                TargetOs::Windows,
+                TargetArch::X64,
+                &B10064,
+                Some(&gpu_named(name)),
+            )
+            .unwrap();
+            assert_eq!(p.asset, "llama-b10064-bin-win-vulkan-x64.zip", "{name}");
+            assert_eq!(p.companion, None);
+        }
+    }
+
+    #[test]
+    fn no_gpu_means_cpu_never_vulkan() {
+        let p = pick_runtime_asset_for(TargetOs::Windows, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-win-cpu-x64.zip");
+        let p = pick_runtime_asset_for(TargetOs::Linux, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-ubuntu-x64.tar.gz");
+    }
+
+    #[test]
+    fn macs_pick_by_arch() {
+        let apple = GpuInfo {
+            name: "Apple M2".into(),
+            vram_gb: 0.0,
+            unified: true,
+        };
+        let p = pick_runtime_asset_for(TargetOs::Mac, TargetArch::Arm64, &B10064, Some(&apple))
+            .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-macos-arm64.tar.gz");
+        let p = pick_runtime_asset_for(TargetOs::Mac, TargetArch::X64, &B10064, None).unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-macos-x64.tar.gz");
+    }
+
+    #[test]
+    fn linux_gpu_gets_vulkan() {
+        let p = pick_runtime_asset_for(
+            TargetOs::Linux,
+            TargetArch::X64,
+            &B10064,
+            Some(&gpu_named("AMD Radeon RX 6700 XT")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b10064-bin-ubuntu-vulkan-x64.tar.gz");
+    }
+
+    #[test]
+    fn cuda_minor_versions_compare_numerically() {
+        // A hypothetical 12.10 must beat 12.4 — lexicographic comparison would invert this.
+        let names = [
+            "llama-b1-bin-win-cuda-12.4-x64.zip",
+            "llama-b1-bin-win-cuda-12.10-x64.zip",
+        ];
+        let (asset, ver) = best_cuda_asset(&names, "12").unwrap();
+        assert_eq!(asset, "llama-b1-bin-win-cuda-12.10-x64.zip");
+        assert_eq!(ver, "12.10");
+    }
+
+    #[test]
+    fn a_release_without_cuda_falls_back_to_vulkan() {
+        let names = [
+            "llama-b1-bin-win-vulkan-x64.zip",
+            "llama-b1-bin-win-cpu-x64.zip",
+        ];
+        let p = pick_runtime_asset_for(
+            TargetOs::Windows,
+            TargetArch::X64,
+            &names,
+            Some(&gpu_named("NVIDIA GeForce RTX 4090")),
+        )
+        .unwrap();
+        assert_eq!(p.asset, "llama-b1-bin-win-vulkan-x64.zip");
+    }
+
+    #[test]
+    fn release_json_parses_tag_and_assets() {
+        let json = r#"{
+            "tag_name": "b10064",
+            "assets": [
+                {"name": "llama-b10064-bin-win-cpu-x64.zip",
+                 "browser_download_url": "https://example.invalid/a.zip",
+                 "size": 18000000},
+                {"name": "no-url-asset"}
+            ]
+        }"#;
+        let r = parse_runtime_release(json).unwrap();
+        assert_eq!(r.tag, "b10064");
+        assert_eq!(r.assets.len(), 1, "an asset without a URL is skipped");
+        assert_eq!(r.assets[0].name, "llama-b10064-bin-win-cpu-x64.zip");
+        assert_eq!(r.assets[0].size, 18_000_000);
+        assert!(parse_runtime_release("not json").is_none());
+    }
+
+    #[test]
+    fn an_oversized_pick_serves_cpu_side_instead_of_ooming_the_card() {
+        // The audit's evaluator shape: big RAM, small card. GPU budget 6.4 GB (8 GB card × 0.8),
+        // RAM budget 25.6 GB (32 GB × 0.8). No quant fits the card.
+        let files = vec![
+            GgufOption {
+                quant: "Q6_K".into(),
+                size_gb: 16.0,
+            },
+            GgufOption {
+                quant: "Q4_K_M".into(),
+                size_gb: 12.0,
+            },
+            GgufOption {
+                quant: "Q2_K".into(),
+                size_gb: 9.0,
+            },
+        ];
+        // Old behavior: fall back to the SMALLEST quant (Q2_K, worst quality) and still force
+        // -ngl 99 → allocate-to-death. New behavior: re-fit against RAM, serve CPU-side, and get
+        // the BETTER quant while we're at it.
+        let (best, fits_gpu) = fit_quant(&files, 6.4, 25.6).unwrap();
+        assert!(!fits_gpu, "nothing fits the card → no GPU pin");
+        assert_eq!(best.quant, "Q6_K", "RAM re-fit beats fall-back-to-smallest");
+        // A card that CAN hold a quant keeps the full-offload fast path.
+        let (best, fits_gpu) = fit_quant(&files, 12.8, 25.6).unwrap();
+        assert!(fits_gpu);
+        assert_eq!(
+            best.quant, "Q4_K_M",
+            "highest quality within the card's pool"
+        );
+        // And no GPU pin is ever asserted for a quant the RAM can't hold either (tiny box).
+        let (_, fits_gpu) = fit_quant(&files, 2.0, 40.0).unwrap();
+        assert!(!fits_gpu);
+    }
+
+    #[test]
+    fn the_curated_list_is_runnable_only_and_max_is_a_real_upgrade() {
+        // The 8 GB floor box: exactly one model fits → no Max option (it would repeat Stable).
+        let floor = spec(8.0, 4, Some(50.0), None);
+        let runnable = runnable_models(&floor);
+        assert_eq!(runnable.len(), 1, "only the guarded 4B fits 8 GB");
+        assert_eq!(
+            max_runnable(&floor),
+            None,
+            "Max = Stable → no second option"
+        );
+        // A big-RAM machine gated to Medium (no GPU): Stable is the Medium pick, Max is the biggest
+        // model RAM can hold — an above-tier trade the seeker may choose, never be forced into.
+        let big = spec(64.0, 12, Some(200.0), None);
+        let stable = match recommend_for(&big) {
+            Recommendation::Local(p) => p,
+            other => panic!("expected Local, got {other:?}"),
+        };
+        let max = max_runnable(&big).expect("a 64 GB machine holds more than its tier pick");
+        assert!(max.download_gb > stable.download_gb);
+        assert!(
+            runnable_models(&big).iter().any(|m| m.name == max.name),
+            "Max comes from the runnable list"
+        );
+        // Below the floor: nothing to pick from, and no Max — the dropdown must have no rows.
+        let sub = spec(4.0, 2, None, None);
+        assert!(runnable_models(&sub).is_empty());
+        assert_eq!(max_runnable(&sub), None);
+    }
+
+    #[test]
+    fn find_bin_handles_flat_and_nested_layouts() {
+        // The Windows zips are flat; the macOS/Linux tarballs nest `llama-bNNNNN/`. Both must
+        // resolve, and the depth cap must hold.
+        let root = std::env::temp_dir().join(format!("ziqpu-find-bin-{}", std::process::id()));
+        let nested = root
+            .join("llama-b10064-bin-macos-arm64")
+            .join("llama-b10064");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("llama-server"), b"stub").unwrap();
+        let found = find_bin_under(&root, "llama-server", 3).expect("nested layout resolves");
+        assert!(
+            found.ends_with("llama-b10064/llama-server")
+                || found.ends_with("llama-b10064\\llama-server")
+        );
+        // Too deep for the cap → not found (the cap is what keeps a bad root from a disk crawl).
+        let deep = root.join("a").join("b").join("c").join("d");
+        std::fs::create_dir_all(&deep).unwrap();
+        std::fs::write(deep.join("other-bin"), b"stub").unwrap();
+        assert_eq!(find_bin_under(&root, "other-bin", 3), None);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

@@ -10,7 +10,8 @@ use dioxus::prelude::*;
 use futures_util::StreamExt;
 
 use crate::components::{
-    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, Setup,
+    Briefing, Checkpoint, Guardrail, Legend, Onboarding, Ranked, SettingsButton, SettingsPage,
+    Setup,
 };
 use crate::settings::{dev_build_default, save_dev_build};
 use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars, AppCtx, Phase};
@@ -20,6 +21,11 @@ use crate::state::{build_session, ensure_local_readings, next_mode, seeded_stars
 /// `cargo build --release` exe would 404 the linked stylesheet and render unstyled. Inlining makes
 /// the brand always apply.
 const CSS: &str = include_str!("../assets/ziqpu.css");
+
+/// A tiny inline SVG favicon (gold sparkle on bitumen — the "ledger of the sky" mark), base64'd into
+/// a data URI. Linked into the document head below so the desktop webview stops requesting the
+/// nonexistent `/favicon.ico` (a stray red 404 in the console) and shows a real window icon instead.
+const FAVICON: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzJhMjAxNycvPjxwYXRoIGQ9J00xNiAzLjUgTDE4LjIgMTMuOCBMMjguNSAxNiBMMTguMiAxOC4yIEwxNiAyOC41IEwxMy44IDE4LjIgTDMuNSAxNiBMMTMuOCAxMy44IFonIGZpbGw9JyNjOWE0NGEnLz48L3N2Zz4=";
 
 /// The real 4-beat sequence, in order. Rendered as the `.steps` rail with `aria-current` on the
 /// active phase (the guardrail is a *persistent* surface, not a beat, so it is not a step here).
@@ -48,6 +54,9 @@ pub fn App() -> Element {
     // The Raw → Local → Live display mode. Pulled out here (rather than inline in the `AppCtx`
     // literal) so the header button can both read it for its label and cycle it on click. Default
     // Live. The Local-mode reading store + its off-thread fill live alongside it.
+    // Settings is a full page rather than an overlay, so its open-state lives here at the root and
+    // swaps the main view — see `components::settings` for why an overlay kept fighting the owner.
+    let mut settings_open = use_signal(|| false);
     let mut mode = use_signal(|| ReadMode::Live);
     let mut local_readings = use_signal(HashMap::<String, String>::new);
     let mut local_sources = use_signal(HashMap::<String, Option<String>>::new);
@@ -290,7 +299,20 @@ pub fn App() -> Element {
             .flatten()
             .next()
             .cloned()
-            .unwrap_or_else(|| "hosted model".to_string()),
+            // No reading has run, so NO model has been contacted — we cannot name one. This used to
+            // fall back to the words "hosted model", which on a fresh install rendered
+            // "✦ live · hosted model" in the header while every card underneath said
+            // "○ offline · template": the pill asserted a live hosted model that did not exist.
+            // Ask the environment what Live would actually resolve to instead of inventing it.
+            .unwrap_or_else(|| {
+                let resolved = agents::active_source_label();
+                match resolved.strip_prefix("Live · ") {
+                    // A provider IS configured; name it, even though we haven't called it yet.
+                    Some(source) => source.to_string(),
+                    // Nothing configured: Live falls through to the template, so say so.
+                    None => "no key — template".to_string(),
+                }
+            }),
     };
 
     // The fixed, seeded star field drawn behind the whole app — identical every launch.
@@ -302,6 +324,9 @@ pub fn App() -> Element {
     };
 
     rsx! {
+        // Favicon (inline data URI) — stops the webview's /favicon.ico 404 and gives a real icon.
+        document::Link { rel: "icon", href: FAVICON }
+
         // Inlined stylesheet, baked into the binary — see `CSS` above for why this isn't `asset!()`.
         style { dangerous_inner_html: CSS }
 
@@ -403,9 +428,9 @@ pub fn App() -> Element {
                         },
                         "{dev_glyph} {dev_word}"
                     }
-                    // In-app credentials: paste an OpenRouter key (stored locally) for live readings
-                    // without touching env vars. Opens a masked settings modal.
-                    SettingsButton {}
+                    // In-app credentials + model choice. Opens the Settings PAGE (rendered at the
+                    // app root below) rather than an overlay born inside this header cluster.
+                    SettingsButton { on_open: move |_| settings_open.set(true) }
                     button {
                         class: "theme",
                         r#type: "button",
@@ -421,6 +446,14 @@ pub fn App() -> Element {
                     }
                 }
             }
+
+            // Settings takes over the view while it's open — its own tab, in effect. The reading
+            // flow's steps rail hides with it so there's exactly one thing on screen and nothing
+            // overlapping anything. Every signal below stays alive; "← done" returns to the same
+            // phase, mid-reading and all.
+            if *settings_open.read() {
+                SettingsPage { on_close: move |_| settings_open.set(false) }
+            } else {
 
             nav { class: "steps", role: "tablist", "aria-label": "Reading flow",
                 {STEPS.iter().enumerate().map(|(i, label)| {
@@ -487,6 +520,15 @@ pub fn App() -> Element {
             // The dictionary — a self-contained, always-available collapsible glossary of the
             // planets, aspects, flowing/friction, and the fit bands the engine speaks in.
             Legend {}
+
+            } // end: reading flow (hidden while Settings has the view)
+
+            // The disclaimer — said ONCE, pinned to the bottom and always on screen, instead of
+            // closing every reading (owner's "say it once, always visible" ask). The no-advice
+            // guardrail stays enforced in the loop; this is the standing frame for what a reading is.
+            div { class: "disclaimer-bar", role: "note",
+                "A symbolic lens for reflection — measured, not fate, and never financial advice."
+            }
         }
         }
     }
