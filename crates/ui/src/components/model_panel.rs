@@ -80,6 +80,66 @@ fn clear_recorded_pid() {
     }
 }
 
+/// The single **active local model** — what we last served, persisted beside the PID so a restart
+/// can reconnect to it (or offer to re-serve it) instead of forgetting. One file, one model: this IS
+/// the single-active record. Written **only on a successful serve**; cleared whenever we stop the
+/// server. It carries the whole resolved plan so a re-serve needs no re-benchmark — crucially
+/// including `fits_gpu`, so the anti-OOM CPU-side decision survives the restart too.
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Debug)]
+struct ActiveLocal {
+    repo: String,
+    quant: String,
+    size_gb: f64,
+    fits_gpu: bool,
+    port: u16,
+}
+
+impl ActiveLocal {
+    fn from_plan(plan: &model::ServePlan, port: u16) -> Self {
+        Self {
+            repo: plan.repo.clone(),
+            quant: plan.quant.clone(),
+            size_gb: plan.size_gb,
+            fits_gpu: plan.fits_gpu,
+            port,
+        }
+    }
+    /// Reconstruct the resolved plan for a re-serve — no benchmark, no re-fit.
+    fn to_plan(&self) -> model::ServePlan {
+        model::ServePlan {
+            repo: self.repo.clone(),
+            quant: self.quant.clone(),
+            size_gb: self.size_gb,
+            fits_gpu: self.fits_gpu,
+        }
+    }
+    fn label(&self) -> String {
+        format!("{}:{}", self.repo, self.quant)
+    }
+}
+
+fn active_local_path() -> Option<std::path::PathBuf> {
+    Some(crate::profile::data_dir()?.join("active_local.json"))
+}
+
+fn save_active_local(a: &ActiveLocal) {
+    if let (Some(path), Ok(json)) = (active_local_path(), serde_json::to_string(a)) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+fn load_active_local() -> Option<ActiveLocal> {
+    let s = std::fs::read_to_string(active_local_path()?).ok()?;
+    serde_json::from_str(&s).ok()
+}
+
+/// Forget the active local model (its server was stopped, or we're serving a different one).
+fn clear_active_local() {
+    if let Some(path) = active_local_path() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
 /// Stop **the server we started** before starting another — SINGLE-ACTIVE serve.
 ///
 /// Each "serve" click spawns a detached server; without this they STACK (observed: 4 copies of a
@@ -140,6 +200,9 @@ fn stop_our_server() {
         }
     }
     clear_recorded_pid();
+    // The model we were serving is no longer active — a new serve overwrites this on success, so
+    // clearing here keeps the "single active model" record honest (one file, one model, or none).
+    clear_active_local();
 }
 
 /// The phases of a local serve, streamed to the UI so a long, silent operation (an 11 GB first-run
@@ -198,6 +261,159 @@ fn parse_download_pct(line: &str) -> Option<u8> {
 fn port_ready(port: u16) -> bool {
     agents::llm_http::probe_body(&format!("http://127.0.0.1:{port}/health"), 3)
         .is_some_and(|body| body.contains("\"ok\""))
+}
+
+/// Spawn `llama-server` for a resolved `plan` on a free port, stream progress via `send`, and — once
+/// `/health` reports the model resident — point Ziqpu's Local mode at it and persist it as the single
+/// active model.
+///
+/// Shared by the benchmark serve and the one-click re-serve of a remembered model, so both get the
+/// same anti-iGPU device pin, the same anti-OOM CPU-side fallback (`plan.fits_gpu`), the same
+/// single-active stop-before-start, the same detach-on-success, AND the same restart record. Runs on
+/// the caller's worker thread (it blocks in the poll loop); `send` is a cheap `Send + Clone` progress
+/// sink (a closure over the coroutine channel), so the one stderr reader thread can clone it.
+fn serve_target<S>(bin: std::path::PathBuf, plan: model::ServePlan, send: S)
+where
+    S: Fn(ServeProgress) + Clone + Send + 'static,
+{
+    // Which GPU will this build actually serve on? Pin the discrete device so we never land on the
+    // integrated GPU (the OOM saga). No pin when the fitted quant is bigger than the card's pool
+    // (`fits_gpu == false`): forcing `-ngl 99` there allocates itself to death after a multi-GB
+    // download — CPU-side, RAM-fitted, is the honest serve, and the runtime line says so.
+    let device = if plan.fits_gpu {
+        select_device(&probe_devices(&bin))
+    } else {
+        None
+    };
+    let runtime_line = match &device {
+        Some(d) => format!("{} → {}", d.backend.label(), d.name),
+        None if !plan.fits_gpu => "CPU (model larger than the GPU's memory — slower)".to_string(),
+        None => "CPU (no GPU visible to this build)".to_string(),
+    };
+    let hf = format!("{}:{}", plan.repo, plan.quant);
+    let port = free_local_port(1234);
+    let mut args: Vec<String> = vec![
+        "-hf".into(),
+        hf.clone(),
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string(),
+        // Cap the context so the KV cache fits alongside the weights (llama-server otherwise sizes it
+        // to the model's full 32k+ trained window, several GB of KV).
+        "-c".into(),
+        model::SERVE_CTX_SIZE.to_string(),
+        // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
+        "-lv".into(),
+        "1".into(),
+    ];
+    // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
+    args.extend(gpu_serve_args(device.as_ref()));
+
+    // SINGLE-ACTIVE: stop OUR prior server (and clear its record) first so serves don't stack (the
+    // machine-hang bug), then give the OS a moment to release its VRAM before we load the new one.
+    stop_our_server();
+    std::thread::sleep(std::time::Duration::from_millis(700));
+
+    // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
+    let mut child = match crate::no_window(std::process::Command::new(&bin))
+        .args(&args)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        // Claim the PID immediately — the only handle that survives us (we detach on success), so the
+        // next launch can stop a server we left running even if we're closed mid-load.
+        Ok(c) => {
+            record_our_server(c.id());
+            c
+        }
+        Err(e) => {
+            send(ServeProgress::Failed(format!(
+                "Failed to start llama-server: {e}"
+            )));
+            return;
+        }
+    };
+
+    // Reader thread: parse `Downloading … NN%` from stderr. llama-server rewrites the % on ONE line
+    // with a carriage return, so split on BOTH \r and \n. `last_pct` (MAX = none yet) lets the poll
+    // loop tell "downloading" from "loading" (a cached model prints no download line).
+    use std::sync::atomic::{AtomicU8, Ordering};
+    let last_pct = std::sync::Arc::new(AtomicU8::new(u8::MAX));
+    if let Some(mut stderr) = child.stderr.take() {
+        let send2 = send.clone();
+        let lp = last_pct.clone();
+        std::thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            let mut acc: Vec<u8> = Vec::new();
+            let mut last_sent = u8::MAX;
+            while let Ok(n) = stderr.read(&mut buf) {
+                if n == 0 {
+                    break; // EOF — server stopped logging (or exited)
+                }
+                for &b in &buf[..n] {
+                    if b == b'\r' || b == b'\n' {
+                        let line = String::from_utf8_lossy(&acc);
+                        if let Some(pct) = parse_download_pct(&line) {
+                            lp.store(pct, Ordering::Relaxed);
+                            if pct != last_sent {
+                                last_sent = pct;
+                                send2(ServeProgress::Downloading(pct));
+                            }
+                        }
+                        acc.clear();
+                    } else {
+                        acc.push(b);
+                    }
+                }
+            }
+        });
+    }
+
+    // Poll loop: watch for early exit, announce Loading once the download is done (or right away for a
+    // cached model), and flip to Serving — persisting the active-model record — when /health reports
+    // the model resident.
+    let started = std::time::Instant::now();
+    let mut announced_loading = false;
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            // Dead → the recorded PID now names nothing (and the OS may recycle it). Drop the claim.
+            clear_recorded_pid();
+            send(ServeProgress::Failed(format!(
+                "llama-server exited ({status}) — usually the port is busy or the download failed. Check the terminal."
+            )));
+            return;
+        }
+        if port_ready(port) {
+            // Point Local mode here + remember this as the single active model (so a restart
+            // reconnects or offers a re-serve). Dropping `child` now detaches the server.
+            std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
+            save_active_local(&ActiveLocal::from_plan(&plan, port));
+            send(ServeProgress::Serving(format!(
+                "Serving {hf} (~{:.0} GB) on :{port} · {runtime_line}. Switch the header toggle to Local.",
+                plan.size_gb
+            )));
+            return;
+        }
+        let pct = last_pct.load(Ordering::Relaxed);
+        let downloading = pct != u8::MAX && pct < 100;
+        if !downloading
+            && !announced_loading
+            && (pct == 100 || started.elapsed() > std::time::Duration::from_secs(3))
+        {
+            announced_loading = true;
+            send(ServeProgress::Loading);
+        }
+        if started.elapsed() > std::time::Duration::from_secs(1800) {
+            send(ServeProgress::Failed(
+                "Timed out waiting for the model — check the terminal.".into(),
+            ));
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(600));
+    }
 }
 
 #[component]
@@ -273,6 +489,29 @@ pub fn ModelPanel() -> Element {
             }
             serve_status.set(Some(p));
         }
+    });
+
+    // The single active local model, remembered across restarts (`active_local.json`). `remembered`
+    // is what we last served; `remembered_live` is whether its server is still up on its port. Loaded
+    // + probed once on mount, off-thread (the probe is a network call).
+    let mut remembered = use_signal(|| None::<ActiveLocal>);
+    let mut remembered_live = use_signal(|| false);
+    let mount_probe = use_coroutine(
+        move |mut rx: UnboundedReceiver<(Option<ActiveLocal>, bool)>| async move {
+            while let Some((rec, live)) = rx.next().await {
+                remembered.set(rec);
+                remembered_live.set(live);
+            }
+        },
+    );
+    // Fire the load+probe exactly once (use_hook runs on the first render only), off-thread.
+    use_hook(|| {
+        let tx = mount_probe.tx();
+        std::thread::spawn(move || {
+            let rec = load_active_local();
+            let live = rec.as_ref().is_some_and(|r| port_ready(r.port));
+            let _ = tx.unbounded_send((rec, live));
+        });
     });
 
     let run_bench = move |_| {
@@ -412,153 +651,66 @@ pub fn ModelPanel() -> Element {
                 ));
                 return;
             };
-            // Which GPU will this build actually serve on? Pin the discrete device so we never land
-            // on the integrated GPU (the OOM saga). Empty args on a CPU-only build/machine — and NO
-            // pin when the fitted quant is bigger than the card's pool (a Max pick on a small card):
-            // forcing `-ngl 99` there allocates itself to death after a multi-GB download. CPU-side,
-            // RAM-fitted, is the honest serve for that shape, and the runtime line says so.
-            let device = if plan.fits_gpu {
-                select_device(&probe_devices(&bin))
-            } else {
-                None
-            };
-            let runtime_line = match &device {
-                Some(d) => format!("{} → {}", d.backend.label(), d.name),
-                None if !plan.fits_gpu => {
-                    "CPU (model larger than the GPU's memory — slower)".to_string()
-                }
-                None => "CPU (no GPU visible to this build)".to_string(),
-            };
-            let hf = format!("{}:{}", plan.repo, plan.quant);
-            let port = free_local_port(1234);
-            let mut args: Vec<String> = vec![
-                "-hf".into(),
-                hf.clone(),
-                "--host".into(),
-                "127.0.0.1".into(),
-                "--port".into(),
-                port.to_string(),
-                // Cap the context so the KV cache fits alongside the weights — llama-server otherwise
-                // sizes it to the model's full trained context (32k+), several GB of KV. SERVE_CTX_SIZE.
-                "-c".into(),
-                model::SERVE_CTX_SIZE.to_string(),
-                // Quieter load logs (llama.cpp defaults to verbosity 3) — keeps errors.
-                "-lv".into(),
-                "1".into(),
-            ];
-            // Full GPU offload + explicit device pin (`-ngl 99 -dev CUDA0`) — the anti-iGPU-trap flags.
-            args.extend(gpu_serve_args(device.as_ref()));
+            // Hand off to the shared serve machinery (device pin, anti-OOM CPU fallback, single-
+            // active stop-before-start, progress streaming, and — on success — the active-model
+            // record). Same code the one-click re-serve uses.
+            serve_target(bin, plan, move |p| {
+                let _ = tx.unbounded_send(p);
+            });
+        });
+    };
 
-            // SINGLE-ACTIVE: stop OUR prior server first so serves don't stack (the machine-hang
-            // bug), then give the OS a moment to release its VRAM + committed memory before we load
-            // the new one onto the same GPU. A server someone else started is left alone — it isn't
-            // ours to kill, and `free_local_port` already routes around it.
-            stop_our_server();
-            std::thread::sleep(std::time::Duration::from_millis(700));
-
-            // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
-            let mut child = match crate::no_window(std::process::Command::new(&bin))
-                .args(&args)
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-            {
-                // Claim it immediately — before the download, before the load, before any await.
-                // This PID is the ONLY handle that survives us: we detach the child on success, so
-                // if the app is closed (or crashes) between here and then, the record is what lets
-                // the next launch stop the server it left running.
-                Ok(c) => {
-                    record_our_server(c.id());
-                    c
-                }
-                Err(e) => {
-                    let _ = tx.unbounded_send(ServeProgress::Failed(format!(
-                        "Failed to start llama-server: {e}"
-                    )));
-                    return;
-                }
-            };
-
-            // Reader thread: parse `Downloading … NN%` from stderr. llama-server rewrites the % on ONE
-            // line with a carriage return (not newlines), so split on BOTH \r and \n or we'd only see
-            // the number after the download finished. `last_pct` (MAX = none yet) lets the poll loop
-            // below tell "downloading" from "loading" (a cached model prints no download line).
-            use std::sync::atomic::{AtomicU8, Ordering};
-            let last_pct = std::sync::Arc::new(AtomicU8::new(u8::MAX));
-            if let Some(mut stderr) = child.stderr.take() {
-                let tx2 = tx.clone();
-                let lp = last_pct.clone();
-                std::thread::spawn(move || {
-                    use std::io::Read;
-                    let mut buf = [0u8; 4096];
-                    let mut acc: Vec<u8> = Vec::new();
-                    let mut last_sent = u8::MAX;
-                    while let Ok(n) = stderr.read(&mut buf) {
-                        if n == 0 {
-                            break; // EOF — server stopped logging (or exited)
-                        }
-                        for &b in &buf[..n] {
-                            if b == b'\r' || b == b'\n' {
-                                let line = String::from_utf8_lossy(&acc);
-                                if let Some(pct) = parse_download_pct(&line) {
-                                    lp.store(pct, Ordering::Relaxed);
-                                    if pct != last_sent {
-                                        last_sent = pct;
-                                        let _ = tx2.unbounded_send(ServeProgress::Downloading(pct));
-                                    }
-                                }
-                                acc.clear();
-                            } else {
-                                acc.push(b);
-                            }
+    // Re-serve the REMEMBERED model — no benchmark, no re-pick. The record carries the whole resolved
+    // plan (repo, quant, size, fits_gpu), so this reconstructs it and hands it straight to the shared
+    // serve machinery, installing llama.cpp first if the runtime is gone (a moved profile / fresh box).
+    let run_reserve = move |plan: ServePlan| {
+        serving.set(true);
+        serve_status.set(Some(ServeProgress::Preparing));
+        let tx = server_co.tx();
+        std::thread::spawn(move || {
+            // Still up on some port? Reconnect instead of reloading.
+            if let Some(port) = running_server_port() {
+                std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
+                let _ = tx.unbounded_send(ServeProgress::Serving(format!(
+                    "Connected — model already loaded on :{port}. Switch the header toggle to Local."
+                )));
+                return;
+            }
+            let bin = match resolve_llama_server() {
+                Some(bin) => bin,
+                None => {
+                    let txp = tx.clone();
+                    match ensure_runtime(&mut |line| {
+                        let _ = txp.unbounded_send(ServeProgress::Installing(line.to_string()));
+                    }) {
+                        Ok(bin) => bin,
+                        Err(why) => {
+                            let _ = tx.unbounded_send(ServeProgress::Failed(format!(
+                                "Couldn't install llama.cpp: {why}. Manual fallback: {}.",
+                                llama_install_hint()
+                            )));
+                            return;
                         }
                     }
-                });
-            }
+                }
+            };
+            serve_target(bin, plan, move |p| {
+                let _ = tx.unbounded_send(p);
+            });
+        });
+    };
 
-            // Poll loop: watch for early exit, announce Loading once the download is done (or right
-            // away for a cached model), and flip to Serving when /health reports the model resident.
-            let started = std::time::Instant::now();
-            let mut announced_loading = false;
-            loop {
-                if let Ok(Some(status)) = child.try_wait() {
-                    // It's dead, so the recorded PID now names nothing — and the OS is free to
-                    // recycle it onto an unrelated process. Drop the claim rather than leave a
-                    // stale one pointing at a stranger. (The timeout path below deliberately keeps
-                    // its record: a hung server is still running, and still ours to stop.)
-                    clear_recorded_pid();
-                    let _ = tx.unbounded_send(ServeProgress::Failed(format!(
-                        "llama-server exited ({status}) — usually the port is busy or the download failed. Check the terminal."
-                    )));
-                    return;
-                }
-                if port_ready(port) {
-                    // Point Local mode here and report success. Dropping `child` now detaches the
-                    // server (Child::drop never kills the process) so it keeps serving.
-                    std::env::set_var("ZIQPU_LLM_URL", format!("http://127.0.0.1:{port}/v1"));
-                    let _ = tx.unbounded_send(ServeProgress::Serving(format!(
-                        "Serving {hf} (~{:.0} GB) on :{port} · {runtime_line}. Switch the header toggle to Local.",
-                        plan.size_gb
-                    )));
-                    return;
-                }
-                let pct = last_pct.load(Ordering::Relaxed);
-                let downloading = pct != u8::MAX && pct < 100;
-                if !downloading
-                    && !announced_loading
-                    && (pct == 100 || started.elapsed() > std::time::Duration::from_secs(3))
-                {
-                    announced_loading = true;
-                    let _ = tx.unbounded_send(ServeProgress::Loading);
-                }
-                if started.elapsed() > std::time::Duration::from_secs(1800) {
-                    let _ = tx.unbounded_send(ServeProgress::Failed(
-                        "Timed out waiting for the model — check the terminal.".into(),
-                    ));
-                    return;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(600));
-            }
+    // Stop the active local model — free its VRAM/RAM and forget it (owner's "idle sleep" ask, manual
+    // form). Stops only OUR server (never someone else's), clears the record + the reconnect env, and
+    // updates the panel so the remembered chip flips to "re-serve".
+    let run_stop = move |()| {
+        // Take the Send sender on the UI thread — the Coroutine itself is !Send and must not cross
+        // the thread boundary.
+        let tx = mount_probe.tx();
+        std::thread::spawn(move || {
+            stop_our_server(); // stops our PID + clears active_local.json
+            std::env::remove_var("ZIQPU_LLM_URL");
+            let _ = tx.unbounded_send((None, false));
         });
     };
 
@@ -669,6 +821,13 @@ pub fn ModelPanel() -> Element {
             ServeProgress::Serving(line) => (line.clone(), Some(WheatPhase::Done), "ok"),
             ServeProgress::Failed(reason) => (reason.clone(), None, "fail"),
         });
+    // `serve_view` is rendered ONCE at the top of the panel (so a re-serve of a remembered model —
+    // which runs before any benchmark — still shows progress); the is_local block only shows its
+    // button hints when no serve is in flight.
+    let serve_idle = serve_view.is_none();
+    // The remembered single active local model: what we last served + whether its server is still up.
+    let remembered_now = remembered.read().clone();
+    let remembered_live_now = *remembered_live.read();
 
     rsx! {
         div { class: "modelpanel",
@@ -679,6 +838,60 @@ pub fn ModelPanel() -> Element {
                     r#type: "button",
                     onclick: run_bench,
                     if *running.read() { "Measuring…" } else { "Benchmark this machine" }
+                }
+            }
+
+            // The remembered single active local model — persists across restarts. Live → a
+            // "reconnected" chip with a Stop (free the VRAM); dead → a one-click Re-serve of the
+            // exact same model, no re-benchmark. Hidden while a serve is already in flight.
+            if serve_idle {
+                if let Some(rem) = remembered_now.clone() {
+                    if remembered_live_now {
+                        div { class: "modelpanel-active modelpanel-active--live",
+                            span { class: "modelpanel-active-dot" }
+                            span { class: "modelpanel-active-text",
+                                "Local model ready — {rem.label()} on :{rem.port}"
+                            }
+                            button {
+                                class: "settings-reveal",
+                                r#type: "button",
+                                title: "Stop this local model and free its VRAM/RAM",
+                                onclick: move |_| {
+                                    let f = run_stop;
+                                    f(());
+                                },
+                                "stop"
+                            }
+                        }
+                    } else {
+                        div { class: "modelpanel-active",
+                            span { class: "modelpanel-active-text",
+                                "Last local model: {rem.label()} — not running"
+                            }
+                            button {
+                                class: "btn btn--go modelpanel-btn",
+                                r#type: "button",
+                                disabled: serving_now,
+                                onclick: move |_| {
+                                    let plan = rem.to_plan();
+                                    let mut f = run_reserve;
+                                    f(plan);
+                                },
+                                "Re-serve"
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Serve progress (benchmark serve OR re-serve) — shown here at the top so it's visible in
+            // both paths. `None` wheat phase = a failure (carnelian text); `kind` colors the label.
+            if let Some((label, wheat, kind)) = serve_view.clone() {
+                div { class: "modelpanel-serve modelpanel-serve--{kind}",
+                    p { class: "modelpanel-serve-label", "{label}" }
+                    if let Some(phase) = wheat {
+                        WheatLoader { phase }
+                    }
                 }
             }
 
@@ -767,20 +980,17 @@ pub fn ModelPanel() -> Element {
                             "Download & serve locally"
                         }
                     }
-                    if let Some((label, wheat, kind)) = serve_view {
-                        div { class: "modelpanel-serve modelpanel-serve--{kind}",
-                            p { class: "modelpanel-serve-label", "{label}" }
-                            if let Some(phase) = wheat {
-                                WheatLoader { phase }
+                    // Progress renders once at the top of the panel; here we only explain the button
+                    // when no serve is in flight.
+                    if serve_idle {
+                        if srv {
+                            p { class: "settings-hint",
+                                "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."
                             }
-                        }
-                    } else if srv {
-                        p { class: "settings-hint",
-                            "llama.cpp detected. This downloads the fitted quant (first run) and serves it — or run `ziqpu-model serve` in a terminal."
-                        }
-                    } else {
-                        p { class: "settings-hint",
-                            "First serve installs the right llama.cpp build for your GPU automatically (one-time, no admin rights) — or install it yourself: {install_hint}."
+                        } else {
+                            p { class: "settings-hint",
+                                "First serve installs the right llama.cpp build for your GPU automatically (one-time, no admin rights) — or install it yourself: {install_hint}."
+                            }
                         }
                     }
                 }
@@ -846,5 +1056,39 @@ pub fn ModelPanel() -> Element {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The persistence contract: the active-model record survives a JSON round-trip AND reconstructs
+    /// the exact resolved plan — crucially `fits_gpu`, so a re-serve after a restart keeps the
+    /// anti-OOM CPU-side decision instead of forcing a too-big model onto the card again.
+    #[test]
+    fn active_local_round_trips_and_preserves_the_plan() {
+        let plan = model::ServePlan {
+            repo: "unsloth/gpt-oss-20b-GGUF".into(),
+            quant: "Q6_K".into(),
+            size_gb: 11.3,
+            fits_gpu: false,
+        };
+        let a = ActiveLocal::from_plan(&plan, 1237);
+
+        let json = serde_json::to_string(&a).unwrap();
+        let back: ActiveLocal = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, a, "the record must survive a JSON round-trip");
+
+        let p2 = back.to_plan();
+        assert_eq!(p2.repo, plan.repo);
+        assert_eq!(p2.quant, plan.quant);
+        assert_eq!(p2.size_gb, plan.size_gb);
+        assert!(
+            !p2.fits_gpu,
+            "the CPU-side (anti-OOM) decision must survive the restart"
+        );
+        assert_eq!(back.port, 1237);
+        assert_eq!(back.label(), "unsloth/gpt-oss-20b-GGUF:Q6_K");
     }
 }

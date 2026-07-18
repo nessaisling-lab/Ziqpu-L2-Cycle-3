@@ -993,6 +993,23 @@ td.b{color:var(--ink)}
 /* "downloaded" cue — the fitted model is already in the HF cache, so serving only loads it. */
 .modelpanel-cached{display:flex;align-items:center;gap:7px;margin:2px 0 6px;font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--malachite)}
 .modelpanel-cached-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--malachite);box-shadow:0 0 5px color-mix(in srgb,var(--malachite) 55%,transparent)}
+/* The remembered active-local chip: what we last served, persisted across restarts. Live = a
+   malachite "ready" row with a Stop; dead = a quiet row with a one-click Re-serve. */
+.modelpanel-active{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 10px;padding:9px 12px;
+  border-radius:10px;border:1px solid var(--gold-line);
+  background:color-mix(in srgb,var(--parchment) 62%,transparent);
+}
+.modelpanel-active--live{
+  border-color:color-mix(in srgb,var(--malachite) 34%,var(--gold-line));
+  background:color-mix(in srgb,var(--malachite) 8%,transparent);
+}
+.modelpanel-active-dot{
+  width:8px;height:8px;border-radius:50%;flex:none;background:var(--malachite);
+  box-shadow:0 0 6px color-mix(in srgb,var(--malachite) 60%,transparent);
+}
+.modelpanel-active-text{flex:1;min-width:0;font:600 12.5px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft)}
+.modelpanel-active--live .modelpanel-active-text{color:var(--malachite)}
 /* Serve progress: a phase label + a bar. Determinate (download %) sets an explicit width; the
    indeterminate bar (preparing / loading into VRAM) slides a short fill across the track. Colors:
    neutral gold, ok = malachite, fail = carnelian (no bar). */
