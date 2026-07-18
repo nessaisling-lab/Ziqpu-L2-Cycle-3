@@ -98,7 +98,7 @@ Analytic and ANISE agree to **<1°** (a CI cross-check enforces it).
 | `crates/sidecar` | axum read-only API (`/chart/:t`, `/synastry/:a/:b`, `/transits/:date`) | ✅ |
 | `crates/geo` | offline geocoder over a committed GeoNames gazetteer | ✅ |
 | `crates/tickers` | choice universes — Stocks · Airlines · Insurance | ✅ |
-| `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile | ✅ |
+| `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile + tool-calling loop + free-tier health + VIN resolver (N3) | ✅ |
 | `crates/model` | local-model tier benchmark + `get`/`serve` (llama.cpp) + CUDA-first runtime resolution + quant-aware fit | ✅ |
 | `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | ✅ |
 | `crates/ui` | Dioxus 0.6 desktop app (`ziqpu-ui`) | ✅ |

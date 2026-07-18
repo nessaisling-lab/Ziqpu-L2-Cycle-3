@@ -64,7 +64,10 @@ For written readings from a model, three roads:
   shown back to you.
 - **A local model** — Ziqpu benchmarks your machine, installs the right llama.cpp build for your
   GPU **automatically** (one-time, per-user, no admin rights), and offers only models your machine
-  can actually run. Below the minimum floor it tells you plainly and installs nothing.
+  can actually run (each tagged with what it can do — tool-calling, reasoning, context). Below the
+  minimum floor it tells you plainly and installs nothing. The model you serve is **remembered
+  across restarts** — next launch reconnects to it, or offers a one-click re-serve, and a Stop frees
+  its memory when you're done.
 
 ## Known limitations in this build
 

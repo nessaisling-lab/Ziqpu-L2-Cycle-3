@@ -5,6 +5,62 @@ All notable changes to Ziqpu are recorded here. Format follows
 **major.feature-phase.fix** (see [RELEASING.md](RELEASING.md)). Two tracks: `main` = stable
 (GitHub "Latest"), `nightfall` = build-ahead pre-releases (never "Latest").
 
+## [1.5.0] — 2026-07-18 · nightfall pre-release
+
+**Honest local models + the first step of "chart anything."** Five features on top of the v1.4.1
+distribution build — three that make the local-model and free-tier experience honest and durable,
+and two that lay the foundation for the origin-resolver (N3). Every user-facing claim is backed by
+code; nothing here overstates.
+
+### The built-in free tier now tells you when it's spent
+The v1.4.1 changelog promised the app "says so honestly" when the free tier is over budget — now the
+behavior exists. The proxy returns `429 monthly_budget_exhausted` / `rate_limited` (and `503
+service_disabled` for the kill switch); the HTTP layer used to collapse every non-2xx to "nothing
+came back", so a seeker silently got the offline template. New `agents::tier` classifies that
+response (keyed on the proxy's error-string contract — a generic 500 or an offline blip never
+masquerades as "over budget") and drives a one-line notice: *"the built-in free readings are over
+their budget for now… add your own API key or run a local model."* Only the built-in proxy path
+moves the latch — your own key or OpenRouter never does — and it resets each ranking, so the notice
+vanishes the moment you switch to your own key.
+
+### Your local model is remembered across restarts
+The served local model was forgotten every launch (the app reconnected only while the server stayed
+alive, and never recorded *which* model). Now the single active model persists beside the PID as the
+whole resolved plan — repo, quant, size, and crucially `fits_gpu`, so the anti-OOM CPU-side decision
+survives a restart. On launch: server still up → a "Local model ready — model on :port" chip with a
+**Stop** (frees the VRAM); server gone → a one-click **Re-serve** of the exact same model, no
+re-benchmark. Single-active is now an explicit record (one file, one model, or none). The ~150-line
+serve machinery is one shared `serve_target`, so the benchmark-serve and the re-serve behave
+identically.
+
+### Local tool-calling — the capability behind "chart anything"
+New `agents::tools`: an OpenAI-compatible agentic tool-call loop (request → the model asks to call
+tools → execute → feed results back → repeat, with a step cap so it can never hang). A `Tool` trait
+lets future resolvers drop in. The serve now passes `--jinja` so a local `llama-server` uses the
+model's chat template + tool-call grammar (additive for plain readings; every recommended model
+ships a template). This is the engine the origin-resolver runs on — works against a local model or a
+hosted one.
+
+### Capability badges — pick a model that can do the job
+`model::ModelPick` gains `Caps { tools, vision, reasoning, ctx }`, surfaced as chips under the
+selected local pick so you can tell, before serving, whether it can drive the tool-calling flow.
+Honest values: every recommended tier pick is tool-capable (the ledger only recommends models that
+can); reasoning distinguishes the Qwen3 family + GPT-OSS; vision is uniformly off (the local picks
+are text models); the forced sub-floor 3B is marked *not* a reliable tool-caller.
+
+### N3 "chart anything" — cars, step one: the VIN resolver
+New `agents::vin`: decode a car from its VIN via NHTSA vPIC (free, keyless, public domain) →
+make/model/year + assembly plant. Deliberately honest about what a VIN *is*: the resolver, **not a
+date source**. A VIN carries only the model year, never a chartable build date — so this hands back
+identity + the plant (the origin place); the chartable moment is deferred rather than fabricated (no
+year-only Jan-1). A `DecodeVinTool` lets the tool-loop decode a VIN mid-conversation. Live-verified:
+`1HGCM82633A004352 → "2003 Honda Accord EX-V6 — Marysville, Ohio, United States"`.
+
+### Under the hood
+A Windows-only CI test flake (a mock socket that RST'd on close before draining the request) was made
+robust. No new dependencies. All local picks stay off-by-default in the graded path; the demo remains
+self-contained.
+
 ## [1.4.1] — 2026-07-17 · nightfall pre-release
 
 **The distribution release.** Outside evaluators download this from the repo and run it on their

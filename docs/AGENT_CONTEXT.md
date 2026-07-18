@@ -94,6 +94,21 @@ The brand crystallized this session (art-direction research workflow). Product/d
   leg; NOT JSON/YAML — a token trap). Toggle = OFF / STRUCTURED / COMPRESSED. Security side-benefit:
   obfuscation + reduced injection surface (defense-in-depth, **not** encryption). See `SECURITY.md`.
 
+## Shipped since v1.4.1 (v1.5.0 nightfall, 2026-07-18)
+
+- ✅ **Built-in free tier honesty** — `agents::tier` surfaces `429 monthly_budget_exhausted` /
+  `rate_limited` / `503 service_disabled` as a one-line notice instead of a silent template fallback.
+- ✅ **Active-model persistence + single-active** — the served local model persists to
+  `active_local.json` (repo/quant/size/`fits_gpu`/port); restart reconnects or offers a one-click
+  re-serve + a Stop; `serve_target` is the one shared serve path.
+- ✅ **Local tool-calling** — `agents::tools` (`run_tool_loop` + `Tool` trait) + `--jinja` on the
+  serve. The engine the origin-resolver runs on.
+- ✅ **Capability badges** — `model::ModelPick.caps` (tools/vision/reasoning/ctx), chips under the pick.
+- ✅ **N3 cars, step 1** — `agents::vin` (`resolve_vin` + `DecodeVinTool` via NHTSA vPIC). Resolver,
+  not a date source; the individual-car build date is deferred (a VIN gives only model-year, and
+  Wikidata car-model dates are empirically unreliable — see the N3 origin-sources note). PINNED
+  pending deep research on a genuine car build date.
+
 ## Backlog — from the owner's 2026-07-14 review (priority order)
 
 1. ✅ **DONE (v-nightfall, unreleased).** Persistent disclaimer footer — one always-visible banner;
