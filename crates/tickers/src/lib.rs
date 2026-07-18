@@ -1086,7 +1086,10 @@ mod tests {
                 }
             }
         }
-        assert!(chartable > 1000, "expected a large chartable-stock population, got {chartable}");
+        assert!(
+            chartable > 1000,
+            "expected a large chartable-stock population, got {chartable}"
+        );
         // SEC CIKs exist for essentially every EDGAR-listed issuer; allow a small margin for
         // pre-EDGAR foundings whose row may lack one, but the overwhelming majority must carry it.
         let ratio = with_cik as f64 / chartable as f64;

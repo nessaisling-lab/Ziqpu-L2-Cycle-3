@@ -7,7 +7,7 @@
 //! from SEC EDGAR (requires `curl` and network).
 
 use agents::{
-    Answer, BirthMoment, Choice, EdgarSource, EngineChartSource, GroundedSource, Interpreter,
+    Answer, BirthMoment, Choice, CompositeSource, EngineChartSource, GroundedSource, Interpreter,
     MockGroundedSource, Session,
 };
 
@@ -16,10 +16,10 @@ fn main() {
     let choices = agents::demo_choices();
 
     let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_LIVE").is_ok() {
-        println!("[grounded source: SEC EDGAR — live]");
-        Box::new(EdgarSource::default())
+        println!("[grounded source: SEC EDGAR + SEC financials + Wikidata + Wikipedia — live]");
+        Box::new(CompositeSource::live_default())
     } else {
-        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real SEC EDGAR]");
+        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real multi-source grounding]");
         Box::new(MockGroundedSource)
     };
 

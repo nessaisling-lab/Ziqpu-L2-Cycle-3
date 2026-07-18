@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use agents::{
     draft_grounding_prompt, grounded_layered, ApprovalRequest, BirthMoment, Briefing, Choice,
-    EdgarSource, EngineChartSource, Fit, GroundedRung, GroundedSignals, GroundedSource,
+    CompositeSource, EngineChartSource, Fit, GroundedRung, GroundedSignals, GroundedSource,
     Interpreter, LocalMeasurer, Measures, MockGroundedSource, ReadMode, Recommendation, Session,
     TemplateInterpreter, ToolCall,
 };
@@ -63,15 +63,16 @@ pub enum AnswerView {
     Nudge(String),
 }
 
-/// Build a session. The grounded briefing shows **real reality by default**: [`EdgarSource`] does a
-/// live keyless SEC EDGAR pull when online and transparently falls back to the bundled recorded
-/// filing fixture when the network is blocked (never a bare mock) — both non-panicking. Set
-/// `ZIQPU_MOCK=1` to force the offline [`MockGroundedSource`] (used by deterministic CI/tests).
+/// Build a session. The grounded briefing shows **real reality by default** via a
+/// [`CompositeSource`]: SEC EDGAR filings + Wikipedia (with the recorded-fixture fallback when the
+/// network is blocked), plus the provenance-clean dimensions SEC financials (XBRL) and Wikidata
+/// structured facts — every one keyless, public-domain/CC0, and non-panicking. Set `ZIQPU_MOCK=1` to
+/// force the offline [`MockGroundedSource`] (used by deterministic CI/tests).
 pub fn build_session() -> SessionT {
     let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
         Box::new(MockGroundedSource)
     } else {
-        Box::new(EdgarSource::default())
+        Box::new(CompositeSource::live_default())
     };
 
     // Interpreter precedence (OpenAI-compat / OpenRouter → Anthropic → deterministic template).
@@ -429,13 +430,13 @@ pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
 }
 
 /// Fetch the real grounded signals for a choice on a **throwaway**, `Send`-safe source — the same
-/// mock/EDGAR selection [`build_session`] makes. Called only from a worker thread (the SEC EDGAR
-/// `curl` blocks), never on the event loop.
+/// mock/composite selection [`build_session`] makes. Called only from a worker thread (the source's
+/// `curl` calls block), never on the event loop.
 pub fn fetch_grounded(choice: &Choice) -> GroundedSignals {
     let source: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
         Box::new(MockGroundedSource)
     } else {
-        Box::new(EdgarSource::default())
+        Box::new(CompositeSource::live_default())
     };
     source.fetch(choice)
 }
