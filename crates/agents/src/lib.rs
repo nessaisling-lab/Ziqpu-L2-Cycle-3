@@ -12,6 +12,10 @@
 //! The default wiring is deterministic (no keys, no network) so the loop is CI-testable and the
 //! live demo is reliable; real models and the live SEC EDGAR pull are drop-in via the traits.
 
+/// Reading a product code with the camera. Requires `--features camera` — see the module docs
+/// for why the capture edge is gated and the decoding is not.
+#[cfg(feature = "camera")]
+pub mod camera;
 pub mod grounded;
 pub mod gs1;
 pub mod identity;
