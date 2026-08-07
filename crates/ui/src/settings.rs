@@ -163,8 +163,16 @@ pub fn save_settings(settings: &SettingsFile) {
     }
 }
 
-/// Restrict `path` to `0o600` (owner read/write only) on Unix. A no-op on Windows, where NTFS ACLs
-/// already scope a user's `%APPDATA%` to that user.
+/// Restrict `path` to `0o600` (owner read/write only) on Unix.
+///
+/// **On Windows this does nothing, and callers should not assume otherwise.** The previous wording
+/// here ("NTFS ACLs already scope a user's `%APPDATA%` to that user") reads as a guarantee and is
+/// only true of the default ACL on a local account: any process running as the user reads the file
+/// regardless, and the inherited ACL is whatever the parent directory happens to carry. Windows is
+/// this project's primary shipping platform, so the honest statement matters more than the
+/// reassuring one. Setting a real DACL needs `SetNamedSecurityInfo` and therefore a new dependency;
+/// until then the mitigation that actually landed is [`crate::profile::data_dir`] moving off
+/// roaming `%APPDATA%`, which stopped birth data replicating to a domain file server.
 #[cfg(unix)]
 pub(crate) fn set_owner_only(path: &std::path::Path) {
     use std::os::unix::fs::PermissionsExt;

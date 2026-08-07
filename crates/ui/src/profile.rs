@@ -97,7 +97,16 @@ impl SavedProfile {
 /// read/write simply fails softly). Never panics.
 pub fn data_dir() -> Option<PathBuf> {
     let dir = if cfg!(target_os = "windows") {
-        PathBuf::from(std::env::var("APPDATA").ok()?).join("Ziqpu")
+        // LOCALAPPDATA, not APPDATA. Roaming `%APPDATA%` replicates to a domain file server at
+        // logoff, so on a managed machine every saved birth moment — date, time and coordinates to
+        // roughly eleven metres — left the device by design and landed somewhere the seeker cannot
+        // see or delete. None of this state is worth roaming: a birth draft, a market basket, a
+        // local server's PID. `migrate_out_of_roaming` carries an existing profile across so nobody
+        // loses their saved chart to the move.
+        let local = PathBuf::from(std::env::var("LOCALAPPDATA").ok()?).join("Ziqpu");
+        let _ = std::fs::create_dir_all(&local);
+        migrate_out_of_roaming(&local);
+        local
     } else if cfg!(target_os = "macos") {
         PathBuf::from(std::env::var("HOME").ok()?)
             .join("Library")
@@ -117,10 +126,68 @@ pub fn data_dir() -> Option<PathBuf> {
     Some(dir)
 }
 
+/// Move an existing install's state out of roaming `%APPDATA%` and into `%LOCALAPPDATA%`.
+///
+/// Best-effort and idempotent: a file is only moved when it is absent at the destination, so a
+/// second call does nothing and a partial move resumes. The roaming copy is **removed** after a
+/// successful move — leaving it would defeat the point, since the stale birth data would go on
+/// replicating to the file server forever.
+#[cfg(windows)]
+fn migrate_out_of_roaming(local: &std::path::Path) {
+    let Some(roaming) = std::env::var("APPDATA")
+        .ok()
+        .map(|a| PathBuf::from(a).join("Ziqpu"))
+    else {
+        return;
+    };
+    if !roaming.is_dir() {
+        return;
+    }
+    for name in [
+        "profile.json",
+        "settings.json",
+        "active_local.json",
+        "llama-server.pid",
+    ] {
+        let (from, to) = (roaming.join(name), local.join(name));
+        if from.is_file() && !to.exists() {
+            // Copy-then-remove rather than rename: the two directories can sit on different volumes
+            // on a machine with a redirected profile, where rename fails outright.
+            if std::fs::copy(&from, &to).is_ok() {
+                crate::settings::set_owner_only(&to);
+                let _ = std::fs::remove_file(&from);
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn migrate_out_of_roaming(_local: &std::path::Path) {}
+
 /// `<data_dir>/profile.json` — the birth-input draft file, on every OS. Returns `None` when
 /// [`data_dir`] can't resolve a base directory. See [`data_dir`] for the per-OS paths.
 pub fn profile_path() -> Option<PathBuf> {
     Some(data_dir()?.join("profile.json"))
+}
+
+/// Delete the saved chart — birth date, time, place, coordinates, basket and handle.
+///
+/// **Why this exists.** The app wrote a birth moment to disk and had no way to remove it: nothing in
+/// the tree called `remove_file` on `profile.json`, so a seeker could not erase their own birth data
+/// from inside the product, and uninstalling left it behind. The contrast made the gap plain — an
+/// API key already got the OS vault *and* a two-step confirmed delete, while a birth moment, which
+/// is more personal and cannot be rotated, got neither.
+///
+/// Returns whether anything was removed, so the UI can say "deleted" rather than guess. A missing
+/// file is `true`: the seeker asked for it gone and it is gone.
+pub fn forget_profile() -> bool {
+    let Some(path) = profile_path() else {
+        return false;
+    };
+    match std::fs::remove_file(&path) {
+        Ok(()) => true,
+        Err(e) => e.kind() == std::io::ErrorKind::NotFound,
+    }
 }
 
 /// Read + deserialize the saved draft. Returns `None` on any missing/corrupt-file error — never
