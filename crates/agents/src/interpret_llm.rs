@@ -215,7 +215,8 @@ impl AnthropicInterpreter {
     fn complete(&self, user_prompt: &str) -> Option<String> {
         let body = serde_json::json!({
             "model": self.model,
-            "max_tokens": 1536,
+            // See the note in `llm_http::openai_chat` — a grounded briefing did not fit in 1536.
+            "max_tokens": 3072,
             "system": UNGASAGA_SYSTEM,
             "messages": [{ "role": "user", "content": user_prompt }],
         })
@@ -254,6 +255,11 @@ impl AnthropicInterpreter {
         if value.get("type").and_then(|t| t.as_str()) == Some("error") {
             return None;
         }
+        // Cut off at the cap → the first part of a reading, not a reading. Same rule the
+        // OpenAI-compatible path applies to `finish_reason`; here the field is `stop_reason`.
+        if value.get("stop_reason").and_then(|s| s.as_str()) == Some("max_tokens") {
+            return None;
+        }
         let text: String = value
             .get("content")?
             .as_array()?
@@ -283,6 +289,7 @@ impl AnthropicInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
+            .and_then(|text| usable_reading(text, fit))
     }
 
     /// The live grounded briefing **without** the template fallback — `Some(prose)` only when the
@@ -297,6 +304,7 @@ impl AnthropicInterpreter {
         grounded: &GroundedSignals,
     ) -> Option<String> {
         self.complete(&grounded_prompt(measures, fit, name, grounded))
+            .and_then(|text| usable_reading(text, fit))
     }
 }
 
@@ -384,6 +392,7 @@ impl OpenAiCompatInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
+            .and_then(|text| usable_reading(text, fit))
     }
 
     /// The live grounded briefing **without** the template fallback — `Some(prose)` only when the
@@ -397,6 +406,7 @@ impl OpenAiCompatInterpreter {
         grounded: &GroundedSignals,
     ) -> Option<String> {
         self.complete(&grounded_prompt(measures, fit, name, grounded))
+            .and_then(|text| usable_reading(text, fit))
     }
 }
 
@@ -817,6 +827,41 @@ fn orb_band(orb: f64) -> &'static str {
         o if o <= 4.0 => "close",
         _ => "wide",
     }
+}
+
+/// Accept a completion only if it is a reading, and a reading *of this measurement*.
+///
+/// # Why this exists
+///
+/// Run the agent twice on identical input and one run came back with the system prompt's own format
+/// specification, echoed verbatim — `FIT: <band> (<score> / 100) — <name>`, `<the rich, warm,
+/// narrative body …>` — which the app then printed to the seeker as their grounded reading. The
+/// external pull had already succeeded; real filings were fetched and then discarded in favour of
+/// scaffolding.
+///
+/// Nothing caught it, and the near-misses are instructive. [`crate::llm_http::strip_reasoning`] keeps
+/// everything from the last `FIT:` onward — and the template *has* a `FIT:` line, so it sailed
+/// through. [`GroundedRung`] would have badged it `GROUNDED · LIVE` with `is_sourced() == true`, and
+/// every claim in that badge would have been **true**: signals genuinely were fetched. The ladder
+/// tracks *provenance* — did real data back this, and who wrote it. It says nothing about
+/// *integrity* — whether the returned text is a reading at all.
+///
+/// # What it checks
+///
+/// The band on the `FIT:` line must be exactly the band we computed. That one comparison covers both
+/// failures at once: a placeholder is not a band, and neither is a band the model preferred to the
+/// measured one. The score is arithmetic and the prose is generated; when they disagree, the prose
+/// is what's wrong, so it is the prose that gets thrown away.
+///
+/// Compared with `contains(fit.label())`, which would accept "Strongly Aligned" for a computed
+/// "Aligned" — the substring relationship between the band names makes the loose check silently
+/// wrong in the one direction that flatters the choice.
+fn usable_reading(text: String, fit: Fit) -> Option<String> {
+    let fit_line = text.lines().find(|l| l.trim_start().starts_with("FIT:"))?;
+    let after = fit_line.split_once("FIT:")?.1;
+    // "FIT: Strongly Aligned (85 / 100) — Tesla" → "Strongly Aligned"
+    let band = after.split('(').next()?.trim();
+    (band == fit.label()).then_some(text)
 }
 
 /// The tightest few contacts, one per line, for the model to read.
@@ -1661,6 +1706,61 @@ mod tests {
         ] {
             std::env::remove_var(k);
         }
+    }
+
+    /// Eval Card, Case 1 — the adversarial half, from a real transcript rather than an invention.
+    ///
+    /// On 2026-08-07 the agent was run twice on identical input. One run returned the text below —
+    /// `UNGASAGA_SYSTEM`'s own format specification, echoed verbatim — and the app printed it to the
+    /// seeker as their grounded reading, after a successful external pull whose real filings were
+    /// then discarded.
+    ///
+    /// 135 tests were green at the time. Every one used a mock interpreter that returns well-formed
+    /// prose, so nothing in the suite ever saw a malformed frontier response. This is that case.
+    #[test]
+    fn the_prompt_template_echoed_back_is_not_a_reading() {
+        // Copied from the transcript, not reconstructed.
+        let echoed = "FIT: <band> (<score> / 100) — <name>\n\
+             <the rich, warm, narrative body — several flowing sentences that name the fit, stake a \
+             verdict, and unfold the dominant thread plus one or two more in human terms>\n  \
+             why: <one plain sentence distilling the single strongest dynamic in human terms>\n  \
+             [GROUNDED (<source>): <the real signals, plainly>]";
+        assert_eq!(
+            usable_reading(echoed.to_string(), Fit::Aligned),
+            None,
+            "the format spec is not a reading, however well-formed it looks"
+        );
+
+        // The same guard rejects a band the model preferred to the one we measured. `contains` would
+        // not: "Aligned" is a substring of "Strongly Aligned", so the loose check fails open in
+        // exactly the direction that flatters the choice.
+        let flattered = "FIT: Strongly Aligned (52 / 100) — Apple\nA warm read.\n  why: something.";
+        assert_eq!(
+            usable_reading(flattered.to_string(), Fit::Mixed),
+            None,
+            "a band that contradicts the computed one must be rejected"
+        );
+        assert_eq!(
+            usable_reading(flattered.to_string(), Fit::Aligned),
+            None,
+            "\"Aligned\" must not be satisfied by \"Strongly Aligned\""
+        );
+
+        // A genuine reading still passes — otherwise the guard would just be an outage.
+        let real = "FIT: Strongly Aligned (85 / 100) — Tesla\n\
+             The two charts fit together with a vivid sense of possibility.\n  \
+             why: the strongest thread is a tense one.\n  \
+             REMINDER: measured, not fate — not financial advice.";
+        assert_eq!(
+            usable_reading(real.to_string(), Fit::StronglyAligned),
+            Some(real.to_string())
+        );
+
+        // No FIT line at all — a bare apology, a stray paragraph — is likewise not a reading.
+        assert_eq!(
+            usable_reading("I'm sorry, I can't help with that.".to_string(), Fit::Mixed),
+            None
+        );
     }
 
     /// A capable model is not a source.

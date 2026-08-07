@@ -147,7 +147,12 @@ pub(crate) fn openai_chat(
         "model": model,
         "stream": false,
         // Headroom for the richer, narrative reading (the system prompt asks for a flowing passage).
-        "max_tokens": 1536,
+        // Raised from 1536 after BOTH live runs of a grounded read came back truncated mid-token —
+        // a grounded briefing carries the narrative, the `why:` line, a long GROUNDED line of real
+        // signals, the reality beat and the REMINDER, and a reasoning model's excluded thinking can
+        // still be charged against the cap. Detecting truncation without raising the cap would have
+        // been a regression: every live grounded read would have degraded to the template instead.
+        "max_tokens": 3072,
         // Reasoning models (nemotron-super, DeepSeek-R1, Qwen3-thinking) emit a long chain-of-thought.
         // Ask OpenRouter to keep it OUT of the response (harmless field for plain models / llama.cpp);
         // `strip_reasoning` below is the belt-and-suspenders for providers that ignore this and dump
@@ -170,6 +175,13 @@ pub(crate) fn openai_chat(
         &body,
     )?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    // A response cut off at the token cap is not a reading, it is the first part of one. Observed
+    // live: a grounded read ending "total assets: $148.52B (as of 2". The API says so plainly in
+    // `finish_reason` and nothing was reading it, so half-sentences reached the seeker as finished
+    // prose. Treat it as a failed call and let the honesty ladder degrade instead.
+    if value["choices"][0]["finish_reason"].as_str() == Some("length") {
+        return None;
+    }
     let content = value["choices"][0]["message"]["content"].as_str()?;
     let content = strip_reasoning(content);
     (!content.is_empty()).then_some(content)
