@@ -232,6 +232,146 @@ pub fn scan_once(timeout: Duration) -> Result<Scan, ScanError> {
     found.ok_or(ScanError::NoCodeFound)
 }
 
+/// A preview frame: a small PNG, base64-encoded, ready to drop straight into an `<img src=…>`.
+///
+/// The webview cannot open the camera itself, so a live preview means pushing pictures to it. They
+/// are deliberately small and greyscale — the preview exists so a person can aim, not to look good.
+pub type PreviewFrame = String;
+
+/// Every `PREVIEW_EVERY`th frame is sent to the UI. Encoding and base64ing each frame costs more
+/// than decoding one, so previewing every frame would make the scanner slower at its actual job.
+const PREVIEW_EVERY: usize = 3;
+
+/// Longest edge of a preview image. Big enough to aim by, small enough that the encode is cheap.
+const PREVIEW_MAX: u32 = 320;
+
+/// Scan, calling `on_frame` with a picture of what the camera currently sees.
+///
+/// Same loop as [`scan_once`], plus the preview. `on_frame` runs on the worker thread and must not
+/// block for long — it is called several times a second.
+pub fn scan_with_preview(
+    timeout: Duration,
+    mut on_frame: impl FnMut(PreviewFrame),
+) -> Result<Scan, ScanError> {
+    let format = RequestedFormat::new::<LumaFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
+    let mut camera = Camera::new(CameraIndex::Index(0), format)
+        .map_err(|e| ScanError::NoCamera(e.to_string()))?;
+    if camera.frame_format() == FrameFormat::MJPEG {
+        return Err(ScanError::UnsupportedFormat(
+            "this build decodes uncompressed frames only".to_string(),
+        ));
+    }
+    camera
+        .open_stream()
+        .map_err(|e| ScanError::NoCamera(e.to_string()))?;
+
+    let deadline = Instant::now() + timeout;
+    let mut found = None;
+    let mut n = 0usize;
+    while Instant::now() < deadline {
+        let Ok(frame) = camera.frame() else {
+            continue;
+        };
+        let res = frame.resolution();
+        let (w, h) = (res.width(), res.height());
+        let luma = frame.buffer();
+
+        if n % PREVIEW_EVERY == 0 {
+            if let Some(png) = preview_png(luma, w, h) {
+                on_frame(png);
+            }
+        }
+        n += 1;
+
+        // Decode the FULL frame, never the shrunk preview — downscaling is what loses a barcode.
+        if let Some(scan) = decode_luma(luma, w, h) {
+            found = Some(scan);
+            break;
+        }
+    }
+    let _ = camera.stop_stream();
+    found.ok_or(ScanError::NoCodeFound)
+}
+
+/// Shrink a luma frame and encode it as a base64 PNG. `None` if the buffer is short or PNG encoding
+/// fails — a missing preview frame is never worth failing a scan over.
+fn preview_png(luma: &[u8], width: u32, height: u32) -> Option<PreviewFrame> {
+    let (w, h) = (width as usize, height as usize);
+    if w == 0 || h == 0 || luma.len() < w * h {
+        return None;
+    }
+    // Nearest-neighbour by an integer step: the preview is for aiming, and a box filter here would
+    // cost more than the encode it feeds.
+    let step = width.max(height).div_ceil(PREVIEW_MAX).max(1) as usize;
+    let (pw, ph) = (w / step, h / step);
+    if pw == 0 || ph == 0 {
+        return None;
+    }
+    let mut small = Vec::with_capacity(pw * ph);
+    for y in 0..ph {
+        for x in 0..pw {
+            small.push(luma[(y * step) * w + x * step]);
+        }
+    }
+
+    let img = image::GrayImage::from_raw(pw as u32, ph as u32, small)?;
+    let mut png = Vec::new();
+    image::DynamicImage::ImageLuma8(img)
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .ok()?;
+    Some(base64(&png))
+}
+
+/// Minimal base64, so a data URI costs no dependency.
+fn base64(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        out.push(T[(n >> 18 & 63) as usize] as char);
+        out.push(T[(n >> 12 & 63) as usize] as char);
+        out.push(if chunk.len() > 1 {
+            T[(n >> 6 & 63) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            T[(n & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Read a code out of image **bytes** — a file the UI has already loaded into memory.
+///
+/// Same decoder as the camera path, so a picture and a lens always agree on what a code says.
+pub fn decode_image_bytes(bytes: &[u8]) -> Result<Scan, ScanError> {
+    let img = image::load_from_memory(bytes)
+        .map_err(|e| ScanError::UnsupportedFormat(format!("couldn't read that image: {e}")))?;
+    let grey = img.to_luma8();
+    let (w, h) = (grey.width(), grey.height());
+    decode_luma(grey.as_raw(), w, h).ok_or(ScanError::NoCodeFound)
+}
+
+/// Read a code out of an image **file** — a screenshot, a photo, a saved label.
+///
+/// The same decoder the camera path uses, so a scan from a file and a scan from the lens agree. This
+/// is also how someone with no camera, or no product to hand, can exercise the whole feature.
+pub fn decode_image_file(path: &std::path::Path) -> Result<Scan, ScanError> {
+    let img = image::open(path)
+        .map_err(|e| ScanError::UnsupportedFormat(format!("couldn't read that image: {e}")))?;
+    let grey = img.to_luma8();
+    let (w, h) = (grey.width(), grey.height());
+    decode_luma(grey.as_raw(), w, h).ok_or(ScanError::NoCodeFound)
+}
+
 /// Whether the platform reports any camera at all — so a UI can hide or disable the scan affordance
 /// instead of offering something that will fail.
 pub fn camera_available() -> bool {
@@ -333,6 +473,58 @@ mod tests {
             )),
             "a scanned code must reach the same individual-item date a pasted one does"
         );
+    }
+
+    /// Writes two scannable PNGs to the repo's `scratch-codes/` — one code that carries a
+    /// manufacture date and one that does not — so the feature can be exercised with no product to
+    /// hand. Not a check of anything; a fixture generator, hence ignored.
+    /// `cargo test -p agents --features camera camera -- --ignored --nocapture write_test_codes`
+    #[test]
+    #[ignore = "writes files; run on demand"]
+    fn write_test_codes() {
+        use rxing::{BarcodeFormat, MultiFormatWriter, Writer};
+        let dir = std::path::Path::new("scratch-codes");
+        std::fs::create_dir_all(dir).expect("create scratch-codes/");
+
+        for (name, payload, format, w, h, note) in [
+            (
+                "with-date.png",
+                "(01)00614141000012(11)200315(10)LOT7",
+                BarcodeFormat::QR_CODE,
+                400,
+                400,
+                "GS1 QR carrying AI(11) — should report Made on 2020-03-15",
+            ),
+            (
+                "no-date.png",
+                "0100614141000012",
+                BarcodeFormat::QR_CODE,
+                400,
+                400,
+                "a bare GTIN, like an ordinary retail barcode — identity only, no date",
+            ),
+            (
+                "retail-ean13.png",
+                "4006381333931",
+                BarcodeFormat::EAN_13,
+                500,
+                220,
+                "a real EAN-13 retail barcode — identity only, as every retail barcode is",
+            ),
+        ] {
+            let matrix = MultiFormatWriter
+                .encode(payload, &format, w, h)
+                .unwrap_or_else(|e| panic!("{name} should encode: {e}"));
+            let (luma, mw, mh) = render(&matrix);
+            let img = image::GrayImage::from_raw(mw, mh, luma).expect("frame");
+            let path = dir.join(name);
+            img.save(&path).expect("write png");
+            eprintln!("wrote {}  — {note}", path.display());
+
+            // Prove each fixture is actually readable by our own decoder before handing it over.
+            let scan = decode_image_file(&path).expect("our own fixture must decode");
+            eprintln!("   reads back as {}: {}", scan.symbology, scan.text);
+        }
     }
 
     /// LIVE — needs a real webcam and a code held up to it. Ignored by default.

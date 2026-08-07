@@ -54,6 +54,7 @@ rxing = { version = "0.9", optional = true, default-features = false, features =
 # `cargo deny` rightly fails the build for it. Dropping it also happens to be the better engineering
 # choice here: without the JPEG path we ask the camera for an uncompressed frame and read its luma
 # plane directly, which is exactly what a barcode decoder wants and skips a decode round-trip.
+image = { version = "=0.25.8", optional = true, default-features = false, features = ["png", "jpeg"] }
 nokhwa = { version = "0.10", optional = true, default-features = false, features = [
     "input-native",
 ] }
@@ -61,4 +62,4 @@ nokhwa = { version = "0.10", optional = true, default-features = false, features
 [features]
 default = []
 # Read a GS1 code from a webcam. See `agents::camera`.
-camera = ["dep:rxing", "dep:nokhwa"]
+camera = ["dep:rxing", "dep:nokhwa", "dep:image"]

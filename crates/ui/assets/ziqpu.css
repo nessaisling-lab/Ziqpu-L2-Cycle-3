@@ -717,7 +717,20 @@ td.b{color:var(--ink)}
 /* The webcam scan — sits beside the universe search, because reading a code off an object and
    typing a name are the same act. Present only in a `--features camera` build. */
 .scan{margin:14px 0 6px}
-.scan__btn{width:100%}
+.scan__actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.scan__btn{flex:1;min-width:200px}
+/* The native file input is unstyleable and ugly; the label is the control, the input is the plumbing. */
+.scan__file{
+  display:inline-flex;align-items:center;font:500 13px/1 var(--f-body);color:var(--ink-soft);
+  border:1px dashed var(--gold-line);border-radius:10px;padding:9px 13px;cursor:pointer;
+}
+.scan__file:hover{background:var(--parchment-2)}
+.scan__file input{display:none}
+/* The live view. Dark ground so a pale frame reads as picture rather than as a broken image. */
+.scan__preview{
+  display:block;width:100%;max-width:340px;margin:12px auto 0;border-radius:10px;
+  border:1px solid var(--gold-line);background:#111;
+}
 .scan__hint{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
 .scan__hint--fail{color:var(--carnelian)}
 .scan__result{
