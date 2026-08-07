@@ -35,19 +35,50 @@ pub mod traction;
 pub mod types;
 pub mod vin;
 
-/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
-/// elsewhere. Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this
-/// crate in-process) so no console flashes. The remaining subprocesses here are `curl` health/probe
-/// calls; the live LLM HTTPS now rides in-process via `ureq` (see `llm_http`). Two cfg'd defs keep it
-/// warning-clean on non-Windows.
+/// Prepare a subprocess this crate is about to spawn: **strip inherited credentials**, and don't
+/// flash a console window on Windows.
+///
+/// Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this crate
+/// in-process). The remaining subprocesses here are `curl` health/probe calls; the live LLM HTTPS
+/// rides in-process via `ureq` (see `llm_http`).
+pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
+    no_console_window(strip_credentials(cmd))
+}
+
+/// Remove every environment variable that looks like a credential before a child inherits it.
+///
+/// The seeker's vaulted provider keys are filled into this process's environment at startup, and a
+/// child inherits the whole block by default — so a `curl` health probe against a loopback model
+/// server was being handed the Anthropic key it has no use for. Stripping by **shape rather than by
+/// a list of names** is deliberate: a list must be edited whenever a provider is added, and the
+/// forgotten edit is the one that leaks. Kept in step with the identical rule in `model` and `ui`;
+/// each crate spawns its own children and the three cannot share a helper without a new dependency
+/// edge, so the rule — not a list — is what is duplicated.
+fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(looks_like_credential) {
+            cmd.env_remove(&name);
+        }
+    }
+    cmd
+}
+
+/// Whether an environment variable name looks like it carries a secret.
+fn looks_like_credential(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    n.ends_with("_KEY") || n.ends_with("_TOKEN") || n.ends_with("_SECRET")
+}
+
+/// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
+/// it warning-clean on non-Windows.
 #[cfg(windows)]
-pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     cmd
 }
 #[cfg(not(windows))]
-pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(cmd: std::process::Command) -> std::process::Command {
     cmd
 }
 

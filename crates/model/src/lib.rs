@@ -18,19 +18,76 @@
 //! / [`detect_gpu`] read the real machine; that thin I/O is kept out of the tested core. Layer 2 (the
 //! online best-GGUF check) and the fetch/serve step build on top.
 
-/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
-/// elsewhere. Wrap every `Command::new(...)` this crate spawns from the GUI so a windowless release
-/// build stays windowless (the CLI binary `model/src/main.rs` intentionally does NOT use it). Two
-/// cfg'd defs keep it warning-clean on non-Windows.
+/// Prepare a subprocess this crate is about to spawn: **strip inherited credentials**, and don't
+/// flash a console window on Windows.
+///
+/// Wrap every `Command::new(...)` this crate spawns from the GUI (the CLI binary
+/// `model/src/main.rs` intentionally does NOT use it).
+pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
+    no_console_window(strip_credentials(cmd))
+}
+
+/// Remove every environment variable that looks like a credential before a child inherits it.
+///
+/// A child process inherits the parent's whole environment block by default, and this app fills the
+/// seeker's vaulted provider keys into its own environment at startup so the interpreter can read
+/// them. That means the keys were being handed to every subprocess — including `llama-server`, a
+/// third-party binary the app downloads at runtime and executes. A local model server has no
+/// business holding the seeker's Anthropic key.
+///
+/// This strips by **shape rather than by a list of names**, on purpose: a list has to be edited
+/// every time a provider is added, and the edit that gets forgotten is the one that matters. None of
+/// the children spawned here — `curl`, `tar`, `taskkill`, `llama-server`, the WebView2 bootstrapper —
+/// needs a credential of any kind, so over-stripping costs nothing and under-stripping leaks.
+fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(looks_like_credential) {
+            cmd.env_remove(&name);
+        }
+    }
+    cmd
+}
+
+/// Whether an environment variable name looks like it carries a secret.
+fn looks_like_credential(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    n.ends_with("_KEY") || n.ends_with("_TOKEN") || n.ends_with("_SECRET")
+}
+
+/// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
+/// it warning-clean on non-Windows.
 #[cfg(windows)]
-pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     cmd
 }
 #[cfg(not(windows))]
-pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(cmd: std::process::Command) -> std::process::Command {
     cmd
+}
+
+#[cfg(test)]
+mod credential_scrub_tests {
+    use super::looks_like_credential;
+
+    /// Every credential variable this workspace actually sets must be caught by the shape rule, and
+    /// the ordinary variables a child genuinely needs must survive it.
+    #[test]
+    fn the_shape_rule_catches_every_real_credential_and_spares_the_rest() {
+        for secret in [
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "OPENROUTER_API_KEY",
+            "ZIQPU_LLM_KEY",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
+            assert!(looks_like_credential(secret), "must strip {secret}");
+        }
+        for keep in ["PATH", "SystemRoot", "HOME", "TEMP", "ZIQPU_LLM_URL"] {
+            assert!(!looks_like_credential(keep), "must not strip {keep}");
+        }
+    }
 }
 
 /// The five capability tiers, weakest→strongest. The *same* tier name maps to different models
@@ -562,7 +619,15 @@ const HF_USER_AGENT: &str =
 /// from wherever they downloaded it — typically Downloads, which is exactly where attacker-supplied
 /// files land. The app directory is therefore a live planting surface, not a theoretical one.
 /// (Impact is code execution at the user's own privileges, not elevation.)
-fn system_cmd(win_rel: &str, unix: &str) -> String {
+/// (Known residue: the Windows branch derives its "absolute" path from the `SystemRoot` environment
+/// variable, which a parent process can move. Closing that properly needs `GetSystemDirectoryW` and
+/// therefore a new dependency; it is also a much higher bar than dropping a file in Downloads, since
+/// it requires control of our environment block already. Tracked, not fixed here.)
+///
+/// On Unix the same reasoning applies to `PATH`, so the standard system locations are preferred over
+/// whatever `PATH` happens to say; the bare name remains only as a last resort for systems that put
+/// these tools somewhere else entirely.
+pub fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(windows)]
     {
         let _ = unix;
@@ -572,8 +637,51 @@ fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(not(windows))]
     {
         let _ = win_rel;
+        for dir in ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] {
+            let cand = std::path::Path::new(dir).join(unix);
+            if cand.is_file() {
+                return cand.to_string_lossy().into_owned();
+            }
+        }
         unix.to_string()
     }
+}
+
+/// Resolve `bin` to an absolute path by searching `PATH` ourselves — deliberately **not** by handing
+/// a bare name to `Command::new`.
+///
+/// Rust's `Command` search order on Windows is child-`PATH` → **the application directory** →
+/// System32 → Windows → `PATH`. The application directory sits ahead of every real install location,
+/// and we ship Windows as a plain zip that users extract and run from wherever they downloaded it —
+/// typically Downloads, which is exactly where attacker-supplied files land. So a `llama-server.exe`
+/// dropped beside `Ziqpu.exe` would be preferred over a genuine llama.cpp install, and it would run
+/// on the first click of "Benchmark this machine" with no network access and no download required.
+///
+/// Searching `PATH` here, and skipping the application directory while doing it, removes that
+/// preference without breaking any legitimate install — winget, brew and apt all put the binary on
+/// `PATH`, which is the only place this now looks.
+fn resolve_on_path(bin: &str) -> Option<std::path::PathBuf> {
+    let app_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+        .and_then(|dir| dir.canonicalize().ok());
+
+    for dir in std::env::split_paths(&std::env::var_os("PATH")?) {
+        // An empty `PATH` entry means "the current directory" on Windows. Never search it.
+        if dir.as_os_str().is_empty() {
+            continue;
+        }
+        if let (Some(app), Ok(here)) = (app_dir.as_deref(), dir.canonicalize()) {
+            if here == app {
+                continue;
+            }
+        }
+        let candidate = dir.join(bin);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 /// Run a small system probe with a hard timeout, returning its stdout on exit-within-timeout. `None`
@@ -588,7 +696,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
     use std::process::{Command, Stdio};
     use std::time::Duration;
     use wait_timeout::ChildExt;
-    let mut child = no_window(Command::new(cmd))
+    let mut child = child_cmd(Command::new(cmd))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -616,7 +724,7 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
     use std::process::Command;
     let url = hf_api_url(term);
-    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
+    let Ok(out) = child_cmd(Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "--max-time",
@@ -754,7 +862,7 @@ pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
 pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
     use std::process::Command;
     let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
-    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
+    let Ok(out) = child_cmd(Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "--max-time",
@@ -1125,15 +1233,20 @@ pub fn llama_server_path() -> Option<std::path::PathBuf> {
     } else {
         "llama-server"
     };
-    // 1. On PATH? (a spawn that succeeds — the exit code doesn't matter).
-    let on_path = no_window(std::process::Command::new(bin))
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok();
-    if on_path {
-        return Some(std::path::PathBuf::from(bin));
+    // 1. On PATH? Resolved to an absolute path FIRST (see `resolve_on_path` for why a bare name is
+    //    not safe here), then probed with a spawn that succeeds — the exit code doesn't matter.
+    //    Returning the resolved path rather than the bare name also means the probe and the later
+    //    serve spawn can no longer disagree about which binary they meant.
+    if let Some(absolute) = resolve_on_path(bin) {
+        let runs = child_cmd(std::process::Command::new(&absolute))
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok();
+        if runs {
+            return Some(absolute);
+        }
     }
     // 2. Windows winget install location (off-PATH until a shell restart).
     #[cfg(windows)]
@@ -1218,7 +1331,7 @@ pub fn model_cached(repo: &str, quant: &str) -> bool {
 pub fn running_server_port() -> Option<u16> {
     let curl = system_cmd("curl.exe", "curl");
     (1234u16..=1245).find(|&p| {
-        no_window(std::process::Command::new(&curl))
+        child_cmd(std::process::Command::new(&curl))
             .args([
                 "-sS",
                 "--max-time",
@@ -1773,7 +1886,7 @@ pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
 /// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
 /// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
 pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
-    let out = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+    let out = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "-L",
@@ -1796,7 +1909,7 @@ pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
 /// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
 /// bundles). Returns a human-readable reason on failure.
 fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
-    let status = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
+    let status = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "-L",
@@ -1824,7 +1937,7 @@ fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
 /// Zero new dependencies, same pinned-path discipline as every other subprocess here.
 fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("couldn't create {} ({e})", dir.display()))?;
-    let status = no_window(std::process::Command::new(system_cmd("tar.exe", "tar")))
+    let status = child_cmd(std::process::Command::new(system_cmd("tar.exe", "tar")))
         .args([
             "-xf",
             &archive.to_string_lossy(),
@@ -1844,7 +1957,7 @@ fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(
 /// instead of later inside a serve — where the Windows loader kills it invisibly under
 /// CREATE_NO_WINDOW and the user sees only "exited early".
 fn runtime_self_check(bin: &std::path::Path) -> bool {
-    no_window(std::process::Command::new(bin))
+    child_cmd(std::process::Command::new(bin))
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

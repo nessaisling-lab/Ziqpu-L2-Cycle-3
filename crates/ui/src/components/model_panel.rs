@@ -165,24 +165,35 @@ fn stop_our_server() {
     {
         // taskkill applies /FI before terminating, so a recycled PID simply doesn't match and
         // nothing is killed — the guard and the kill are one atomic call.
-        let _ = crate::no_window(std::process::Command::new("taskkill"))
-            .args([
-                "/F",
-                "/PID",
-                &pid.to_string(),
-                "/FI",
-                "IMAGENAME eq llama-server.exe",
-            ])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status();
+        // Pinned to System32, not spawned by bare name: Rust resolves a bare name through the
+        // application directory before System32, and we ship Windows as a plain zip run from
+        // wherever it was extracted — so a planted `taskkill.exe` beside our own exe would run here.
+        // `model::system_cmd` is the same helper the model crate already used for `curl` and `tar`;
+        // it was simply never applied to this spawn or to the two below.
+        let _ = crate::child_cmd(std::process::Command::new(model::system_cmd(
+            "taskkill.exe",
+            "taskkill",
+        )))
+        .args([
+            "/F",
+            "/PID",
+            &pid.to_string(),
+            "/FI",
+            "IMAGENAME eq llama-server.exe",
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
     }
     #[cfg(not(windows))]
     {
         // No equivalent atomic filter here, so check then signal. The race window (the PID dying
         // and being reused between the two calls) is vanishingly small and the cost of losing it is
         // one stray SIGTERM — versus killing every llama-server on the box, every time, by design.
-        let still_ours = std::process::Command::new("ps")
+        // Both pinned to the standard system locations rather than resolved through `PATH` — the
+        // process that decides whether this PID is ours, and the process that signals it, must not
+        // be attacker-choosable.
+        let still_ours = crate::child_cmd(std::process::Command::new(model::system_cmd("", "ps")))
             .args(["-p", &pid.to_string(), "-o", "comm="])
             .output()
             .ok()
@@ -194,7 +205,7 @@ fn stop_our_server() {
         if still_ours {
             // TERM, not KILL: llama-server releases VRAM on a clean exit, and the caller's pause
             // before loading the next model exists precisely to let that land.
-            let _ = std::process::Command::new("kill")
+            let _ = crate::child_cmd(std::process::Command::new(model::system_cmd("", "kill")))
                 .args(["-TERM", &pid.to_string()])
                 .status();
         }
@@ -321,7 +332,7 @@ where
     std::thread::sleep(std::time::Duration::from_millis(700));
 
     // Spawn with stderr PIPED so we can stream the first-run download %. stdout is noise.
-    let mut child = match crate::no_window(std::process::Command::new(&bin))
+    let mut child = match crate::child_cmd(std::process::Command::new(&bin))
         .args(&args)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())

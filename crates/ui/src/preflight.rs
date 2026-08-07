@@ -243,7 +243,7 @@ fn install_webview2() -> Result<(), String> {
     std::fs::write(&dest, &bytes)
         .map_err(|e| format!("couldn't save the installer to {} ({e})", dest.display()))?;
 
-    let status = crate::no_window(std::process::Command::new(&dest))
+    let status = crate::child_cmd(std::process::Command::new(&dest))
         .args(["/silent", "/install"])
         .status()
         .map_err(|e| format!("couldn't start the installer ({e})"));

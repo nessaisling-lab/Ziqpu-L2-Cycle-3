@@ -252,7 +252,7 @@ pub const NO_SIGNALS: &str = "no public signals available";
 /// stalled socket is a permanent silent spinner. `--max-time` bounds a connection that is accepted
 /// then blackholed; `--max-filesize` bounds a multi-MB payload we only skim the head of.
 pub(crate) fn http_get(url: &str, user_agent: &str) -> Option<Vec<u8>> {
-    let output = crate::no_window(std::process::Command::new("curl"))
+    let output = crate::child_cmd(std::process::Command::new("curl"))
         .args([
             "-sS",
             "--compressed",

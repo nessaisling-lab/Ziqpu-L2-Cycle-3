@@ -69,7 +69,7 @@ impl LocalMeasurer {
         // measurer sends the CHART — the seeker's birth data — so a non-local endpoint here is the
         // leak in its purest form. Refused unless knowingly allowed; the deterministic measurer then
         // does the job, which it can do perfectly well.
-        if !crate::llm_http::is_loopback_url(&base) && !crate::llm_http::remote_model_allowed() {
+        if !crate::llm_http::endpoint_allowed(&base) {
             return None;
         }
         let model = std::env::var("ZIQPU_LLM_MODEL")
@@ -153,7 +153,7 @@ impl LocalMeasurer {
 /// POST open while it JIT-loads a large quant, and a wedged server or an unrelated process squatting
 /// :1234 does the same. Timing out is cheap — `None` degrades to the deterministic measurer below.
 fn curl_post(url: &str, body: &str) -> Option<Vec<u8>> {
-    let mut child = crate::no_window(Command::new("curl"))
+    let mut child = crate::child_cmd(Command::new("curl"))
         .args([
             "-sS",
             "--max-time",

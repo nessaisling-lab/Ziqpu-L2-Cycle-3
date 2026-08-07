@@ -393,10 +393,27 @@ pub fn local_endpoint() -> Option<String> {
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
 
-    if is_loopback_url(&url) || remote_model_allowed() {
-        return Some(url);
-    }
-    None
+    endpoint_allowed(&url).then_some(url)
+}
+
+/// Whether a "local" path may talk to `url` at all: it is on this machine, or the seeker has
+/// knowingly allowed one that is not.
+///
+/// Split out of [`local_endpoint`] because the measurer resolves its own base URL (it also honours
+/// `OLLAMA_HOST` and has per-provider defaults) and so cannot share the *resolution* — but it must
+/// share the *rule*. Re-implementing the rule there is exactly how it drifts.
+pub fn endpoint_allowed(url: &str) -> bool {
+    is_loopback_url(url) || remote_model_allowed()
+}
+
+/// Whether the endpoint the *local* paths will actually use is **not** on this machine.
+///
+/// True only in the knowingly-allowed remote case: `ZIQPU_ALLOW_REMOTE_MODEL=1` plus a
+/// `ZIQPU_LLM_URL` pointing off-box. It exists so the badge can stop saying LOCAL about a reading
+/// that was written somewhere else — permitting the setup and describing it truthfully are two
+/// different jobs, and the opt-out only bought the first one.
+pub fn local_endpoint_is_offmachine() -> bool {
+    local_endpoint().is_some_and(|url| !is_loopback_url(&url))
 }
 
 /// Whether the seeker has knowingly allowed a non-loopback model endpoint.

@@ -798,6 +798,27 @@ fn name_as_data(name: &str) -> String {
     format!("<<{}>>", cleaned.trim())
 }
 
+/// How close a contact is, as a word rather than a number — the only tightness that leaves this
+/// machine.
+///
+/// A numeric orb is a *measurement of the seeker's birth moment*, and a precise one narrows it hard:
+/// the Moon moves about half a degree an hour, so an orb given to a tenth of a degree pins a birth
+/// time to roughly a quarter of an hour. The choice's own chart is public — its date is committed in
+/// this repo — so the pair is a solvable system, and four of them are sent per reading.
+///
+/// The precision was also going out for no reader. [`UNGASAGA_SYSTEM`] instructs the model to *never
+/// state an orb or a degree*, so the digits were being disclosed to a third party and then forbidden
+/// from appearing in the output. What the model genuinely needs is the relative weight of one
+/// contact against another, and a four-step band over the 6° budget carries that intact.
+fn orb_band(orb: f64) -> &'static str {
+    match orb {
+        o if o <= 1.0 => "very tight",
+        o if o <= 2.5 => "tight",
+        o if o <= 4.0 => "close",
+        _ => "wide",
+    }
+}
+
 /// The tightest few contacts, one per line, for the model to read.
 fn aspects_block(measures: &Measures) -> String {
     if measures.top.is_empty() {
@@ -809,11 +830,11 @@ fn aspects_block(measures: &Measures) -> String {
         .take(4)
         .map(|a| {
             format!(
-                "- {} {} {} (orb {:.1}°, {})",
+                "- {} {} {} ({}, {})",
                 a.body_a,
                 a.aspect.to_lowercase(),
                 a.body_b,
-                a.orb,
+                orb_band(a.orb),
                 if a.harmonious { "flowing" } else { "friction" }
             )
         })
@@ -852,10 +873,19 @@ pub enum GroundedRung {
 
 impl GroundedRung {
     /// The card badge for this rung — what the reader sees about where the words came from.
+    ///
+    /// The two `Local` rungs consult the endpoint gate rather than answering from the rung alone.
+    /// `ZIQPU_ALLOW_REMOTE_MODEL=1` lets a seeker point the "local" model at another machine, which
+    /// is a legitimate setup — but the reading is then not local, and a badge that still says LOCAL
+    /// would be the app asserting something untrue about where the seeker's chart went. Allowing the
+    /// setup and describing it honestly are separate obligations.
     pub fn badge(self) -> &'static str {
+        let offmachine = crate::llm_http::local_endpoint_is_offmachine();
         match self {
             GroundedRung::Frontier => "GROUNDED · LIVE",
+            GroundedRung::LocalGrounded if offmachine => "GROUNDED · REMOTE",
             GroundedRung::LocalGrounded => "GROUNDED · LOCAL",
+            GroundedRung::LocalUnsourced if offmachine => "REMOTE · UNSOURCED",
             GroundedRung::LocalUnsourced => "LOCAL · UNSOURCED",
             GroundedRung::Template => "GROUNDED",
         }
@@ -1585,6 +1615,20 @@ mod tests {
             "an explicit opt-in permits a remote endpoint"
         );
 
+        // ...but permitting it does not make it local. The opt-out buys the connection, not the
+        // claim: a reading written on another machine must not be badged as if it never left this
+        // one, or the escape hatch quietly launders a remote model into a local promise.
+        assert!(crate::llm_http::local_endpoint_is_offmachine());
+        assert_eq!(
+            GroundedRung::LocalGrounded.badge(),
+            "GROUNDED · REMOTE",
+            "a knowingly-remote endpoint must not still badge LOCAL"
+        );
+        assert_eq!(GroundedRung::LocalUnsourced.badge(), "REMOTE · UNSOURCED");
+        // The opt-in with a loopback URL is still local — the badge follows the address, not the flag.
+        std::env::set_var("ZIQPU_LLM_URL", "http://127.0.0.1:1234/v1");
+        assert_eq!(GroundedRung::LocalGrounded.badge(), "GROUNDED · LOCAL");
+
         for k in [
             "ZIQPU_LLM_URL",
             "ZIQPU_LOCAL_MODEL",
@@ -1636,6 +1680,25 @@ mod tests {
         let block = aspects_block(&m);
         assert!(block.contains("Sun trine Moon"));
         assert!(block.contains("flowing"));
+
+        // Tightness travels as a word. A numeric orb measures the seeker's birth moment against a
+        // choice whose chart is public, so digits here narrow a birth time for anyone holding the
+        // prompt — and the model is told never to state one anyway, so nothing downstream wants them.
+        assert!(block.contains("tight"), "band must survive: {block}");
+        assert!(
+            !block.contains('°') && !block.to_lowercase().contains("orb"),
+            "no numeric orb may leave this machine: {block}"
+        );
+        assert!(
+            !block.contains("1.2"),
+            "the measured orb value must not appear: {block}"
+        );
+
+        // The band must still separate a near-exact contact from a loose one, or the model loses the
+        // relative weighting that justified sending tightness at all.
+        assert_eq!(orb_band(0.4), "very tight");
+        assert_eq!(orb_band(5.9), "wide");
+        assert_ne!(orb_band(0.4), orb_band(5.9));
     }
 
     // ── The layered grounding pipeline ──────────────────────────────────────────────────────
