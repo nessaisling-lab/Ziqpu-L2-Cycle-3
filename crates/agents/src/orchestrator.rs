@@ -217,12 +217,34 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
     /// it. Consent that understates its blast radius isn't consent. Keep this list in step with
     /// what `fetch` actually calls.
     pub fn propose_grounding(&self, choice: &Choice) -> ApprovalRequest {
+        use crate::research::{classify_entity, EntityKind};
+
+        // Name the sources this entity's roster can actually spend, and — where the *identifier
+        // itself* is sensitive — say so. A stock ticker is public and impersonal; a VIN identifies
+        // one specific vehicle, and a medicine name discloses a health interest. Those leave the
+        // machine on approval, so the person approving deserves to know that before they press yes,
+        // not after.
+        let (sources, sensitivity) = match classify_entity(choice) {
+            EntityKind::Vehicle => (
+                "NHTSA vPIC (the federal VIN database)",
+                " This sends the VIN, which identifies one specific vehicle.",
+            ),
+            EntityKind::PublicCompany => (
+                "SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia",
+                "",
+            ),
+            EntityKind::Named => (
+                "Wikidata, Wikipedia and the FDA's public drug register",
+                " If this name is a medicine, that query goes to a public FDA endpoint.",
+            ),
+        };
+
         ApprovalRequest {
             choice: choice.ticker.clone(),
             prompt: format!(
-                "Ground this read for {}? I'll pull real external signals (SEC EDGAR filings and \
-                 Wikipedia) — external, gated, costed calls. Approve to proceed; decline to keep \
-                 the symbolic read.",
+                "Ground this read for {}? I'll pull real external signals ({sources}) — external, \
+                 gated, costed calls.{sensitivity} Approve to proceed; decline to keep the symbolic \
+                 read.",
                 choice.ticker
             ),
         }
@@ -456,7 +478,8 @@ mod tests {
         let s = session();
         let choice = demo_choices().into_iter().next().unwrap();
         let prompt = s.propose_grounding(&choice).prompt;
-        for source in ["SEC EDGAR", "Wikipedia"] {
+        // A public filer spends all four of these.
+        for source in ["SEC EDGAR", "SEC XBRL", "Wikidata", "Wikipedia"] {
             assert!(
                 prompt.contains(source),
                 "the checkpoint spends {source} but never names it — consent must state its full \
@@ -465,6 +488,52 @@ mod tests {
         }
         // It must still say the pull is external and costed — that's *why* the gate exists.
         assert!(prompt.contains("costed"), "prompt: {prompt}");
+    }
+
+    /// The consent has to track the **roster**, not a remembered superset. This test exists because
+    /// the previous version enumerated only "SEC EDGAR" and "Wikipedia", so when the roster grew to
+    /// SEC financials, Wikidata, vPIC and openFDA the prompt silently understated what it spent —
+    /// and the test that was written to prevent exactly that failed to notice, because it checked a
+    /// hardcoded pair instead of the kind's actual sources.
+    #[test]
+    fn the_proposal_tracks_the_entity_kind_and_flags_a_sensitive_identifier() {
+        let s = session();
+        let base = demo_choices().into_iter().next().unwrap();
+
+        // A vehicle: the VIN is the identifier, and it identifies one specific car.
+        let car = Choice {
+            ticker: "1HGCM82633A004352".to_string(),
+            name: "my car".to_string(),
+            cik: None,
+            wiki: None,
+            ..base.clone()
+        };
+        let p = s.propose_grounding(&car).prompt;
+        assert!(
+            p.contains("vPIC"),
+            "a vehicle's consent must name vPIC: {p}"
+        );
+        assert!(
+            p.contains("VIN") && p.contains("one specific vehicle"),
+            "a VIN is quasi-identifying — consent must say so: {p}"
+        );
+        assert!(
+            !p.contains("SEC"),
+            "a vehicle never spends SEC, so consent must not claim it does: {p}"
+        );
+
+        // A bare name: could be a medicine, so the health-adjacent lookup is disclosed.
+        let named = Choice {
+            cik: None,
+            wiki: None,
+            ..base
+        };
+        let p = s.propose_grounding(&named).prompt;
+        assert!(p.contains("FDA"), "a bare name may hit openFDA: {p}");
+        assert!(
+            p.contains("medicine"),
+            "a health-adjacent query must be disclosed before approval, not after: {p}"
+        );
     }
 
     #[test]

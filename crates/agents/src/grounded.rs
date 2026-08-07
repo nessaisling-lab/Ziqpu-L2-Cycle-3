@@ -243,7 +243,7 @@ impl EdgarSource {
 
 /// The honest "nothing to show" marker. [`has_real_signals`](crate::) and the composite both key on
 /// this exact string, so it is defined once here and reused rather than spelled out at each site.
-pub(crate) const NO_SIGNALS: &str = "no public signals available";
+pub const NO_SIGNALS: &str = "no public signals available";
 
 /// Bounded, contact-identified HTTP GET shared by every live grounded source.
 ///

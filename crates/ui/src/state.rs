@@ -523,7 +523,19 @@ pub fn run_grounding(mut ctx: AppCtx) {
     // lands on rides back so the Briefing card badges the read truthfully.
     let tx = ctx.grounder.tx();
     std::thread::spawn(move || {
-        let signals = fetch_grounded(&choice, deep);
+        // The fetch reaches several third-party sources. If one of them panics, the panic must not
+        // unwind this thread: the checkpoint's "grounding…" view has no cancel and no error path, so
+        // a dead worker leaves the window spinning forever. Caught, a panicking source degrades to
+        // exactly the same honest place a source that returned nothing does — no signals, and the
+        // reading is marked unsourced rather than grounded.
+        let signals = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            fetch_grounded(&choice, deep)
+        }))
+        .unwrap_or_else(|_| GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "(no public signals)".to_string(),
+            items: vec![agents::NO_SIGNALS.to_string()],
+        });
         let measures = {
             let mut throwaway = build_session();
             throwaway.measure(&seeker, &choice)

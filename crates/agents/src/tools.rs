@@ -97,10 +97,20 @@ pub fn run_tool_loop(
                 .unwrap_or("{}");
             let args: Value = serde_json::from_str(args_str).unwrap_or_else(|_| json!({}));
 
+            // A tool that panics is contained here rather than unwinding the whole loop. Without
+            // this, one bad worker takes down the thread that owns the grounding, the result is
+            // never sent back, and the UI sits on its "grounding…" view forever with no cancel —
+            // a permanent spinner is a worse failure than a missing signal. Caught, it becomes an
+            // error result the model can read and route around, exactly like an unknown tool name.
             let result = tools
                 .iter()
                 .find(|t| t.name() == name)
-                .map(|t| t.call(&args))
+                .map(|t| {
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| t.call(&args)))
+                        .unwrap_or_else(|_| {
+                            format!("error: tool `{name}` failed and returned nothing")
+                        })
+                })
                 .unwrap_or_else(|| format!("error: no such tool `{name}`"));
 
             messages.push(json!({
@@ -330,6 +340,57 @@ mod tests {
         assert!(
             out.contains("42"),
             "the model must have called add(17,25) and used the result 42, got: {out}"
+        );
+    }
+
+    /// A worker that panics must not take the loop with it.
+    ///
+    /// This is the difference between a degraded reading and a wedged app: the loop runs on the
+    /// thread that owns the grounded pull, and the checkpoint's "grounding…" view has no cancel and
+    /// no error path — so an unwinding tool means the result is never sent and the window spins
+    /// forever. Contained, the panic becomes an ordinary error result the model reads and works
+    /// around, exactly like calling a tool that doesn't exist.
+    #[test]
+    fn a_panicking_tool_is_contained_and_the_loop_survives() {
+        struct PanicTool;
+        impl Tool for PanicTool {
+            fn name(&self) -> &str {
+                "boom"
+            }
+            fn spec(&self) -> Value {
+                json!({"type":"function","function":{"name":"boom","description":"panics",
+                       "parameters":{"type":"object","properties":{}}}})
+            }
+            fn call(&self, _args: &Value) -> String {
+                panic!("this worker exploded");
+            }
+        }
+
+        let call = http(
+            r#"{"choices":[{"message":{"role":"assistant","content":null,
+                "tool_calls":[{"id":"b","type":"function",
+                "function":{"name":"boom","arguments":"{}"}}]}}]}"#,
+        );
+        let recover =
+            http(r#"{"choices":[{"message":{"role":"assistant","content":"Carried on."}}]}"#);
+        let (url, bodies) = spawn_mock(vec![call, recover]);
+
+        // Keep the test output readable — the panic itself is expected here.
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let out = run_tool_loop(&url, "k", "m", "sys", "call the bad tool", &[&PanicTool], 5);
+        std::panic::set_hook(prev);
+
+        assert_eq!(
+            out.as_deref(),
+            Some("Carried on."),
+            "the loop must survive a panicking tool"
+        );
+        let bodies = bodies.lock().unwrap();
+        assert!(
+            bodies[1].contains("failed and returned nothing"),
+            "the failure is fed back to the model as a result: {}",
+            bodies[1]
         );
     }
 
