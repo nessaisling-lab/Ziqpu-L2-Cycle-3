@@ -2,6 +2,11 @@
 
 **Team:** Ziqpu (Pursuit L2, Cycle 3) · **Week 6 deliverable:** pattern summary + team decision
 
+> **Visual teachback deck:** <https://claude.ai/code/artifact/3cc0a6d8-3381-46a9-9781-85cb989433d3>
+> — the same argument laid out for the table, with the latency measurement drawn as a range plot.
+> *(Private to the author's Claude workspace unless explicitly shared; this document is the canonical
+> copy and stands alone.)*
+
 ---
 
 ## 1. The pattern we are
@@ -156,13 +161,56 @@ overlap, that both modes produce identical output, that declared order survives 
 
 ---
 
-## 5. Summary
+## 5. Week 6 plan — what we're adding next
+
+Concurrent workers (§4) is **shipped and measured**. That's the baseline, not the plan. The honest
+gap is that **our orchestrator doesn't yet do the one thing that defines the pattern: choose its
+worker set from the input.**
+
+Today `research.rs` advertises the *same three stock-shaped tools* to the model for every entity —
+SEC filings, SEC financials, Wikidata — regardless of what the entity actually is. A model picking
+among a fixed roster is closer to routing than orchestration. And `DecodeVinTool` (built, tested,
+exported) is wired into *nothing*: a worker with no orchestrator to dispatch it.
+
+**What we will add, specifically:**
+
+1. **An entity-kind resolution step.** Before dispatch, the orchestrator establishes what the thing
+   *is* — public company / vehicle / drug or device / product — instead of assuming "US-listed
+   ticker".
+2. **A worker roster selected from that kind.** A vehicle gets `DecodeVinTool` + Wikidata; a drug
+   gets openFDA; a public company gets the SEC pair. Impossible lookups are never dispatched, and
+   possible ones stop being invisible.
+3. **New workers to make the roster meaningful** — openFDA (day-precise, public domain) and
+   Wikidata `P577` product launches, per the vetted source list.
+4. **A live proof.** The tool loop has only ever run against mocks and unit tests. We will serve a
+   real `--jinja` tool-calling model and verify the orchestrator dispatches *different* worker sets
+   for different entity kinds.
+
+**Success criterion (falsifiable):** ground an entity that today's fixed fan **cannot ground at
+all** — a car — with real sourced signals and no fabricated date. Today that request returns
+nothing, because every worker in the roster speaks SEC.
+
+**Why this is the right add rather than more speed:** parallelism made an existing capability
+faster. This makes the pattern *true* — the subtask list finally becomes a function of the input,
+which is the entire justification for choosing orchestrator-workers in §3. It is also the direct
+prerequisite for the product's next milestone ("chart anything"), so the architecture exercise and
+the roadmap are the same work.
+
+**Known risk + the mitigation already in place:** a model can select a wrong or empty roster. The
+deterministic multi-source composite remains the fallback — if the loop returns nothing, grounding
+degrades to the fixed fan rather than to an invented answer.
+
+---
+
+## 6. Summary
 
 | Question | Our answer |
 |---|---|
 | Pattern | Orchestrator-workers |
 | Already in the build? | Yes — the Session (code orchestrator) and the research loop (LLM orchestrator) |
-| Week 6 addition | Made the source workers concurrent |
+| Shipped so far | Made the source workers concurrent |
 | Evidence | 1255–2326 ms → 617–667 ms; identical readings; 4 tests |
+| Week 6 addition | Entity-kind worker selection — the orchestrator picks *which* workers exist per entity |
+| Proof it worked | Ground a car (today: impossible — every worker speaks SEC) with real sourced signals |
 | Second agent? | No — we have two, and a third would duplicate an existing role |
 | Biggest lesson | An orchestrator should be a model only when the plan can't be known in advance. When it can, use a chain — and when it's merely wide, use parallelism |
