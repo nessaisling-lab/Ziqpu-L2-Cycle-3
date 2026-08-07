@@ -30,13 +30,46 @@
 use std::time::{Duration, Instant};
 
 use nokhwa::pixel_format::LumaFormat;
-use nokhwa::utils::{ApiBackend, CameraIndex, FrameFormat, RequestedFormat, RequestedFormatType};
+use nokhwa::utils::{
+    ApiBackend, CameraFormat, CameraIndex, FrameFormat, RequestedFormat, RequestedFormatType,
+    Resolution,
+};
 use nokhwa::Camera;
 use std::borrow::Cow;
 
 use rxing::{
     common::HybridBinarizer, BinaryBitmap, DecodeHints, LuminanceSource, MultiFormatReader, Reader,
 };
+
+/// The resolution we ask the camera for, and why it is not "the highest available".
+///
+/// Measured on a real webcam: `AbsoluteHighestFrameRate` selected **1920×1080 at 1 fps** — the
+/// device's biggest mode, which happens to be its slowest — while the same camera offered 1280×720
+/// at 30. That single mis-selection produced both symptoms at once: a preview that crawled, and a
+/// scan that got roughly one look at the code per second.
+///
+/// Decode cost is the other half. A 1080p frame took **276 ms on average to decode** (peaking past
+/// 700 ms); 720p is 2.25× fewer pixels, so the same work costs well under half as much. Between the
+/// frame rate and the pixel count, this is the difference between ~3 attempts per second and ~20.
+///
+/// 720p is chosen rather than something smaller because a 1D barcode needs enough pixels across its
+/// narrowest bar to be readable at all — shrinking further would trade a slow scanner for one that
+/// cannot see.
+const TARGET_WIDTH: u32 = 1280;
+const TARGET_HEIGHT: u32 = 720;
+const TARGET_FPS: u32 = 30;
+
+/// Ask for a fast, uncompressed, adequately sized frame — explicitly, rather than trusting a
+/// "highest" constant to mean what it sounds like (see [`TARGET_WIDTH`]). `Closest` lets the backend
+/// pick the nearest mode it really has, so a camera without this exact mode still gets something
+/// sensible rather than failing.
+fn requested_format() -> RequestedFormat<'static> {
+    RequestedFormat::new::<LumaFormat>(RequestedFormatType::Closest(CameraFormat::new(
+        Resolution::new(TARGET_WIDTH, TARGET_HEIGHT),
+        FrameFormat::NV12,
+        TARGET_FPS,
+    )))
+}
 
 /// A greyscale frame as rxing wants to see it.
 ///
@@ -172,6 +205,16 @@ impl std::error::Error for ScanError {}
 /// image holds no readable code — which is the ordinary case for most frames of a live scan, not an
 /// error.
 pub fn decode_luma(luma: &[u8], width: u32, height: u32) -> Option<Scan> {
+    decode_luma_with(luma, width, height, true)
+}
+
+/// Decode, choosing how hard to try.
+///
+/// `thorough` turns on rxing's extra rotated/inverted passes. They rescue a badly-held single shot,
+/// and they cost real time on every frame that contains no code — which, during a live scan, is
+/// nearly all of them. So the live loop runs fast passes (the preview lets a person aim, which is
+/// what those passes were compensating for) and a still image gets the thorough one.
+pub fn decode_luma_with(luma: &[u8], width: u32, height: u32, thorough: bool) -> Option<Scan> {
     let (w, h) = (width as usize, height as usize);
     if w == 0 || h == 0 || luma.len() < w * h {
         return None;
@@ -181,7 +224,7 @@ pub fn decode_luma(luma: &[u8], width: u32, height: u32) -> Option<Scan> {
     // Worth the extra passes: a hand-held frame is rarely square-on, and a missed frame costs the
     // seeker another second of holding the item up.
     let hints = DecodeHints {
-        TryHarder: Some(true),
+        TryHarder: Some(thorough),
         ..Default::default()
     };
     let result = MultiFormatReader::default()
@@ -199,10 +242,7 @@ pub fn decode_luma(luma: &[u8], width: u32, height: u32) -> Option<Scan> {
 /// of the scan and closed on the way out, including on failure: a scanner that leaves the lamp on is
 /// its own kind of bug.
 pub fn scan_once(timeout: Duration) -> Result<Scan, ScanError> {
-    // Ask for greyscale explicitly. nokhwa negotiates the closest uncompressed format the device
-    // offers and hands back the luma plane — no JPEG path, which is compiled out (see module note).
-    let format = RequestedFormat::new::<LumaFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
-    let mut camera = Camera::new(CameraIndex::Index(0), format)
+    let mut camera = Camera::new(CameraIndex::Index(0), requested_format())
         .map_err(|e| ScanError::NoCamera(e.to_string()))?;
 
     if camera.frame_format() == FrameFormat::MJPEG {
@@ -216,12 +256,20 @@ pub fn scan_once(timeout: Duration) -> Result<Scan, ScanError> {
 
     let deadline = Instant::now() + timeout;
     let mut found = None;
+    let mut n = 0usize;
     while Instant::now() < deadline {
         let Ok(frame) = camera.frame() else {
             continue; // a dropped frame is normal; keep looking until the deadline
         };
         let resolution = frame.resolution();
-        if let Some(scan) = decode_luma(frame.buffer(), resolution.width(), resolution.height()) {
+        let thorough = n % THOROUGH_EVERY == 0;
+        n += 1;
+        if let Some(scan) = decode_luma_with(
+            frame.buffer(),
+            resolution.width(),
+            resolution.height(),
+            thorough,
+        ) {
             found = Some(scan);
             break;
         }
@@ -238,9 +286,13 @@ pub fn scan_once(timeout: Duration) -> Result<Scan, ScanError> {
 /// are deliberately small and greyscale — the preview exists so a person can aim, not to look good.
 pub type PreviewFrame = String;
 
-/// Every `PREVIEW_EVERY`th frame is sent to the UI. Encoding and base64ing each frame costs more
-/// than decoding one, so previewing every frame would make the scanner slower at its actual job.
-const PREVIEW_EVERY: usize = 3;
+/// How often to spend a **thorough** pass among the fast ones.
+///
+/// Measured on a real 720p frame: a fast pass costs ~19 ms, a thorough one ~171 ms — nine times as
+/// much, on every frame, almost all of which contain no code at all. Running only fast passes gives
+/// ~26 looks per second instead of ~3; sprinkling a thorough pass in every eighth frame keeps the
+/// rescue path for a code held at an awkward angle while costing about 20 ms per frame on average.
+const THOROUGH_EVERY: usize = 8;
 
 /// Longest edge of a preview image. Big enough to aim by, small enough that the encode is cheap.
 const PREVIEW_MAX: u32 = 320;
@@ -253,8 +305,7 @@ pub fn scan_with_preview(
     timeout: Duration,
     mut on_frame: impl FnMut(PreviewFrame),
 ) -> Result<Scan, ScanError> {
-    let format = RequestedFormat::new::<LumaFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
-    let mut camera = Camera::new(CameraIndex::Index(0), format)
+    let mut camera = Camera::new(CameraIndex::Index(0), requested_format())
         .map_err(|e| ScanError::NoCamera(e.to_string()))?;
     if camera.frame_format() == FrameFormat::MJPEG {
         return Err(ScanError::UnsupportedFormat(
@@ -276,15 +327,18 @@ pub fn scan_with_preview(
         let (w, h) = (res.width(), res.height());
         let luma = frame.buffer();
 
-        if n % PREVIEW_EVERY == 0 {
-            if let Some(png) = preview_png(luma, w, h) {
-                on_frame(png);
-            }
+        // Every frame is previewed. It used to be every third, while a decode cost 276 ms and made
+        // the preview crawl at under two updates a second; with fast passes the loop is an order of
+        // magnitude quicker and the preview simply keeps up.
+        if let Some(png) = preview_png(luma, w, h) {
+            on_frame(png);
         }
-        n += 1;
 
         // Decode the FULL frame, never the shrunk preview — downscaling is what loses a barcode.
-        if let Some(scan) = decode_luma(luma, w, h) {
+        // Mostly fast passes, with an occasional thorough one; see THOROUGH_EVERY.
+        let thorough = n % THOROUGH_EVERY == 0;
+        n += 1;
+        if let Some(scan) = decode_luma_with(luma, w, h, thorough) {
             found = Some(scan);
             break;
         }
@@ -524,6 +578,104 @@ mod tests {
             // Prove each fixture is actually readable by our own decoder before handing it over.
             let scan = decode_image_file(&path).expect("our own fixture must decode");
             eprintln!("   reads back as {}: {}", scan.symbology, scan.text);
+        }
+    }
+
+    /// DIAGNOSTIC — what does this camera actually give us, and what does a decode cost?
+    ///
+    /// Written because a scan that "does nothing" has several possible causes that look identical
+    /// from the outside: the frame may be too low-resolution for thin bars, out of focus at reading
+    /// distance, or arriving so slowly that only a couple of decode attempts happen per second. This
+    /// measures all three and saves a frame so the picture itself can be looked at.
+    /// `cargo test -p agents --features camera camera -- --ignored --nocapture diagnose_camera`
+    #[test]
+    #[ignore = "needs a webcam; run on demand"]
+    fn diagnose_camera() {
+        let mut camera = match Camera::new(CameraIndex::Index(0), requested_format()) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("no camera: {e}");
+                return;
+            }
+        };
+        // What does this device actually offer? The chosen mode is only sensible relative to this.
+        if let Ok(list) = camera.compatible_camera_formats() {
+            eprintln!("--- {} modes offered ---", list.len());
+            let mut modes: Vec<_> = list.iter().collect();
+            modes.sort_by_key(|f| (std::cmp::Reverse(f.frame_rate()), f.resolution().width()));
+            for f in modes.iter().take(14) {
+                eprintln!(
+                    "   {:?} {}x{} @ {} fps",
+                    f.format(),
+                    f.resolution().width(),
+                    f.resolution().height(),
+                    f.frame_rate()
+                );
+            }
+        }
+        eprintln!("format     : {:?}", camera.frame_format());
+        eprintln!("resolution : {:?}", camera.resolution());
+        eprintln!("fps (asked): {}", camera.frame_rate());
+        camera.open_stream().expect("open stream");
+
+        let mut grabs = Vec::new();
+        let mut decodes = Vec::new();
+        let mut fast = Vec::new();
+        let mut last: Option<(Vec<u8>, u32, u32)> = None;
+        for _ in 0..12 {
+            let t0 = Instant::now();
+            let Ok(frame) = camera.frame() else { continue };
+            grabs.push(t0.elapsed().as_millis());
+            let res = frame.resolution();
+            let t1 = Instant::now();
+            let hit = decode_luma_with(frame.buffer(), res.width(), res.height(), true);
+            decodes.push(t1.elapsed().as_millis());
+            let t2 = Instant::now();
+            let _ = decode_luma_with(frame.buffer(), res.width(), res.height(), false);
+            fast.push(t2.elapsed().as_millis());
+            if hit.is_some() {
+                eprintln!("decoded    : {hit:?}");
+            }
+            last = Some((frame.buffer().to_vec(), res.width(), res.height()));
+        }
+        let _ = camera.stop_stream();
+
+        let mean = |v: &[u128]| {
+            if v.is_empty() {
+                0
+            } else {
+                v.iter().sum::<u128>() / v.len() as u128
+            }
+        };
+        eprintln!(
+            "grab   ms  : mean {} (max {})",
+            mean(&grabs),
+            grabs.iter().max().unwrap_or(&0)
+        );
+        eprintln!(
+            "decode ms  : thorough mean {} | fast mean {}",
+            mean(&decodes),
+            mean(&fast)
+        );
+        let per = mean(&grabs) + mean(&fast);
+        if per > 0 {
+            eprintln!(
+                "=> about {:.1} decode attempts per second",
+                1000.0 / per as f64
+            );
+        }
+
+        if let Some((luma, w, h)) = last {
+            let dir = std::path::Path::new("scratch-codes");
+            let _ = std::fs::create_dir_all(dir);
+            if let Some(img) = image::GrayImage::from_raw(w, h, luma) {
+                let path = dir.join("camera-sees.png");
+                img.save(&path).expect("save frame");
+                eprintln!(
+                    "saved a real frame to {} — look at it: is the code sharp?",
+                    path.display()
+                );
+            }
         }
     }
 
