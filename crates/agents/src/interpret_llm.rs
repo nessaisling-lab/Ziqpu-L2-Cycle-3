@@ -862,6 +862,12 @@ fn aspects_block(measures: &Measures) -> String {
 pub enum GroundedRung {
     /// The hosted frontier model wrote it, guided by the local draft — the fullest read.
     Frontier,
+    /// The hosted frontier model wrote it, but **no external signals were available** — so it read
+    /// the charts alone, exactly like [`Self::LocalUnsourced`] one tier down. A capable model asked
+    /// for a grounded reading with nothing to ground it will still write a confident reality beat;
+    /// the rung exists so that read is badged for what it is instead of inheriting `Frontier`'s
+    /// claim of external backing.
+    FrontierUnsourced,
     /// The frontier was unavailable; the local model wrote it from the **real** pulled signals.
     LocalGrounded,
     /// No external signals were available; the local model (or the template) read the charts
@@ -883,6 +889,7 @@ impl GroundedRung {
         let offmachine = crate::llm_http::local_endpoint_is_offmachine();
         match self {
             GroundedRung::Frontier => "GROUNDED · LIVE",
+            GroundedRung::FrontierUnsourced => "LIVE · UNSOURCED",
             GroundedRung::LocalGrounded if offmachine => "GROUNDED · REMOTE",
             GroundedRung::LocalGrounded => "GROUNDED · LOCAL",
             GroundedRung::LocalUnsourced if offmachine => "REMOTE · UNSOURCED",
@@ -890,9 +897,13 @@ impl GroundedRung {
             GroundedRung::Template => "GROUNDED",
         }
     }
-    /// Whether real external signals back this reading. `false` only for [`Self::LocalUnsourced`].
+    /// Whether real external signals back this reading — `false` for every unsourced rung, whoever
+    /// wrote it. A capable model is not a source.
     pub fn is_sourced(self) -> bool {
-        !matches!(self, GroundedRung::LocalUnsourced)
+        !matches!(
+            self,
+            GroundedRung::LocalUnsourced | GroundedRung::FrontierUnsourced
+        )
     }
 }
 
@@ -1121,10 +1132,24 @@ pub fn grounded_layered(
         },
         ReadMode::Live => {
             if let Some((prose, model)) = frontier_grounded(measures, fit, name, grounded, draft) {
-                return LayeredBrief {
-                    reading: prose,
-                    rung: GroundedRung::Frontier,
-                    source: Some(model),
+                // The same fork `local_fallback` makes one tier down, and it was missing here.
+                // Nothing checked that any real signal had been fetched before badging the frontier's
+                // prose "GROUNDED · LIVE" with `is_sourced() == true` — so a pull that found nothing
+                // still produced a read the UI presented as checked against reality. The frontier is
+                // the *most* fluent writer in the ladder, which makes it the one whose unbacked prose
+                // reads most convincingly like evidence.
+                return if has_signals {
+                    LayeredBrief {
+                        reading: prose,
+                        rung: GroundedRung::Frontier,
+                        source: Some(model),
+                    }
+                } else {
+                    LayeredBrief {
+                        reading: to_unsourced(&prose),
+                        rung: GroundedRung::FrontierUnsourced,
+                        source: Some(model),
+                    }
                 };
             }
             local_fallback(measures, fit, name, grounded, has_signals)
@@ -1636,6 +1661,44 @@ mod tests {
         ] {
             std::env::remove_var(k);
         }
+    }
+
+    /// A capable model is not a source.
+    ///
+    /// The Live branch used to return the frontier's prose as `GroundedRung::Frontier` no matter
+    /// what — so a grounded pull that found nothing still produced a reading badged "GROUNDED · LIVE"
+    /// with `is_sourced() == true`, asserting external backing that was never fetched. The frontier
+    /// writes the most fluent prose in the ladder, which makes its unbacked output the most
+    /// convincing counterfeit of evidence. Exercising the frontier itself needs a live hosted model,
+    /// so what is pinned here is the contract the branch now relies on: every unsourced rung reports
+    /// itself unsourced, and says so on the badge.
+    #[test]
+    fn every_unsourced_rung_admits_it_whoever_wrote_the_words() {
+        let _env = env_guard();
+        std::env::remove_var("ZIQPU_LLM_URL");
+        std::env::remove_var("ZIQPU_ALLOW_REMOTE_MODEL");
+
+        for rung in [
+            GroundedRung::FrontierUnsourced,
+            GroundedRung::LocalUnsourced,
+        ] {
+            assert!(!rung.is_sourced(), "{rung:?} must not claim sourcing");
+            assert!(
+                rung.badge().contains("UNSOURCED"),
+                "{rung:?} must say so on the badge, got {}",
+                rung.badge()
+            );
+            assert!(
+                !rung.badge().contains("GROUNDED"),
+                "{rung:?} must not also claim GROUNDED: {}",
+                rung.badge()
+            );
+        }
+
+        // The frontier keeps its own identity when it is unsourced — the reader can still tell which
+        // model wrote the words, they just aren't told those words were checked against anything.
+        assert_eq!(GroundedRung::FrontierUnsourced.badge(), "LIVE · UNSOURCED");
+        assert!(GroundedRung::Frontier.is_sourced());
     }
 
     #[test]

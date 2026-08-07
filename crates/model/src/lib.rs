@@ -71,6 +71,31 @@ fn no_console_window(cmd: std::process::Command) -> std::process::Command {
 mod credential_scrub_tests {
     use super::looks_like_credential;
 
+    /// A remote name must not be able to steer a path — least of all the recursive delete.
+    #[test]
+    fn only_a_plain_file_name_may_become_a_path_component() {
+        use super::is_plain_file_name;
+        for good in [
+            "llama-b4321-bin-win-cuda-x64.zip",
+            "cudart-llama-bin-win-cu12-x64.zip",
+            "llama-bin-ubuntu-x64.tar.gz",
+        ] {
+            assert!(is_plain_file_name(good), "must accept {good}");
+        }
+        for bad in [
+            "../../../evil-bin-win-cpu-x64.zip",
+            "..\\..\\evil.zip",
+            "sub/dir/evil.zip",
+            "C:\\Windows\\System32\\evil.zip",
+            "/etc/evil.zip",
+            "..",
+            ".",
+            "",
+        ] {
+            assert!(!is_plain_file_name(bad), "must reject {bad:?}");
+        }
+    }
+
     /// Every credential variable this workspace actually sets must be caught by the shape rule, and
     /// the ordinary variables a child genuinely needs must survive it.
     #[test]
@@ -645,6 +670,36 @@ pub fn system_cmd(win_rel: &str, unix: &str) -> String {
         }
         unix.to_string()
     }
+}
+
+/// Whether a remote-supplied release asset name is safe to use as a single path component.
+///
+/// The release JSON comes from `api.github.com`, and its asset names are joined straight onto the
+/// runtime root to build the archive path, the extraction directory, and — on any failure branch —
+/// the target of a recursive delete. A name is only ever meant to be a plain file name, so anything
+/// that could steer a path out of the root is **rejected rather than sanitised**: a rejection is
+/// obviously correct, whereas a sanitiser invites an argument about whether it is complete.
+///
+/// GitHub very probably forbids separators in asset names already, which is why this is
+/// defence-in-depth rather than a live hole — but the app should not be relying on a remote
+/// service's naming policy to keep its own deletes inside its own directory.
+fn is_plain_file_name(name: &str) -> bool {
+    if name.is_empty()
+        || name.len() > 128
+        || name.contains('\0')
+        || name.contains('/')
+        || name.contains('\\')
+    {
+        return false;
+    }
+    // Exactly one component, and that component is the whole string. Rejects `..`, `.`, absolute
+    // paths and Windows drive prefixes without enumerating their spellings.
+    let mut parts = std::path::Path::new(name).components();
+    let single = matches!(
+        parts.next(),
+        Some(std::path::Component::Normal(only)) if only == std::ffi::OsStr::new(name)
+    );
+    single && parts.next().is_none()
 }
 
 /// Resolve `bin` to an absolute path by searching `PATH` ourselves — deliberately **not** by handing
@@ -2015,6 +2070,20 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
         .ok_or("picked asset vanished from the release")?;
 
     // Lay the build down under a dir named for the asset, so what is installed is legible on disk.
+    // The name is a remote string, and below it becomes the archive path, the extraction directory,
+    // and — on any failure — the target of a recursive delete. Check it is a plain file name before
+    // any of that, not after.
+    if !is_plain_file_name(&pick.asset) {
+        return Err(format!(
+            "release asset has an unusable name: {}",
+            pick.asset
+        ));
+    }
+    if let Some(companion) = &pick.companion {
+        if !is_plain_file_name(companion) {
+            return Err(format!("companion asset has an unusable name: {companion}"));
+        }
+    }
     let stem = pick
         .asset
         .trim_end_matches(".zip")
