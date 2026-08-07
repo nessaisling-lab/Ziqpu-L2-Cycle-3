@@ -240,41 +240,108 @@ const RESEARCH_SYSTEM: &str = "You are a research assistant gathering REAL publi
     any data; only report what a tool returns. Call each relevant tool at most once. When you have \
     gathered the available signals, reply with the single word DONE.";
 
+/// What an entity **is** — which decides which workers can possibly say anything about it.
+///
+/// This is the axis the roster turns on. A vehicle has no filings; a company has no VIN. Before this
+/// existed, every entity was offered the same three stock-shaped tools, which meant a car could not
+/// be grounded at all — every available worker spoke SEC.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntityKind {
+    /// A US public filer — it carries an SEC CIK, so the filings + financials workers apply.
+    PublicCompany,
+    /// A specific vehicle, identified by the VIN in its ticker field.
+    Vehicle,
+    /// A named organization with no CIK (the airline/insurer universes, private companies). Only the
+    /// structured-facts worker can speak to it.
+    Organization,
+}
+
+/// Decide an entity's kind **in code, from data we already hold** — a CIK is either present or not, a
+/// VIN is either 17 valid characters or not.
+///
+/// Deliberately not a model call. The project's own rule for this pattern is that a model should
+/// orchestrate only where the plan *can't* be known in advance; here it can, exactly and cheaply. So
+/// the two levels split: **code narrows the roster** to the workers that could possibly apply
+/// (deterministic, auditable, free), and the **model then decides which of those to actually call and
+/// with what arguments** — the part that genuinely varies. Asking a model to answer a question its
+/// input already answers would add latency, cost, and a way to be wrong, for nothing.
+pub fn classify_entity(choice: &Choice) -> EntityKind {
+    if crate::vin::is_valid_vin(&choice.ticker) {
+        return EntityKind::Vehicle;
+    }
+    if choice.cik.is_some() {
+        return EntityKind::PublicCompany;
+    }
+    EntityKind::Organization
+}
+
+/// The worker roster for an entity kind — **this is the orchestration**. The subtask list is now a
+/// function of the input rather than a fixed three, so impossible lookups are never dispatched and
+/// possible ones stop being invisible.
+fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Tool>> {
+    let tool = |name: &'static str,
+                description: &'static str,
+                source: Box<dyn GroundedSource + Send + Sync>|
+     -> Box<dyn Tool> {
+        Box::new(GroundedTool {
+            name,
+            description,
+            source,
+            choice: choice.clone(),
+            sink: sink.clone(),
+        })
+    };
+
+    let company_facts = || {
+        tool(
+            "company_facts",
+            "Structured CC0 facts from Wikidata: founding year and employee count.",
+            Box::<WikidataSource>::default(),
+        )
+    };
+
+    match kind {
+        EntityKind::PublicCompany => vec![
+            tool(
+                "sec_filings",
+                "Recent SEC EDGAR filings and the company's SIC industry. For US public filers.",
+                Box::<EdgarSource>::default(),
+            ),
+            tool(
+                "sec_financials",
+                "Latest reported revenue and total assets from SEC XBRL company facts. For US public filers.",
+                Box::<SecFactsSource>::default(),
+            ),
+            company_facts(),
+        ],
+        // A vehicle gets the vPIC worker and nothing SEC-shaped. Wikidata is left out on purpose:
+        // car-model items were empirically found to carry no usable date (most have none at all, the
+        // rest year-only), so offering it would spend a call to learn nothing.
+        EntityKind::Vehicle => vec![tool(
+            "vehicle_record",
+            "Decode this vehicle's VIN via NHTSA vPIC: make, model, model year, and the plant where \
+             it was assembled. Identity and origin place only — a VIN carries no build date.",
+            Box::new(crate::vin::VehicleSource),
+        )],
+        // No CIK, so the SEC workers can only return nothing. Offer the one that can speak.
+        EntityKind::Organization => vec![company_facts()],
+    }
+}
+
 /// Research a choice's grounding by letting the model drive the tool loop, then build the grounding
-/// from the **real signals the tools returned** (never the model's prose). `deep` adds the gated
-/// open-web (news) tool. Falls back to nothing-collected → [`NO_SIGNALS`]; a caller that wants a
-/// safety net can fall back to the deterministic [`CompositeSource`](crate::CompositeSource).
+/// from the **real signals the tools returned** (never the model's prose). The worker roster is
+/// selected from the entity's [`EntityKind`] first, so the model only ever sees tools that could
+/// apply. `deep` adds the gated open-web (news) tool. Falls back to nothing-collected →
+/// [`NO_SIGNALS`]; a caller that wants a safety net can fall back to the deterministic
+/// [`CompositeSource`](crate::CompositeSource).
 pub fn research_grounded(choice: &Choice, cfg: &ResearchConfig, deep: bool) -> GroundedSignals {
     let sink: Sink = Arc::new(Mutex::new(Vec::new()));
-    let ua = sec_user_agent();
-
-    let mut tools: Vec<Box<dyn Tool>> = vec![
-        Box::new(GroundedTool {
-            name: "sec_filings",
-            description: "Recent SEC EDGAR filings and the company's SIC industry. For US public filers.",
-            source: Box::new(EdgarSource::default()),
-            choice: choice.clone(),
-            sink: sink.clone(),
-        }),
-        Box::new(GroundedTool {
-            name: "sec_financials",
-            description: "Latest reported revenue and total assets from SEC XBRL company facts. For US public filers.",
-            source: Box::new(SecFactsSource::default()),
-            choice: choice.clone(),
-            sink: sink.clone(),
-        }),
-        Box::new(GroundedTool {
-            name: "company_facts",
-            description: "Structured CC0 facts from Wikidata: founding year and employee count.",
-            source: Box::new(WikidataSource::default()),
-            choice: choice.clone(),
-            sink: sink.clone(),
-        }),
-    ];
+    let kind = classify_entity(choice);
+    let mut tools = roster_for(kind, choice, &sink);
     if deep {
         tools.push(Box::new(WebNewsTool {
             default_query: choice.name.clone(),
-            user_agent: ua,
+            user_agent: sec_user_agent(),
             sink: sink.clone(),
         }));
     }
@@ -317,6 +384,93 @@ mod tests {
             cik: None,
             wiki: None,
         }
+    }
+
+    /// A vehicle choice — the VIN rides in the ticker field, which is how a car enters the system.
+    fn car_choice() -> Choice {
+        Choice {
+            ticker: "1HGCM82633A004352".to_string(), // a real, valid Honda Accord VIN
+            name: "my car".to_string(),
+            birth: BirthMoment {
+                date: chrono::NaiveDate::from_ymd_opt(2003, 1, 1).unwrap(),
+                time: None,
+                tz: chrono_tz::America::New_York,
+                lat: 0.0,
+                lon: 0.0,
+            },
+            cik: None,
+            wiki: None,
+        }
+    }
+
+    fn company_choice() -> Choice {
+        Choice {
+            cik: Some(1_056_696),
+            ..demo_choice()
+        }
+    }
+
+    /// The kind is decided from data we already hold — no model, no network.
+    #[test]
+    fn entity_kind_is_read_off_the_data_we_hold() {
+        assert_eq!(classify_entity(&car_choice()), EntityKind::Vehicle);
+        assert_eq!(
+            classify_entity(&company_choice()),
+            EntityKind::PublicCompany
+        );
+        // No CIK and not a VIN — an airline/insurer/private company.
+        assert_eq!(classify_entity(&demo_choice()), EntityKind::Organization);
+    }
+
+    /// Roster names per kind. **This is the falsifiable claim of the whole change:** the subtask list
+    /// is a function of the input. Before it, every entity was handed the same three SEC-shaped tools
+    /// — which is why a car could not be grounded at all.
+    #[test]
+    fn the_roster_is_a_function_of_the_entity_kind() {
+        let names = |c: &Choice| -> Vec<String> {
+            let sink: Sink = Arc::new(Mutex::new(Vec::new()));
+            roster_for(classify_entity(c), c, &sink)
+                .iter()
+                .map(|t| t.name().to_string())
+                .collect()
+        };
+
+        let car = names(&car_choice());
+        assert_eq!(car, vec!["vehicle_record".to_string()]);
+        assert!(
+            !car.iter().any(|n| n.starts_with("sec_")),
+            "a car must never be offered an SEC worker: {car:?}"
+        );
+
+        let company = names(&company_choice());
+        assert_eq!(
+            company,
+            vec!["sec_filings", "sec_financials", "company_facts"]
+        );
+
+        // No CIK → the SEC workers could only return nothing, so they aren't dispatched.
+        let org = names(&demo_choice());
+        assert_eq!(org, vec!["company_facts".to_string()]);
+    }
+
+    /// The gated open-web worker is additive on top of whatever roster the kind selected — it doesn't
+    /// replace it, and it stays absent unless the human approved the deeper reach.
+    #[test]
+    fn the_open_web_worker_is_additive_and_only_when_approved() {
+        let choice = company_choice();
+        let sink: Sink = Arc::new(Mutex::new(Vec::new()));
+        let base = roster_for(classify_entity(&choice), &choice, &sink).len();
+        assert_eq!(
+            base, 3,
+            "the public-company roster is the three SEC-shaped workers"
+        );
+        // `research_grounded` appends WebNewsTool when `deep`; the roster itself never carries it.
+        assert!(
+            !roster_for(classify_entity(&choice), &choice, &sink)
+                .iter()
+                .any(|t| t.name() == "web_news_search"),
+            "the open web is never in a kind's default roster"
+        );
     }
 
     /// The honesty invariant, unit-tested without a network: a tool records real signals into the

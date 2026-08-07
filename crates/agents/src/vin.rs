@@ -205,6 +205,47 @@ impl Tool for DecodeVinTool {
     }
 }
 
+/// The vehicle **grounding worker** — vPIC as a [`GroundedSource`], so a car's real record flows into
+/// a grounded reading through exactly the same path a company's SEC filings do.
+///
+/// This is the worker the entity-kind roster dispatches for a vehicle (see
+/// [`crate::research::EntityKind`]). It reads the VIN off [`Choice::ticker`] — the field a vehicle
+/// choice carries its identity in — so no separate plumbing is needed.
+///
+/// **What it will not do:** claim a birth date. vPIC carries only the *model year*, never a
+/// day-precise build date, and the door-jamb compliance label that does carry one (month + year) is a
+/// physical sticker with no API. So this contributes identity and origin *place* and stops there. A
+/// reading grounded on it is honestly "here is what this car is and where it was assembled", not a
+/// natal chart cast from an invented moment — the same refusal that made 904 January-1st charts get
+/// deleted rather than shipped.
+pub struct VehicleSource;
+
+impl crate::grounded::GroundedSource for VehicleSource {
+    fn fetch(&self, choice: &crate::types::Choice) -> crate::types::GroundedSignals {
+        let mut items = Vec::new();
+        if let Some(v) = resolve_vin(&choice.ticker) {
+            items.push(format!("vehicle: {}", v.label()));
+            if let Some(maker) = &v.manufacturer {
+                items.push(format!("built by: {}", title_case(maker)));
+            }
+            if let Some(place) = v.plant_place() {
+                items.push(format!("assembled at: {place}"));
+            }
+            if let Some(year) = v.year {
+                // Named as a MODEL year so it can never be mistaken for a birth date downstream.
+                items.push(format!(
+                    "model year: {year} (model-year precision — not a build date)"
+                ));
+            }
+        }
+        crate::types::GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "NHTSA vPIC".to_string(),
+            items,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,5 +325,58 @@ mod tests {
         assert_eq!(title_case(&v.make), "Honda");
         assert!(v.plant_place().is_some());
         println!("live: {} — {}", v.label(), v.plant_place().unwrap());
+    }
+
+    /// LIVE — **the falsifiable criterion for the entity-kind roster**: a car grounds with real
+    /// sourced signals. Before the roster existed this was impossible: every worker on offer spoke
+    /// SEC, so a vehicle returned nothing at all.
+    ///
+    /// Also pins the honesty rule — the signals carry identity and origin *place*, and the only year
+    /// present is explicitly labelled a **model year**, never a birth date.
+    /// Run: `cargo test -p agents live_vehicle_grounds -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "hits the live NHTSA vPIC API"]
+    fn live_vehicle_grounds_with_real_signals() {
+        use crate::grounded::GroundedSource;
+        let car = crate::types::Choice {
+            ticker: "1HGCM82633A004352".to_string(),
+            name: "my car".to_string(),
+            birth: crate::types::BirthMoment {
+                date: chrono::NaiveDate::from_ymd_opt(2003, 1, 1).unwrap(),
+                time: None,
+                tz: chrono_tz::America::New_York,
+                lat: 0.0,
+                lon: 0.0,
+            },
+            cik: None,
+            wiki: None,
+        };
+        let sig = VehicleSource.fetch(&car);
+        eprintln!("\nsource: {}", sig.source);
+        for item in &sig.items {
+            eprintln!("  - {item}");
+        }
+        assert!(
+            !sig.items.is_empty(),
+            "a car must ground with real signals now"
+        );
+        assert!(sig.items.iter().any(|i| i.starts_with("vehicle:")));
+        assert!(sig.items.iter().any(|i| i.starts_with("assembled at:")));
+        // The honesty rule. A year appearing inside the model label ("2003 Honda Accord") is just the
+        // car's name; what must never appear is a year presented as the thing's *birth*. So: the
+        // standalone year line has to name itself a model year, and nothing may claim a build date.
+        let year_line = sig
+            .items
+            .iter()
+            .find(|i| i.starts_with("model year"))
+            .expect("the standalone year must be labelled a model year");
+        assert!(year_line.contains("not a build date"), "{year_line}");
+        for item in &sig.items {
+            let lc = item.to_lowercase();
+            assert!(
+                !lc.contains("born") && !lc.contains("birth") && !lc.contains("built on"),
+                "no signal may claim a build/birth moment — vPIC has none: {item}"
+            );
+        }
     }
 }

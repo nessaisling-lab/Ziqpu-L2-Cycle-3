@@ -66,7 +66,7 @@ pub use orchestrator::{
     is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken, Session,
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
-pub use research::{research_grounded, ResearchConfig};
+pub use research::{classify_entity, research_grounded, EntityKind, ResearchConfig};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
@@ -74,7 +74,7 @@ pub use types::{
     GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
     Verdict, WeeklyReading,
 };
-pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId};
+pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId, VehicleSource};
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can
 // build placements and score contacts without depending on `engine` directly.
