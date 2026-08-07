@@ -35,6 +35,12 @@ pub fn grounding_consent(choice: &Choice) -> String {
             "NHTSA vPIC (the federal VIN database)",
             " This sends the VIN, which identifies one specific vehicle.",
         ),
+        // The code is read on this machine; only the model lookup leaves it. Say which is which,
+        // because "scan" understandably sounds like the item is being sent somewhere.
+        EntityKind::ScannedItem => (
+            "the scanned code itself, read on this machine, plus Wikidata for the product's launch",
+            " The code is not uploaded; only the product name is looked up.",
+        ),
         EntityKind::PublicCompany => (
             "SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia",
             "",

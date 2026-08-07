@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 
 use crate::grounded::{
     is_placeholder, sec_user_agent, urlencoding_min, DrugSource, EdgarSource, GroundedSource,
-    ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
+    Gs1Source, ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 use crate::tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 use crate::types::{Choice, GroundedSignals};
@@ -251,6 +251,10 @@ pub enum EntityKind {
     PublicCompany,
     /// A specific vehicle, identified by the VIN in its ticker field.
     Vehicle,
+    /// A **scanned item** — its ticker is a GS1 element string carrying a GTIN. The only kind whose
+    /// record is on the object itself rather than on the internet, and so the only one that can be
+    /// dated as an individual unit rather than as a model.
+    ScannedItem,
     /// **All we know is that it has a name** — no CIK, no VIN. A private company, an airline, a drug,
     /// a product: the data we hold cannot tell them apart.
     ///
@@ -271,6 +275,12 @@ pub enum EntityKind {
 /// with what arguments** — the part that genuinely varies. Asking a model to answer a question its
 /// input already answers would add latency, cost, and a way to be wrong, for nothing.
 pub fn classify_entity(choice: &Choice) -> EntityKind {
+    // Checked first, and gated on a GTIN actually being present. A GS1 element string is
+    // self-describing in a way the other identifiers aren't, so proving one is cheap and certain;
+    // testing it before the VIN also removes any chance of an all-digit code being read as a VIN.
+    if crate::gs1::gtin(&crate::gs1::parse_gs1(&choice.ticker)).is_some() {
+        return EntityKind::ScannedItem;
+    }
     if crate::vin::is_valid_vin(&choice.ticker) {
         return EntityKind::Vehicle;
     }
@@ -322,6 +332,24 @@ fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Too
         // A vehicle gets the vPIC worker and nothing SEC-shaped. Wikidata is left out on purpose:
         // car-model items were empirically found to carry no usable date (most have none at all, the
         // rest year-only), so offering it would spend a call to learn nothing.
+        // The code is read off the object, so this is the one roster that needs no network for its
+        // primary answer. `product_launch` rides along to place the item's model in time — the
+        // archetype's launch beside the unit's own manufacture date, which is a genuinely richer
+        // reading than either alone.
+        EntityKind::ScannedItem => vec![
+            tool(
+                "scanned_code",
+                "Read this scanned GS1 code's own record: the item's GTIN and, if the code carries \
+                 one, the day this individual unit was manufactured. Offline — the code is the source.",
+                Box::<Gs1Source>::default(),
+            ),
+            tool(
+                "product_launch",
+                "Look this item's model up as a released product and return the day it first \
+                 launched, from Wikidata's publication dates.",
+                Box::<ProductSource>::default(),
+            ),
+        ],
         EntityKind::Vehicle => vec![tool(
             "vehicle_record",
             "Decode this vehicle's VIN via NHTSA vPIC: make, model, model year, and the plant where \
@@ -434,9 +462,21 @@ mod tests {
         }
     }
 
+    /// A scanned item — the GS1 element string rides in the ticker, as the VIN does.
+    fn scanned_choice() -> Choice {
+        Choice {
+            ticker: "(01)00614141000012(11)200315".to_string(),
+            name: "PlayStation 5".to_string(),
+            cik: None,
+            wiki: None,
+            ..demo_choice()
+        }
+    }
+
     /// The kind is decided from data we already hold — no model, no network.
     #[test]
     fn entity_kind_is_read_off_the_data_we_hold() {
+        assert_eq!(classify_entity(&scanned_choice()), EntityKind::ScannedItem);
         assert_eq!(classify_entity(&car_choice()), EntityKind::Vehicle);
         assert_eq!(
             classify_entity(&company_choice()),
@@ -458,6 +498,14 @@ mod tests {
                 .map(|t| t.name().to_string())
                 .collect()
         };
+
+        // A scanned item reads its own code first, with the model's launch for context. No SEC.
+        let scanned = names(&scanned_choice());
+        assert_eq!(scanned, vec!["scanned_code", "product_launch"]);
+        assert!(
+            !scanned.iter().any(|n| n.starts_with("sec_")),
+            "a scanned item must never be offered an SEC worker: {scanned:?}"
+        );
 
         let car = names(&car_choice());
         assert_eq!(car, vec!["vehicle_record".to_string()]);

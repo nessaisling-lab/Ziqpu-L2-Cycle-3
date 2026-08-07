@@ -846,6 +846,77 @@ fn publication_dates(entity: &serde_json::Value, qid: &str) -> Vec<(String, u64)
         .collect()
 }
 
+/// The **scanned-item** worker — reads a GS1 code's own record, offline.
+///
+/// Every other worker here asks the internet what an *archetype* is. This one reads what the object
+/// in your hand says about **itself**, so it is the only source that can date an individual unit —
+/// and the only one that needs no network at all. The code rides in [`Choice::ticker`], the same
+/// field a VIN uses.
+///
+/// It reports the production date only when the code actually carries one. An expiry, a
+/// best-before or a batch number describe the same object without saying when it was made, so they
+/// are surfaced as context and never as the moment; and a `DD` of `00` is reported as a month rather
+/// than becoming an invented first-of-the-month. See [`crate::gs1`] for the parsing rules.
+pub struct Gs1Source {
+    /// The year the two-digit date is resolved against — injected rather than read from the clock so
+    /// the source stays deterministic and testable.
+    pub current_year: i32,
+}
+
+impl Default for Gs1Source {
+    fn default() -> Self {
+        // The one place a clock enters: a two-digit year needs a century. The engine stays clock-free.
+        use chrono::Datelike;
+        Self {
+            current_year: chrono::Local::now().year(),
+        }
+    }
+}
+
+impl GroundedSource for Gs1Source {
+    fn fetch(&self, choice: &Choice) -> GroundedSignals {
+        use crate::gs1::{gtin, parse_gs1, production_date, ScannedDate};
+
+        let elements = parse_gs1(&choice.ticker);
+        let mut items = Vec::new();
+
+        if let Some(code) = gtin(&elements) {
+            items.push(format!("scanned item: GTIN {code}"));
+        }
+        match production_date(&elements, self.current_year) {
+            Some(ScannedDate::Day(d)) => items.push(format!(
+                "manufactured: {d} (this individual item, from its own code)"
+            )),
+            Some(ScannedDate::Month(y, m)) => items.push(format!(
+                "manufactured: {y}-{m:02} (the code names a month, not a day — not a chartable moment)"
+            )),
+            None => {}
+        }
+        // Context, explicitly not a birth: these describe the object without dating its making. The
+        // two date-shaped ones are rendered readably so a raw `271231` doesn't sit in a reading
+        // looking like a serial number.
+        for (ai, label) in [("17", "expires"), ("15", "best before")] {
+            if let Some(e) = elements.iter().find(|e| e.ai == ai) {
+                let shown = match crate::gs1::parse_yymmdd(&e.value, self.current_year) {
+                    Some(ScannedDate::Day(d)) => d.to_string(),
+                    Some(ScannedDate::Month(y, m)) => format!("{y}-{m:02}"),
+                    None => e.value.clone(),
+                };
+                items.push(format!("{label}: {shown} (not a birth moment)"));
+            }
+        }
+        if let Some(e) = elements.iter().find(|e| e.ai == "10") {
+            items.push(format!("batch: {} (not a birth moment)", e.value));
+        }
+
+        GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "Scanned GS1 code".to_string(),
+            items,
+        }
+    }
+}
+
 /// Fans a choice out across several [`GroundedSource`]s and merges what they return into one honest
 /// briefing. Each source's placeholder lines are stripped before merging (so one source's "nothing
 /// here" never dilutes another's real facts); the merged `source` label names only the sources that
@@ -1259,6 +1330,79 @@ mod tests {
 
     /// `P577` values are read with their precision, because precision is what separates a real
     /// launch day from Wikidata's January-1st placeholder for a year-only fact.
+    /// The scanned worker end to end — **no network at all**, because the code is the source. This
+    /// is the only worker that can name the day *this* object was made rather than the day its model
+    /// launched.
+    #[test]
+    fn a_scanned_code_dates_the_individual_item_offline() {
+        let scanned = Choice {
+            ticker: "(01)00614141000012(11)200315(17)271231(10)LOT7".to_string(),
+            name: "a thing I own".to_string(),
+            ..demo_choice()
+        };
+        let sig = Gs1Source { current_year: 2026 }.fetch(&scanned);
+        assert_eq!(sig.source, "Scanned GS1 code");
+        assert!(
+            sig.items.iter().any(|i| i.contains("GTIN 00614141000012")),
+            "{:?}",
+            sig.items
+        );
+        assert!(
+            sig.items
+                .iter()
+                .any(|i| i.starts_with("manufactured: 2020-03-15")),
+            "the production date is the birth: {:?}",
+            sig.items
+        );
+        // Expiry and batch describe the same object but are not when it was made — present, and
+        // explicitly disclaimed.
+        let expiry = sig
+            .items
+            .iter()
+            .find(|i| i.starts_with("expires:"))
+            .expect("expiry surfaced as context");
+        assert!(expiry.contains("not a birth moment"), "{expiry}");
+        assert!(
+            expiry.contains("2027-12-31"),
+            "a date-shaped context field is rendered readably, not as raw YYMMDD: {expiry}"
+        );
+        assert!(sig.items.iter().any(|i| i.starts_with("batch:")));
+    }
+
+    /// A code with a day of `00` must not become the first of the month, and a plain retail barcode
+    /// must not gain a date it never carried.
+    #[test]
+    fn a_scanned_code_never_invents_a_day() {
+        let month_only = Choice {
+            ticker: "(01)00614141000012(11)200300".to_string(),
+            ..demo_choice()
+        };
+        let sig = Gs1Source { current_year: 2026 }.fetch(&month_only);
+        let line = sig
+            .items
+            .iter()
+            .find(|i| i.starts_with("manufactured:"))
+            .expect("the month is reported");
+        assert!(line.contains("2020-03"), "{line}");
+        assert!(
+            line.contains("not a chartable moment"),
+            "a month is not a day, and must say so: {line}"
+        );
+
+        // A bare GTIN — the ordinary retail barcode. Identity only.
+        let bare = Choice {
+            ticker: "0100614141000012".to_string(),
+            ..demo_choice()
+        };
+        let sig = Gs1Source { current_year: 2026 }.fetch(&bare);
+        assert!(sig.items.iter().any(|i| i.contains("GTIN")));
+        assert!(
+            !sig.items.iter().any(|i| i.starts_with("manufactured:")),
+            "a retail barcode carries no date: {:?}",
+            sig.items
+        );
+    }
+
     #[test]
     fn publication_dates_carry_their_precision() {
         let entity = serde_json::json!({

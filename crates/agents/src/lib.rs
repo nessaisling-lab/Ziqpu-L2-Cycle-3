@@ -13,6 +13,7 @@
 //! live demo is reliable; real models and the live SEC EDGAR pull are drop-in via the traits.
 
 pub mod grounded;
+pub mod gs1;
 pub mod identity;
 pub mod interpret;
 pub mod interpret_llm;
@@ -47,9 +48,10 @@ pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
 }
 
 pub use grounded::{
-    CompositeSource, DrugSource, EdgarSource, GroundedSource, MockGroundedSource, ProductSource,
-    SecFactsSource, WikidataSource, NO_SIGNALS,
+    CompositeSource, DrugSource, EdgarSource, GroundedSource, Gs1Source, MockGroundedSource,
+    ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
 };
+pub use gs1::{gtin, parse_gs1, parse_yymmdd, production_date, Gs1Element, ScannedDate};
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::{
