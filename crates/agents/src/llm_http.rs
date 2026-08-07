@@ -323,3 +323,130 @@ mod tests {
         );
     }
 }
+
+/// Is this URL's host the local machine?
+///
+/// Written to resist the ways a host can *look* local without being it. The naive check —
+/// "does the string contain 127.0.0.1 or localhost" — passes every one of these:
+///
+/// - `http://127.0.0.1.evil.com/v1` — a real domain that merely starts with the loopback address.
+/// - `http://localhost.evil.com/v1` — same trick with the name.
+/// - `http://127.0.0.1@evil.com/v1` — the loopback address is *userinfo*; the host is `evil.com`.
+///   This one is the nastiest, because it reads as local to a person as well as to a substring test.
+///
+/// So the host is extracted properly — scheme off, path off, **userinfo off**, port off, IPv6
+/// brackets off — and then matched exactly.
+pub fn is_loopback_url(url: &str) -> bool {
+    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    // Authority ends at the first '/', '?' or '#'.
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    // Anything before an '@' is userinfo, not the host. Take the LAST '@' — userinfo may contain one.
+    let hostport = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
+
+    // IPv6 literal: [::1]:1234
+    let host = if let Some(end) = hostport.strip_prefix('[').and_then(|r| r.split_once(']')) {
+        end.0
+    } else {
+        // Strip a :port, but only when what follows is numeric (an IPv6 host has colons too).
+        match hostport.rsplit_once(':') {
+            Some((h, p)) if !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()) => h,
+            _ => hostport,
+        }
+    };
+    let host = host.trim().to_ascii_lowercase();
+
+    if host == "localhost" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
+        return true;
+    }
+    // The whole 127.0.0.0/8 block is loopback, not just 127.0.0.1.
+    let octets: Vec<&str> = host.split('.').collect();
+    octets.len() == 4
+        && octets
+            .iter()
+            .all(|o| !o.is_empty() && o.chars().all(|c| c.is_ascii_digit()))
+        && octets[0] == "127"
+        && octets.iter().all(|o| o.parse::<u8>().is_ok())
+}
+
+/// The endpoint the **local** model paths may use — or `None` when the configured one is refused.
+///
+/// This is the single gate for `ZIQPU_LLM_URL`, and it is single on purpose: four separate places
+/// read that variable (the reading interpreter, the measurer, the research loop, the health probe),
+/// and a rule enforced in some of them is not a rule. The consent string drifted exactly this way
+/// once already.
+///
+/// **Why it needs a gate at all.** The field is labelled "Local model URL" and the reading it feeds
+/// is badged `LOCAL`, but nothing checked that the address was local — so a typo, a copied config or
+/// a tampered settings file would POST the seeker's birth chart to an arbitrary host while the UI
+/// said it never left the machine. Birth data is PII by this project's own standard: `profile.json`
+/// is `chmod 600` for precisely that reason.
+///
+/// A model served from another machine on your own network is a legitimate setup, so this refuses
+/// rather than forbids: set `ZIQPU_ALLOW_REMOTE_MODEL=1` to allow a non-loopback endpoint knowingly.
+/// The default is the least privilege the job needs — talk to a model on *this* machine.
+pub fn local_endpoint() -> Option<String> {
+    let url = std::env::var("ZIQPU_LLM_URL")
+        .ok()
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
+
+    if is_loopback_url(&url) || remote_model_allowed() {
+        return Some(url);
+    }
+    None
+}
+
+/// Whether the seeker has knowingly allowed a non-loopback model endpoint.
+pub fn remote_model_allowed() -> bool {
+    std::env::var("ZIQPU_ALLOW_REMOTE_MODEL")
+        .map(|v| {
+            let v = v.trim().to_ascii_lowercase();
+            !(v.is_empty() || v == "0" || v == "false" || v == "no" || v == "off")
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod endpoint_tests {
+    use super::*;
+
+    #[test]
+    fn plain_loopback_forms_are_local() {
+        for url in [
+            "http://localhost:1234/v1",
+            "http://127.0.0.1:1234/v1",
+            "http://127.0.0.1/v1",
+            "http://LocalHost:8080/v1",
+            "http://127.5.9.3:1234/v1", // the whole 127/8 block is loopback
+            "http://[::1]:1234/v1",
+            "https://localhost/v1",
+        ] {
+            assert!(is_loopback_url(url), "should be loopback: {url}");
+        }
+    }
+
+    /// The bypasses. Each of these defeats a "contains 127.0.0.1 or localhost" check, and the last
+    /// one reads as local to a human too — the address is userinfo and the real host is elsewhere.
+    #[test]
+    fn hosts_that_only_look_local_are_not() {
+        for url in [
+            "http://127.0.0.1.evil.com/v1",
+            "http://localhost.evil.com/v1",
+            "http://127.0.0.1@evil.com/v1",
+            "http://user:127.0.0.1@evil.com/v1",
+            "http://evil.com/?next=http://127.0.0.1/v1",
+            "http://10.0.0.5:1234/v1",
+            "http://192.168.1.50:1234/v1", // a LAN host is still not this machine
+            "https://api.example.com/v1",
+            "http://1270.0.0.1/v1",
+        ] {
+            assert!(
+                !is_loopback_url(url),
+                "must NOT be treated as loopback: {url}"
+            );
+        }
+    }
+}

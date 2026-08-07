@@ -592,21 +592,21 @@ pub enum ReadMode {
 /// compatible). Keyless by design: LM Studio ignores the bearer token. Reuses `measure_llm`'s
 /// `ZIQPU_LLM_URL` convention (default `http://localhost:1234/v1`); the model is `ZIQPU_LOCAL_MODEL`,
 /// else `"local-model"`.
-fn local_interpreter() -> OpenAiCompatInterpreter {
-    let base_url = std::env::var("ZIQPU_LLM_URL")
-        .ok()
-        .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
+fn local_interpreter() -> Option<OpenAiCompatInterpreter> {
+    // `None` when the configured endpoint is not on this machine and the seeker has not knowingly
+    // allowed a remote one. Every local path degrades to the template in that case, which is the
+    // honest outcome: a reading badged LOCAL must not have been produced somewhere else.
+    let base_url = crate::llm_http::local_endpoint()?;
     let model = std::env::var("ZIQPU_LOCAL_MODEL")
         .ok()
         .filter(|m| !m.is_empty())
         .unwrap_or_else(|| "local-model".to_string());
-    OpenAiCompatInterpreter {
+    Some(OpenAiCompatInterpreter {
         fallback: TemplateInterpreter,
         base_url,
         api_key: String::new(),
         model,
-    }
+    })
 }
 
 /// The local server's readiness. `Ready` = model loaded and serving; `Loading` = reachable but the
@@ -623,10 +623,11 @@ enum LocalStatus {
 /// exits 0 for any HTTP response (200 *or* a 503 loading body) and non-zero on connection-refused, so
 /// exit code separates `Loading`/`Ready` from `Down`; the `"ok"` body separates `Ready` from `Loading`.
 fn local_status() -> LocalStatus {
-    let base = std::env::var("ZIQPU_LLM_URL")
-        .ok()
-        .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
+    // A refused endpoint is reported Down rather than probed: asking a host we will not talk to
+    // whether it is healthy would both leak its existence and imply we might use it.
+    let Some(base) = crate::llm_http::local_endpoint() else {
+        return LocalStatus::Down;
+    };
     let health = format!(
         "{}/health",
         base.trim_end_matches('/')
@@ -687,7 +688,9 @@ pub fn reading_for_mode(
         ReadMode::Raw => (TemplateInterpreter.fit_read(measures, fit, name), None),
         ReadMode::Live => reading_for(measures, fit, name),
         ReadMode::Local => {
-            let interp = local_interpreter();
+            let Some(interp) = local_interpreter() else {
+                return (TemplateInterpreter.fit_read(measures, fit, name), None);
+            };
             if let Some(prose) = interp.try_fit_read(measures, fit, name) {
                 return (prose, Some(format!("local · {}", interp.model())));
             }
@@ -732,7 +735,12 @@ pub fn grounded_brief_for(
             )
         }
         ReadMode::Local => {
-            let interp = local_interpreter();
+            let Some(interp) = local_interpreter() else {
+                return (
+                    TemplateInterpreter.grounded_brief(measures, fit, name, grounded),
+                    None,
+                );
+            };
             if let Some(prose) = interp.try_grounded_brief(measures, fit, name, grounded) {
                 return (prose, Some(format!("local · {}", interp.model())));
             }
@@ -894,7 +902,7 @@ const UNSOURCED_REMINDER: &str =
 /// Send-safe (it builds the endpoint locally via [`local_interpreter`]); `None` on any failure or
 /// when no local server is reachable.
 fn local_complete(system: &str, user: &str) -> Option<String> {
-    let interp = local_interpreter();
+    let interp = local_interpreter()?;
     openai_chat(
         &interp.base_url,
         &interp.api_key,
@@ -1024,11 +1032,14 @@ fn local_fallback(
 ) -> LayeredBrief {
     let local = local_interpreter();
     if has_signals {
-        if let Some(prose) = local.try_grounded_brief(measures, fit, name, grounded) {
+        if let Some(prose) = local
+            .as_ref()
+            .and_then(|l| l.try_grounded_brief(measures, fit, name, grounded))
+        {
             return LayeredBrief {
                 reading: prose,
                 rung: GroundedRung::LocalGrounded,
-                source: Some(format!("local · {}", local.model())),
+                source: local.as_ref().map(|l| format!("local · {}", l.model())),
             };
         }
         return LayeredBrief {
@@ -1038,11 +1049,14 @@ fn local_fallback(
         };
     }
     // No real signals → an unsourced read of the charts alone.
-    if let Some(prose) = local.try_fit_read(measures, fit, name) {
+    if let Some(prose) = local
+        .as_ref()
+        .and_then(|l| l.try_fit_read(measures, fit, name))
+    {
         return LayeredBrief {
             reading: to_unsourced(&prose),
             rung: GroundedRung::LocalUnsourced,
-            source: Some(format!("local · {}", local.model())),
+            source: local.as_ref().map(|l| format!("local · {}", l.model())),
         };
     }
     LayeredBrief {
@@ -1506,18 +1520,78 @@ mod tests {
         for k in ["ZIQPU_LLM_URL", "ZIQPU_LOCAL_MODEL"] {
             std::env::remove_var(k);
         }
-        let def = local_interpreter();
+        let def = local_interpreter().expect("the loopback default is allowed");
         assert_eq!(def.base_url, "http://localhost:1234/v1");
         assert_eq!(def.model(), "local-model");
 
         std::env::set_var("ZIQPU_LLM_URL", "http://127.0.0.1:9999/v1");
         std::env::set_var("ZIQPU_LOCAL_MODEL", "gemma-4-e4b-it");
-        let cfg = local_interpreter();
+        let cfg = local_interpreter().expect("an explicit loopback endpoint is allowed");
         assert_eq!(cfg.base_url, "http://127.0.0.1:9999/v1");
         assert_eq!(cfg.model(), "gemma-4-e4b-it");
 
         std::env::remove_var("ZIQPU_LLM_URL");
         std::env::remove_var("ZIQPU_LOCAL_MODEL");
+    }
+
+    /// A "Local" reading must never be produced somewhere else.
+    ///
+    /// The Settings field is labelled *Local model URL* and the badge says LOCAL, but nothing
+    /// checked the address was local — so a typo or a tampered config would POST the seeker's chart
+    /// (PII: `profile.json` is chmod 600 for exactly this) to an arbitrary host while the UI claimed
+    /// it never left the machine. Least privilege here is "talk to a model on THIS machine"; what
+    /// was granted was "talk to any server on the internet".
+    #[test]
+    fn a_non_local_endpoint_is_refused_unless_knowingly_allowed() {
+        let _env = env_guard();
+        for k in [
+            "ZIQPU_LLM_URL",
+            "ZIQPU_LOCAL_MODEL",
+            "ZIQPU_ALLOW_REMOTE_MODEL",
+        ] {
+            std::env::remove_var(k);
+        }
+
+        std::env::set_var("ZIQPU_LLM_URL", "http://evil.example.com/v1");
+        assert!(
+            local_interpreter().is_none(),
+            "a remote endpoint must be refused, not silently used and badged LOCAL"
+        );
+        assert_eq!(
+            local_status(),
+            LocalStatus::Down,
+            "a refused endpoint must not even be probed"
+        );
+
+        // The lookalikes that defeat a substring check must be refused too.
+        for host in [
+            "http://127.0.0.1.evil.com/v1",
+            "http://localhost.evil.com/v1",
+            "http://127.0.0.1@evil.com/v1",
+        ] {
+            std::env::set_var("ZIQPU_LLM_URL", host);
+            assert!(
+                local_interpreter().is_none(),
+                "must refuse lookalike: {host}"
+            );
+        }
+
+        // Serving a model from another machine you own is legitimate — but it has to be a choice.
+        std::env::set_var("ZIQPU_LLM_URL", "http://192.168.1.50:1234/v1");
+        assert!(local_interpreter().is_none(), "not allowed by default");
+        std::env::set_var("ZIQPU_ALLOW_REMOTE_MODEL", "1");
+        assert!(
+            local_interpreter().is_some(),
+            "an explicit opt-in permits a remote endpoint"
+        );
+
+        for k in [
+            "ZIQPU_LLM_URL",
+            "ZIQPU_LOCAL_MODEL",
+            "ZIQPU_ALLOW_REMOTE_MODEL",
+        ] {
+            std::env::remove_var(k);
+        }
     }
 
     #[test]

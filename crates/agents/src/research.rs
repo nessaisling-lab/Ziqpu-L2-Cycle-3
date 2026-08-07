@@ -55,8 +55,11 @@ impl ResearchConfig {
     /// constructing this directly.
     pub fn local_from_env() -> Self {
         Self {
-            base_url: std::env::var("ZIQPU_LLM_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:1234/v1".to_string()),
+            // Gated like every other local path. A refused endpoint yields the loopback default,
+            // which simply will not answer — the research loop then collects nothing and grounding
+            // falls back to the deterministic composite. Failing closed beats researching remotely.
+            base_url: crate::llm_http::local_endpoint()
+                .unwrap_or_else(|| "http://127.0.0.1:1234/v1".to_string()),
             api_key: std::env::var("ZIQPU_LLM_KEY").unwrap_or_default(),
             model: std::env::var("ZIQPU_LOCAL_MODEL").unwrap_or_else(|_| "local-model".to_string()),
             max_steps: DEFAULT_MAX_STEPS,
