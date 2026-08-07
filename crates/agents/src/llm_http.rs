@@ -508,12 +508,22 @@ pub fn remote_model_allowed() -> bool {
 #[cfg(test)]
 mod credential_destination_tests {
     use super::*;
+    use std::sync::{Mutex, MutexGuard};
+
+    /// Serializes the tests that mutate process-global env vars. Cargo runs tests in threads of one
+    /// process, so without this one test clears `ZIQPU_ALLOW_CUSTOM_ENDPOINT` while another has just
+    /// set it — which is exactly how the first version of these two tests failed, intermittently and
+    /// only when run together. `into_inner` shrugs off a lock poisoned by an earlier panic.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    fn env_guard() -> MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     /// A key is not a chart. A chart leaked is a privacy harm; a key leaked is someone else spending
     /// the seeker's money — so the destination is checked before the header is ever attached.
     #[test]
     fn a_provider_key_only_goes_to_a_provider() {
-        let _guard = ();
+        let _env = env_guard();
         std::env::remove_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT");
 
         for good in [
@@ -547,6 +557,7 @@ mod credential_destination_tests {
     /// What remains — never in clear text — is the part that was actually missing.
     #[test]
     fn the_proxy_token_needs_tls_but_not_a_known_host() {
+        let _env = env_guard();
         std::env::remove_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT");
         assert!(token_destination_allowed(
             "https://p.example.workers.dev/v1/messages"

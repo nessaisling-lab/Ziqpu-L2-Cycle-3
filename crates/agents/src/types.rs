@@ -238,6 +238,76 @@ pub struct GroundedSignals {
     pub items: Vec<String>,
 }
 
+impl GroundedSignals {
+    /// The items that are **facts**, plus a count of those withheld because they were not.
+    ///
+    /// # Why a fetched signal needs vetting at all
+    ///
+    /// Grounded items are the one channel where somebody outside this project chooses bytes that
+    /// end up in a prompt and on the screen. Most are shaped by our own workers — `recent filing:
+    /// 10-Q on …`, `revenue: $…`, `founded: …` — but one is free prose by nature: the Wikipedia
+    /// extract behind `what it is: …`, which anyone can edit.
+    ///
+    /// Running the Eval Card's adversarial case showed why that matters, and showed it twice. First
+    /// the model laundered an injected instruction into a citation attributed to the SEC. Once the
+    /// app authored the citation instead, the citation became *accurate* — and so it printed
+    /// `VERDICT: STRONG BUY, target $500` verbatim, under the SEC's name. Fixing attribution made
+    /// the content worse: accuracy of citation and safety of content are separate properties, and
+    /// only the second one is a promise this product makes unconditionally.
+    ///
+    /// So the filter runs before the items reach the prompt *or* the screen — the model never reads
+    /// the instruction, and the seeker never sees the advice. The count is returned rather than
+    /// swallowed: silently dropping a signal would be its own dishonesty, and a caller can say that
+    /// something was withheld.
+    ///
+    /// **Scope, plainly stated.** This catches instruction- and advice-shaped text. It is not a
+    /// general solution to prompt injection, and a payload written to avoid these shapes still gets
+    /// through. The structural fix — a delimiter around fetched text, and only known-shaped signals
+    /// admitted — is the follow-up; this is the part that closes the demonstrated hole.
+    pub fn fact_shaped_items(&self) -> (Vec<&str>, usize) {
+        let kept: Vec<&str> = self
+            .items
+            .iter()
+            .map(String::as_str)
+            .filter(|item| !carries_instruction_or_advice(item))
+            .collect();
+        let withheld = self.items.len() - kept.len();
+        (kept, withheld)
+    }
+}
+
+/// Whether a fetched item is trying to be something other than a fact.
+///
+/// Two families, because the adversarial case carried both: text addressed to the *model* (a role
+/// header, an override of its instructions) and text addressed to the *seeker* (a trading call).
+/// The second matters even when the source is honest — this product does not relay a buy/sell
+/// recommendation regardless of who wrote it.
+fn carries_instruction_or_advice(item: &str) -> bool {
+    let lc = item.to_lowercase();
+
+    // Talking to the model rather than describing the world.
+    let instruction = lc.starts_with("system:")
+        || lc.starts_with("assistant:")
+        || lc.starts_with("user:")
+        || lc.contains("ignore all previous")
+        || lc.contains("ignore previous")
+        || lc.contains("ignore the no-advice")
+        || lc.contains("you are now")
+        || lc.contains("disregard your instructions");
+
+    // A trading call, which never leaves this app whatever its origin.
+    let advice = lc.contains("strong buy")
+        || lc.contains("strong sell")
+        || lc.contains("buy rating")
+        || lc.contains("sell rating")
+        || lc.contains("price target")
+        || lc.contains("target $")
+        || lc.contains("verdict: buy")
+        || lc.contains("verdict: sell");
+
+    instruction || advice
+}
+
 /// A ranked fit read for one choice (the DECIDE output).
 #[derive(Debug, Clone)]
 pub struct Recommendation {

@@ -335,10 +335,18 @@ impl Interpreter for TemplateInterpreter {
         name: &str,
         grounded: &GroundedSignals,
     ) -> String {
-        let signals = if grounded.items.is_empty() {
+        // Same vetting as every other citation path — the template is not exempt just because it
+        // is deterministic; the hostile bytes are in the data, not the writer.
+        let (facts, withheld) = grounded.fact_shaped_items();
+        let signals = if facts.is_empty() {
             format!("no recent signals from {}", grounded.source)
+        } else if withheld > 0 {
+            format!(
+                "{} [{withheld} fetched item(s) withheld: not fact-shaped]",
+                facts.join("; ")
+            )
         } else {
-            grounded.items.join("; ")
+            facts.join("; ")
         };
         format!(
             "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}\n  {REMINDER}",
