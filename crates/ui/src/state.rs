@@ -188,6 +188,12 @@ pub struct AppCtx {
     /// badge (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` / `GROUNDED`). Set by
     /// [`Self::grounder`] alongside `briefing`.
     pub rung: Signal<Option<GroundedRung>>,
+    /// Whether the human approved the **deeper open-web reach** at the checkpoint (the "also search
+    /// the open web" opt-in). Off by default; when on, [`run_grounding`] routes through the agentic
+    /// research path with the gated news tool. A second, explicit consent because the open web is
+    /// broader and noisier than the provenance-clean sources — the same reason the grounded pull is
+    /// gated at all. Reset after each grounding attempt.
+    pub deep_reach: Signal<bool>,
 }
 
 impl AppCtx {
@@ -432,17 +438,19 @@ pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
 /// Fetch the real grounded signals for a choice on a **throwaway**, `Send`-safe source — the same
 /// mock/composite selection [`build_session`] makes. Called only from a worker thread (the source's
 /// `curl` calls block), never on the event loop.
-pub fn fetch_grounded(choice: &Choice) -> GroundedSignals {
+pub fn fetch_grounded(choice: &Choice, deep_web: bool) -> GroundedSignals {
     if std::env::var("ZIQPU_MOCK").is_ok() {
         return MockGroundedSource.fetch(choice);
     }
-    // Opt-in **agentic research** path (`ZIQPU_RESEARCH`): the model drives which real sources to
-    // query via the tool loop (needs a served tool-capable local model, or an OpenAI-compat endpoint
-    // in the env). `ZIQPU_RESEARCH_DEEP` adds the gated open-web reach. It falls back to the
-    // deterministic multi-source composite whenever the loop collects nothing (no model / offline),
-    // so enabling it can only add reach, never lose the reliable grounding.
-    if std::env::var("ZIQPU_RESEARCH").is_ok() {
-        let deep = std::env::var("ZIQPU_RESEARCH_DEEP").is_ok();
+    // The **agentic research** path — the model drives which real sources to query via the tool loop
+    // (needs a served tool-capable local model). It runs when the human approved the deeper open-web
+    // reach at the checkpoint (`deep_web`), or when `ZIQPU_RESEARCH` opts in globally. `deep_web` (or
+    // `ZIQPU_RESEARCH_DEEP`) also adds the gated open-web news tool. It **falls back to the
+    // deterministic multi-source composite** whenever the loop collects nothing (no served model /
+    // offline), so approving the deeper reach can only ADD reach, never lose the reliable grounding.
+    let research = deep_web || std::env::var("ZIQPU_RESEARCH").is_ok();
+    if research {
+        let deep = deep_web || std::env::var("ZIQPU_RESEARCH_DEEP").is_ok();
         let researched =
             agents::research_grounded(choice, &agents::ResearchConfig::local_from_env(), deep);
         // `merge_sink` labels an all-empty result "(no public signals)"; anything else is real.
@@ -493,6 +501,10 @@ pub fn run_grounding(mut ctx: AppCtx) {
 
     let seeker = ctx.seeker.read().clone();
     let mode = *ctx.mode.read();
+    // Whether the human approved the deeper open-web reach at the checkpoint. Read here on the event
+    // loop, then reset so the next grounding starts from the safe (structured-only) default.
+    let deep = *ctx.deep_reach.read();
+    ctx.deep_reach.set(false);
     // The framing brief the local model drafted during the pause (or the developer's edit of it).
     // `None` when no local server answered or the human approved before it landed — the frontier then
     // simply gets its standard prompt. Read on the event loop here; the worker only holds the owned copy.
@@ -511,7 +523,7 @@ pub fn run_grounding(mut ctx: AppCtx) {
     // lands on rides back so the Briefing card badges the read truthfully.
     let tx = ctx.grounder.tx();
     std::thread::spawn(move || {
-        let signals = fetch_grounded(&choice);
+        let signals = fetch_grounded(&choice, deep);
         let measures = {
             let mut throwaway = build_session();
             throwaway.measure(&seeker, &choice)

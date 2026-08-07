@@ -21,7 +21,7 @@ pub fn Checkpoint() -> Element {
             div { class: "gate gate--grounding",
                 div { class: "ask-reading ask-reading--pending",
                     span { class: "wheat-caption",
-                        "Pulling the real record (SEC EDGAR + Wikipedia) and writing the grounded briefing… the window stays live."
+                        "Pulling the real public record (SEC filings + financials, Wikidata, Wikipedia — and recent news if you asked) and writing the grounded briefing… the window stays live."
                     }
                 }
             }
@@ -44,6 +44,11 @@ pub fn Checkpoint() -> Element {
     let brief = ctx.draft.read().clone();
     let premium = ctx.premium();
     let mut draft_sig = ctx.draft;
+
+    // The deeper open-web reach — a second, explicit opt-in, off by default. Toggling it here is what
+    // routes the approved pull through the agentic research path with the gated news tool.
+    let mut deep_sig = ctx.deep_reach;
+    let deep_now = *ctx.deep_reach.read();
 
     // The prompt is one sentence ("Ground this read for TSLA? I'll pull …"); split it into the
     // seal's question (heading) and its costed-call explanation (body).
@@ -122,6 +127,25 @@ pub fn Checkpoint() -> Element {
                 }
             }
 
+            // The deeper reach — a distinct consent from grounding itself, because the open web is
+            // broader and noisier than the provenance-clean record. Off unless the human ticks it.
+            label { class: "field-check field-check--deep",
+                input {
+                    r#type: "checkbox",
+                    checked: deep_now,
+                    onchange: move |_| {
+                        let now = *deep_sig.read();
+                        deep_sig.set(!now);
+                    },
+                }
+                " Also search the open web (recent news)"
+            }
+            if deep_now {
+                p { class: "honesty-note",
+                    "The open web is broader and noisier than the SEC + Wikidata record. Every result is shown with its real source and date, never dressed up as more certain than it is. Needs a research-capable model running; otherwise the standard record is used."
+                }
+            }
+
             div { class: "actions",
                 button {
                     class: "btn",
@@ -134,6 +158,8 @@ pub fn Checkpoint() -> Element {
                             // Drop the drafted brief — declining ends this grounding attempt.
                             ctx.draft.set(None);
                             ctx.draft_pending.set(false);
+                            // Reset the deeper-reach opt-in so it never carries to the next choice.
+                            ctx.deep_reach.set(false);
                             ctx.phase.set(Phase::Ranked);
                         }
                     },

@@ -253,6 +253,7 @@ pub fn App() -> Element {
         draft_pending,
         drafter,
         rung,
+        deep_reach: use_signal(|| false),
     };
     use_context_provider(|| ctx.clone());
 

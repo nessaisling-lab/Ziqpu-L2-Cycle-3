@@ -715,6 +715,11 @@ td.b{color:var(--ink)}
 }
 .field-input:disabled{opacity:.55}
 .field-check{display:flex;align-items:center;gap:8px;font:500 13px/1 var(--f-body);color:var(--ink-soft);margin-top:4px}
+/* The deeper-reach opt-in inside the seal — centered, marked in lapis so the "reach further" consent
+   reads as distinct from grounding itself. */
+.field-check--deep{justify-content:center;gap:9px;margin:20px auto 0;width:fit-content;color:var(--lapis)}
+.field-check--deep input{accent-color:var(--lapis)}
+.gate .honesty-note{max-width:52ch;margin:12px auto 0;text-align:left}
 .honesty-note{
   font-size:14px;color:var(--ink-soft);padding:10px 14px;
   border-left:3px solid var(--gold);background:var(--parchment-2);border-radius:0 10px 10px 0;
