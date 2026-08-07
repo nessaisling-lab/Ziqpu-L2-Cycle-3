@@ -234,7 +234,7 @@ impl EdgarSource {
             .take(3)
             .map(|(form, date)| {
                 format!(
-                    "recent filing: {} on {}",
+                    "recent filing: Form {} on {}",
                     form.as_str().unwrap_or("?"),
                     date.as_str().unwrap_or("?")
                 )

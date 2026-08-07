@@ -296,7 +296,7 @@ impl AnthropicInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
-            .and_then(|text| usable_reading(text, fit))
+            .and_then(|text| usable_reading(text, fit, measures))
     }
 
     /// The live grounded briefing **without** the template fallback — `Some(prose)` only when the
@@ -311,7 +311,7 @@ impl AnthropicInterpreter {
         grounded: &GroundedSignals,
     ) -> Option<String> {
         self.complete(&grounded_prompt(measures, fit, name, grounded))
-            .and_then(|text| usable_reading(text, fit))
+            .and_then(|text| usable_reading(text, fit, measures))
             // The citation is enforced HERE, at the interpreter, not in the layered pipeline —
             // `Session::brief` reaches `Interpreter::grounded_brief` without ever passing through
             // `grounded_layered`, so a fix applied up there covers the app and misses the MCP
@@ -410,7 +410,7 @@ impl OpenAiCompatInterpreter {
             aspects_block(measures),
         );
         self.complete(&prompt)
-            .and_then(|text| usable_reading(text, fit))
+            .and_then(|text| usable_reading(text, fit, measures))
     }
 
     /// The live grounded briefing **without** the template fallback — `Some(prose)` only when the
@@ -424,7 +424,7 @@ impl OpenAiCompatInterpreter {
         grounded: &GroundedSignals,
     ) -> Option<String> {
         self.complete(&grounded_prompt(measures, fit, name, grounded))
-            .and_then(|text| usable_reading(text, fit))
+            .and_then(|text| usable_reading(text, fit, measures))
             // The citation is enforced HERE, at the interpreter, not in the layered pipeline —
             // `Session::brief` reaches `Interpreter::grounded_brief` without ever passing through
             // `grounded_layered`, so a fix applied up there covers the app and misses the MCP
@@ -862,6 +862,30 @@ fn orb_band(orb: f64) -> &'static str {
     }
 }
 
+/// Put `line` immediately above the REMINDER, or at the end when the model wrote no REMINDER.
+///
+/// Both app-authored insertions — the citation and the unknown-time caveat — belong in the same
+/// place for the same reason: the disclaimer is the last thing a reader sees, so anything qualifying
+/// the reading has to arrive before it rather than after.
+fn insert_above_reminder(prose: &str, line: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut placed = false;
+    for existing in prose.lines() {
+        if !placed && existing.trim_start().starts_with("REMINDER") {
+            out.push(line.to_string());
+            placed = true;
+        }
+        out.push(existing.to_string());
+    }
+    if !placed {
+        out.push(line.to_string());
+    }
+    out.join(
+        "
+",
+    )
+}
+
 /// Accept a completion only if it is a reading, and a reading *of this measurement*.
 ///
 /// # Why this exists
@@ -889,12 +913,22 @@ fn orb_band(orb: f64) -> &'static str {
 /// Compared with `contains(fit.label())`, which would accept "Strongly Aligned" for a computed
 /// "Aligned" — the substring relationship between the band names makes the loose check silently
 /// wrong in the one direction that flatters the choice.
-fn usable_reading(text: String, fit: Fit) -> Option<String> {
+fn usable_reading(text: String, fit: Fit, measures: &Measures) -> Option<String> {
     let fit_line = text.lines().find(|l| l.trim_start().starts_with("FIT:"))?;
     let after = fit_line.split_once("FIT:")?.1;
     // "FIT: Strongly Aligned (85 / 100) — Tesla" → "Strongly Aligned"
     let band = after.split('(').next()?.trim();
-    (band == fit.label()).then_some(text)
+    if band != fit.label() {
+        return None;
+    }
+    let caveat = measures.time_caveat();
+    Some(if caveat.is_empty() {
+        text
+    } else {
+        // The method returns it newline-prefixed for the template's single `format!`; spliced above
+        // the disclaimer here, so trim the separator the other caller needs.
+        insert_above_reminder(&text, caveat.trim_start())
+    })
 }
 
 /// The tightest few contacts, one per line, for the model to read.
@@ -1336,6 +1370,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::High,
+            time_known: true,
         }
     }
 
@@ -1828,7 +1863,7 @@ mod tests {
              why: <one plain sentence distilling the single strongest dynamic in human terms>\n  \
              [GROUNDED (<source>): <the real signals, plainly>]";
         assert_eq!(
-            usable_reading(echoed.to_string(), Fit::Aligned),
+            usable_reading(echoed.to_string(), Fit::Aligned, &measures()),
             None,
             "the format spec is not a reading, however well-formed it looks"
         );
@@ -1838,12 +1873,12 @@ mod tests {
         // exactly the direction that flatters the choice.
         let flattered = "FIT: Strongly Aligned (52 / 100) — Apple\nA warm read.\n  why: something.";
         assert_eq!(
-            usable_reading(flattered.to_string(), Fit::Mixed),
+            usable_reading(flattered.to_string(), Fit::Mixed, &measures()),
             None,
             "a band that contradicts the computed one must be rejected"
         );
         assert_eq!(
-            usable_reading(flattered.to_string(), Fit::Aligned),
+            usable_reading(flattered.to_string(), Fit::Aligned, &measures()),
             None,
             "\"Aligned\" must not be satisfied by \"Strongly Aligned\""
         );
@@ -1854,13 +1889,17 @@ mod tests {
              why: the strongest thread is a tense one.\n  \
              REMINDER: measured, not fate — not financial advice.";
         assert_eq!(
-            usable_reading(real.to_string(), Fit::StronglyAligned),
+            usable_reading(real.to_string(), Fit::StronglyAligned, &measures()),
             Some(real.to_string())
         );
 
         // No FIT line at all — a bare apology, a stray paragraph — is likewise not a reading.
         assert_eq!(
-            usable_reading("I'm sorry, I can't help with that.".to_string(), Fit::Mixed),
+            usable_reading(
+                "I'm sorry, I can't help with that.".to_string(),
+                Fit::Mixed,
+                &measures()
+            ),
             None
         );
     }
@@ -1903,6 +1942,51 @@ mod tests {
             1,
             "exactly one citation: {fixed}"
         );
+    }
+
+    /// Eval Card, Case 2 — the caveat an unknown listing time obliges.
+    ///
+    /// Coca-Cola listed in 1919 with no trustworthy intraday time. The engine was already honest
+    /// (angles withheld, confidence notched) but neither fact reached the reader, so a "Mixed
+    /// (50 / 100)" verdict implied a precision the input never had. It is authored by the app for
+    /// the same reason the citation is: a caveat a model may forget is not a caveat.
+    #[test]
+    fn an_untimed_moment_says_so_and_a_timed_one_stays_quiet() {
+        let mut untimed = measures();
+        untimed.time_known = false;
+        let caveat = untimed.time_caveat();
+        assert!(caveat.contains("no recorded clock time"));
+        assert!(
+            caveat.contains("confidence"),
+            "the notch has to reach the reader, not just assess_confidence: {caveat}"
+        );
+        // The leading "\n  " is the template's indent and belongs there; what must not appear is a
+        // run of spaces *inside* the sentence. A Rust line continuation that keeps the source
+        // indentation produces exactly that, and it shipped once — the live card printed
+        // "rests on the      date rather than the minute".
+        assert!(
+            !caveat.trim().contains("  "),
+            "stray run of spaces inside a reader-facing line: {caveat:?}"
+        );
+
+        // It lands above the disclaimer, where a qualifier belongs.
+        let read = "FIT: Mixed (50 / 100) — Coca-Cola\nA read.\n  REMINDER: measured, not fate.";
+        let out = usable_reading(read.to_string(), Fit::Mixed, &untimed).unwrap();
+        let lines: Vec<&str> = out.lines().collect();
+        let note = lines
+            .iter()
+            .position(|l| l.contains("no recorded clock time"));
+        let rem = lines.iter().position(|l| l.contains("REMINDER"));
+        assert!(
+            note.is_some() && note < rem,
+            "note must precede REMINDER: {out}"
+        );
+
+        // A fully timed pair says nothing — the caveat must not become boilerplate.
+        let timed = measures();
+        assert_eq!(timed.time_caveat(), "");
+        let quiet = usable_reading(read.to_string(), Fit::Mixed, &timed).unwrap();
+        assert!(!quiet.contains("no recorded clock time"));
     }
 
     /// Eval Card, Case 3 — the second failure, which the FIRST fix caused.
@@ -2079,6 +2163,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::Low,
+            time_known: true,
         };
         assert!(aspects_block(&empty).contains("no close contacts"));
 
@@ -2098,6 +2183,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::Low,
+            time_known: true,
         };
         let block = aspects_block(&m);
         assert!(block.contains("Sun trine Moon"));

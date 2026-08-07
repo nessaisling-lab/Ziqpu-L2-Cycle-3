@@ -349,7 +349,7 @@ impl Interpreter for TemplateInterpreter {
             facts.join("; ")
         };
         format!(
-            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}{}\n  {REMINDER}",
             fit.label(),
             measures.score,
             warm_prose(fit),
@@ -357,6 +357,7 @@ impl Interpreter for TemplateInterpreter {
             grounded.source,
             signals,
             reality_sentence(grounded),
+            measures.time_caveat(),
         )
     }
 
@@ -484,6 +485,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::High,
+            time_known: true,
         }
     }
 
@@ -507,6 +509,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::Low,
+            time_known: true,
         };
         let read = interp.fit_read(&quiet, Fit::Mixed, "Coca-Cola");
 

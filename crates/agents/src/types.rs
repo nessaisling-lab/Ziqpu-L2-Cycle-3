@@ -187,6 +187,38 @@ pub struct Measures {
     pub patterns: Vec<Pattern>,
     /// How much to trust this read.
     pub confidence: Confidence,
+    /// Whether **both** birth moments carried a real clock time.
+    ///
+    /// `false` for most historical listings — there is no trustworthy record of what hour Coca-Cola
+    /// began trading in 1919, and the engine withholds the angles accordingly. The reading has to
+    /// say so: a verdict presented without that caveat implies a precision the input never had, and
+    /// inventing 09:30 to tidy the arithmetic is the same failure as the year-only January-1 charts
+    /// this project deleted, one field over.
+    pub time_known: bool,
+}
+
+impl Measures {
+    /// The caveat an unknown birth time obliges, ready to append — or `""` when both moments were
+    /// timed.
+    ///
+    /// Eval Card Case 2 measured Coca-Cola's 1919 listing, which has no trustworthy intraday time,
+    /// and returned "Mixed (50 / 100)" with nothing to say the verdict rested on a *date* rather
+    /// than a *moment*. The engine was already honest — `chart.rs` withholds the angles,
+    /// `assess_confidence` notches the trust down — but neither fact reached the reader, so the
+    /// output implied a precision the input never had.
+    ///
+    /// It lives on `Measures` because both writers need it and neither owns it: the deterministic
+    /// template composes its reading in one `format!`, the model paths splice it in above the
+    /// disclaimer. A caveat that depends on a language model remembering to include it is not a
+    /// caveat, and a caveat written out twice is one edit away from disagreeing with itself.
+    pub fn time_caveat(&self) -> &'static str {
+        if self.time_known {
+            ""
+        } else {
+            "
+  note: one of these moments has no recorded clock time, so this read rests on the date rather than the minute — the angles are left out and the confidence is held lower."
+        }
+    }
 }
 
 /// The four-band fit scale — the same bands and thresholds as the PRD's Verdict mode (§5, §12).

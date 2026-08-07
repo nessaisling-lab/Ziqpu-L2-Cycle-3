@@ -164,7 +164,9 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         let top = aspects.iter().take(4).cloned().collect();
         let patterns = detect_patterns(&merge_placed(&a, &b), &PatternOrbs::default());
         let theme = dominant_theme(&aspects);
-        let confidence = assess_confidence(&aspects, a.time_known && b.time_known);
+        // One expression, two consumers: the confidence notch, and the reading's own caveat.
+        let time_known = a.time_known && b.time_known;
+        let confidence = assess_confidence(&aspects, time_known);
         Measures {
             choice: choice.ticker.clone(),
             aspects,
@@ -173,6 +175,7 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
             theme,
             patterns,
             confidence,
+            time_known,
         }
     }
 
@@ -356,7 +359,9 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
         // sequence — that would double-count and break the tool-order eval.
         let patterns = detect_patterns(&merge_placed(&a, &b), &PatternOrbs::default());
         let theme = dominant_theme(&aspects);
-        let confidence = assess_confidence(&aspects, a.time_known && b.time_known);
+        // One expression, two consumers: the confidence notch, and the reading's own caveat.
+        let time_known = a.time_known && b.time_known;
+        let confidence = assess_confidence(&aspects, time_known);
         let measures = Measures {
             choice: choice.ticker.clone(),
             aspects,
@@ -365,6 +370,7 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
             theme,
             patterns,
             confidence,
+            time_known,
         };
         let fit = Fit::from_score(score);
         Briefing {
