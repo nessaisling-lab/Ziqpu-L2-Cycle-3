@@ -47,7 +47,7 @@ pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
 }
 
 pub use grounded::{
-    CompositeSource, EdgarSource, GroundedSource, MockGroundedSource, SecFactsSource,
+    CompositeSource, DrugSource, EdgarSource, GroundedSource, MockGroundedSource, SecFactsSource,
     WikidataSource,
 };
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};

@@ -419,6 +419,108 @@ impl SecFactsSource {
     }
 }
 
+/// Real, keyless **FDA drug approvals** from openFDA's Drugs@FDA endpoint — U.S. Government public
+/// domain (17 USC 105), no key, and **day-precise**.
+///
+/// This is the first worker that hands back a genuine *origin moment* for a non-company: a drug's
+/// original FDA approval is the day it became a thing you could actually be prescribed. Unlike a
+/// vehicle (whose per-unit build date exists only on a physical door-jamb sticker), this is a real,
+/// citable, day-precise date for a named product.
+///
+/// Mis-resolution is handled by the API rather than by heuristics: the exact `brand_name` search
+/// returns `NOT_FOUND` for anything that isn't a drug (verified against "Apple", "Tesla",
+/// "Manhattan Associates"), so a non-drug entity contributes nothing instead of a wrong fact.
+pub struct DrugSource {
+    pub user_agent: String,
+}
+
+impl Default for DrugSource {
+    fn default() -> Self {
+        Self {
+            user_agent: sec_user_agent(),
+        }
+    }
+}
+
+impl GroundedSource for DrugSource {
+    fn fetch(&self, choice: &Choice) -> GroundedSignals {
+        GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "openFDA (Drugs@FDA)".to_string(),
+            items: self.fetch_drug(&choice.name).unwrap_or_default(),
+        }
+    }
+}
+
+impl DrugSource {
+    /// Look a brand name up in Drugs@FDA. `None` on any transport/parse failure or a non-drug name
+    /// (the API answers those with an `error` object, which simply yields no `results`).
+    fn fetch_drug(&self, name: &str) -> Option<Vec<String>> {
+        let query = name.trim().to_uppercase();
+        if query.is_empty() {
+            return None;
+        }
+        let url = format!(
+            "https://api.fda.gov/drug/drugsfda.json?search=openfda.brand_name:%22{}%22&limit=1",
+            urlencoding_min(&query)
+        );
+        let bytes = http_get(&url, &self.user_agent)?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+        let result = value["results"].as_array()?.first()?;
+
+        let mut items = Vec::new();
+        if let Some(product) = result["products"].as_array().and_then(|p| p.first()) {
+            let brand = product["brand_name"].as_str().unwrap_or(&query);
+            let form = product["dosage_form"].as_str().unwrap_or("");
+            let status = product["marketing_status"].as_str().unwrap_or("");
+            let detail = [form, status]
+                .iter()
+                .filter(|s| !s.is_empty())
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            if detail.is_empty() {
+                items.push(format!("drug: {brand}"));
+            } else {
+                items.push(format!("drug: {brand} ({detail})"));
+            }
+        }
+        // The origin moment: the ORIGINAL application's approval. Later supplements amend a drug that
+        // already existed, so only `ORIG` can be its beginning.
+        if let Some(subs) = result["submissions"].as_array() {
+            let orig = subs.iter().find(|s| {
+                s["submission_type"].as_str() == Some("ORIG")
+                    && s["submission_status"].as_str() == Some("AP")
+            });
+            if let Some(date) = orig.and_then(|s| s["submission_status_date"].as_str()) {
+                if let Some(iso) = yyyymmdd_to_iso(date) {
+                    let appl = result["application_number"].as_str().unwrap_or("");
+                    let cite = if appl.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({appl})")
+                    };
+                    items.push(format!("FDA approval: {iso}{cite}"));
+                }
+            }
+        }
+        if let Some(sponsor) = result["sponsor_name"].as_str() {
+            items.push(format!("sponsor: {sponsor}"));
+        }
+        (!items.is_empty()).then_some(items)
+    }
+}
+
+/// openFDA dates are `YYYYMMDD` strings; render as `YYYY-MM-DD`. `None` on anything malformed, so a
+/// surprise format can never surface as a half-parsed date.
+fn yyyymmdd_to_iso(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    if raw.len() != 8 || !raw.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!("{}-{}-{}", &raw[0..4], &raw[4..6], &raw[6..8]))
+}
+
 /// Instance-of (P31) QIDs that mark an entity as a company/organization. Used to reject a
 /// mis-resolved Wikidata hit — if a name search lands on something that is *not* an organization
 /// (the fruit rather than the company), we refuse to attach its facts rather than risk a wrong one.
@@ -1038,6 +1140,52 @@ mod tests {
         assert_eq!(sig.items, vec![NO_SIGNALS.to_string()]);
         // is_placeholder(NO_SIGNALS) is true → the reading layer will (correctly) mark this unsourced.
         assert!(is_placeholder(&sig.items[0]));
+    }
+
+    #[test]
+    fn openfda_dates_parse_or_refuse() {
+        assert_eq!(yyyymmdd_to_iso("20021231").as_deref(), Some("2002-12-31"));
+        // Anything not exactly 8 digits yields nothing rather than a half-parsed date.
+        assert!(yyyymmdd_to_iso("2002-12-31").is_none());
+        assert!(yyyymmdd_to_iso("200212").is_none());
+        assert!(yyyymmdd_to_iso("").is_none());
+        assert!(yyyymmdd_to_iso("2002123X").is_none());
+    }
+
+    /// LIVE — a drug grounds with a **day-precise origin moment**, which is the thing a vehicle can't
+    /// give us. Also pins the mis-resolution guard: openFDA's exact brand-name search answers
+    /// NOT_FOUND for a non-drug, so a company name contributes nothing rather than a wrong fact.
+    /// Run: `cargo test -p agents grounded -- --ignored --nocapture live_drug`
+    #[test]
+    #[ignore = "hits the live openFDA API"]
+    fn live_drug_grounds_with_an_approval_date() {
+        let drug = Choice {
+            ticker: "HUMIRA".to_string(),
+            name: "HUMIRA".to_string(),
+            ..demo_choice()
+        };
+        let sig = DrugSource::default().fetch(&drug);
+        eprintln!("\nsource: {}", sig.source);
+        for item in &sig.items {
+            eprintln!("  - {item}");
+        }
+        assert!(
+            sig.items.iter().any(|i| i.starts_with("FDA approval:")),
+            "a real drug must ground with its approval date, got {:?}",
+            sig.items
+        );
+
+        // A company name is not a drug — the API says so, and we contribute nothing.
+        let company = Choice {
+            name: "Manhattan Associates Inc".to_string(),
+            ..demo_choice()
+        };
+        let miss = DrugSource::default().fetch(&company);
+        assert!(
+            miss.items.is_empty(),
+            "a non-drug must contribute nothing, got {:?}",
+            miss.items
+        );
     }
 
     #[test]

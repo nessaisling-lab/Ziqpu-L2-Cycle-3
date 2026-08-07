@@ -30,8 +30,8 @@ use std::sync::{Arc, Mutex};
 use serde_json::{json, Value};
 
 use crate::grounded::{
-    is_placeholder, sec_user_agent, urlencoding_min, EdgarSource, GroundedSource, SecFactsSource,
-    WikidataSource, NO_SIGNALS,
+    is_placeholder, sec_user_agent, urlencoding_min, DrugSource, EdgarSource, GroundedSource,
+    SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 use crate::tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 use crate::types::{Choice, GroundedSignals};
@@ -251,9 +251,14 @@ pub enum EntityKind {
     PublicCompany,
     /// A specific vehicle, identified by the VIN in its ticker field.
     Vehicle,
-    /// A named organization with no CIK (the airline/insurer universes, private companies). Only the
-    /// structured-facts worker can speak to it.
-    Organization,
+    /// **All we know is that it has a name** — no CIK, no VIN. A private company, an airline, a drug,
+    /// a product: the data we hold cannot tell them apart.
+    ///
+    /// This is the honest bucket, and it's where the *model* earns its seat. For the kinds above, the
+    /// answer is determined and code decides. Here it isn't, so the roster carries every worker that
+    /// could plausibly speak to a bare name and the model picks which to actually call — which is
+    /// precisely the case the orchestrator pattern exists for.
+    Named,
 }
 
 /// Decide an entity's kind **in code, from data we already hold** — a CIK is either present or not, a
@@ -272,7 +277,7 @@ pub fn classify_entity(choice: &Choice) -> EntityKind {
     if choice.cik.is_some() {
         return EntityKind::PublicCompany;
     }
-    EntityKind::Organization
+    EntityKind::Named
 }
 
 /// The worker roster for an entity kind — **this is the orchestration**. The subtask list is now a
@@ -323,8 +328,20 @@ fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Too
              it was assembled. Identity and origin place only — a VIN carries no build date.",
             Box::new(crate::vin::VehicleSource),
         )],
-        // No CIK, so the SEC workers can only return nothing. Offer the one that can speak.
-        EntityKind::Organization => vec![company_facts()],
+        // A bare name. The SEC workers can only return nothing (no CIK), so they're out — but what's
+        // left is genuinely ambiguous between a company and a product, so offer both workers that
+        // could answer and let the model choose. openFDA's exact brand-name search returns NOT_FOUND
+        // for a non-drug, so a wrong guess costs one call and contributes nothing — it can't produce
+        // a wrong fact.
+        EntityKind::Named => vec![
+            company_facts(),
+            tool(
+                "drug_approval",
+                "Look this name up in the FDA's Drugs@FDA register: the drug's original approval date \
+                 (day-precise), dosage form, and sponsor. Only matches actual drug brand names.",
+                Box::<DrugSource>::default(),
+            ),
+        ],
     }
 }
 
@@ -419,7 +436,7 @@ mod tests {
             EntityKind::PublicCompany
         );
         // No CIK and not a VIN — an airline/insurer/private company.
-        assert_eq!(classify_entity(&demo_choice()), EntityKind::Organization);
+        assert_eq!(classify_entity(&demo_choice()), EntityKind::Named);
     }
 
     /// Roster names per kind. **This is the falsifiable claim of the whole change:** the subtask list
@@ -448,9 +465,15 @@ mod tests {
             vec!["sec_filings", "sec_financials", "company_facts"]
         );
 
-        // No CIK → the SEC workers could only return nothing, so they aren't dispatched.
-        let org = names(&demo_choice());
-        assert_eq!(org, vec!["company_facts".to_string()]);
+        // A bare name: the SEC workers could only return nothing, so they aren't dispatched — but
+        // company-vs-drug is genuinely undecidable from the data, so BOTH candidate workers are
+        // offered and the model chooses. This is the one kind where the model does the deciding.
+        let named = names(&demo_choice());
+        assert_eq!(named, vec!["company_facts", "drug_approval"]);
+        assert!(
+            !named.iter().any(|n| n.starts_with("sec_")),
+            "no CIK means the SEC workers can only return nothing: {named:?}"
+        );
     }
 
     /// The gated open-web worker is additive on top of whatever roster the kind selected — it doesn't
