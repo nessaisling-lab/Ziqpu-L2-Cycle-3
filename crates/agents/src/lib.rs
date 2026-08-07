@@ -83,8 +83,8 @@ fn no_console_window(cmd: std::process::Command) -> std::process::Command {
 }
 
 pub use grounded::{
-    CompositeSource, DrugSource, EdgarSource, GroundedSource, Gs1Source, MockGroundedSource,
-    ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
+    fetch_approved, CompositeSource, DrugSource, EdgarSource, GroundedSource, Gs1Source,
+    MockGroundedSource, ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 pub use gs1::{gtin, parse_gs1, parse_yymmdd, production_date, Gs1Element, ScannedDate};
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};

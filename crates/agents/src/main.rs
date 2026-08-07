@@ -68,7 +68,7 @@ fn run(
     );
 
     let request = s.propose_grounding(top);
-    println!("CHECKPOINT — {}", request.prompt);
+    println!("CHECKPOINT — {}", request.prompt());
     match s.pull_grounded(top, None) {
         Err(e) => println!("  attempt without approval → blocked: {e}"),
         Ok(_) => println!("  BUG: pulled without approval"),

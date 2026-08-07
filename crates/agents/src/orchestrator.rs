@@ -74,11 +74,40 @@ pub struct ApprovalToken {
     choice: String,
 }
 
+impl ApprovalToken {
+    /// Whether this token authorizes a grounded pull for `choice`.
+    ///
+    /// A token is minted per choice, so approving a pull for one company never silently authorizes
+    /// another. Public because the gate has to be checkable at the point the network call is
+    /// actually made — which, in the app, is a worker thread far from the session that minted it.
+    pub fn authorizes(&self, choice: &Choice) -> bool {
+        self.choice == choice.ticker
+    }
+}
+
 /// The checkpoint prompt shown to the human before the grounded pull.
+///
+/// **The fields are private on purpose.** [`ApprovalToken`]'s field always was — so a token could
+/// not be forged directly — but [`Session::approve`] takes an `ApprovalRequest`, and while these
+/// were `pub` anyone could build one from nothing and hand it over to mint a valid token. The gate
+/// held against a mistake and not against intent. Now the only way to obtain a request is
+/// [`Session::propose_grounding`], which is also the only place the consent prompt is composed, so
+/// a token can only exist downstream of a human having been shown what it spends.
 #[derive(Debug, Clone)]
 pub struct ApprovalRequest {
-    pub choice: String,
-    pub prompt: String,
+    choice: String,
+    prompt: String,
+}
+
+impl ApprovalRequest {
+    /// What the human is being asked to approve — the consent text, naming every source it spends.
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
+    /// The ticker this request is for. A token minted from it authorizes only this choice.
+    pub fn choice(&self) -> &str {
+        &self.choice
+    }
 }
 
 /// The guardrail's response to a question.
@@ -494,7 +523,7 @@ mod tests {
     fn the_proposal_names_every_source_it_spends() {
         let s = session();
         let choice = demo_choices().into_iter().next().unwrap();
-        let prompt = s.propose_grounding(&choice).prompt;
+        let prompt = s.propose_grounding(&choice).prompt().to_string();
         // A public filer spends all four of these.
         for source in ["SEC EDGAR", "SEC XBRL", "Wikidata", "Wikipedia"] {
             assert!(
@@ -525,7 +554,7 @@ mod tests {
             wiki: None,
             ..base.clone()
         };
-        let p = s.propose_grounding(&car).prompt;
+        let p = s.propose_grounding(&car).prompt().to_string();
         assert!(
             p.contains("vPIC"),
             "a vehicle's consent must name vPIC: {p}"
@@ -545,7 +574,7 @@ mod tests {
             wiki: None,
             ..base
         };
-        let p = s.propose_grounding(&named).prompt;
+        let p = s.propose_grounding(&named).prompt().to_string();
         assert!(p.contains("FDA"), "a bare name may hit openFDA: {p}");
         assert!(
             p.contains("medicine"),

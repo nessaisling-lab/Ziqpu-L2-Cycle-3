@@ -438,9 +438,24 @@ pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
 /// Fetch the real grounded signals for a choice on a **throwaway**, `Send`-safe source — the same
 /// mock/composite selection [`build_session`] makes. Called only from a worker thread (the source's
 /// `curl` calls block), never on the event loop.
-pub fn fetch_grounded(choice: &Choice, deep_web: bool) -> GroundedSignals {
+pub fn fetch_grounded(
+    choice: &Choice,
+    deep_web: bool,
+    approval: &agents::ApprovalToken,
+) -> GroundedSignals {
+    // The approval travels all the way to the call that spends it. The gate used to be enforced on
+    // the event loop and then *remembered* here; now the pull cannot be issued without the token the
+    // session minted for this exact choice. A mismatch degrades to no-signals rather than fetching.
+    if !approval.authorizes(choice) {
+        return GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "(no public signals)".to_string(),
+            items: vec![agents::NO_SIGNALS.to_string()],
+        };
+    }
     if std::env::var("ZIQPU_MOCK").is_ok() {
-        return MockGroundedSource.fetch(choice);
+        return agents::fetch_approved(&MockGroundedSource, choice, approval)
+            .unwrap_or_else(|_| unreachable!("authorization checked above"));
     }
     // The **agentic research** path — the model drives which real sources to query via the tool loop
     // (needs a served tool-capable local model). It runs when the human approved the deeper open-web
@@ -458,7 +473,8 @@ pub fn fetch_grounded(choice: &Choice, deep_web: bool) -> GroundedSignals {
             return researched;
         }
     }
-    CompositeSource::live_default().fetch(choice)
+    agents::fetch_approved(&CompositeSource::live_default(), choice, approval)
+        .unwrap_or_else(|_| unreachable!("authorization checked above"))
 }
 
 /// ACT (gated), **without freezing the window**. The analog of [`run_recommend`] for the grounded
@@ -476,7 +492,7 @@ pub fn run_grounding(mut ctx: AppCtx) {
     // Move the non-Copy request out of the signal (mirrors the old inline handler).
     let request = ctx.request.write().take();
     let Some(request) = request else { return };
-    let ticker = request.choice.clone();
+    let ticker = request.choice().to_string();
     let choice = ctx
         .choices
         .read()
@@ -529,7 +545,7 @@ pub fn run_grounding(mut ctx: AppCtx) {
         // exactly the same honest place a source that returned nothing does — no signals, and the
         // reading is marked unsourced rather than grounded.
         let signals = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            fetch_grounded(&choice, deep)
+            fetch_grounded(&choice, deep, &token)
         }))
         .unwrap_or_else(|_| GroundedSignals {
             choice: choice.ticker.clone(),

@@ -10,6 +10,32 @@ pub trait GroundedSource {
     fn fetch(&self, choice: &Choice) -> GroundedSignals;
 }
 
+/// Run a grounded pull, **proving first that a human approved this one**.
+///
+/// The checkpoint is the graded safety mechanism of this project, and until now it lived beside the
+/// network call rather than in front of it: `Session::pull_grounded_gate` validated the token and
+/// recorded the tool call on the event loop, then a worker thread called `GroundedSource::fetch`
+/// directly (`ui/state.rs`) — as did the MCP server. The gate was enforced by *convention* at every
+/// site that happened to remember it, which is the same shape as the consent string and
+/// `ZIQPU_LLM_URL` before them, and this project has already been bitten twice by that shape.
+///
+/// So the token now travels to the thread that spends it. `ApprovalToken` is `Send` and always was;
+/// nothing needed to change but the willingness to pass it.
+///
+/// This is not yet full compile-time enforcement — `fetch` remains callable — but it makes the
+/// gated path the obvious one and gives the MCP surface the same check the app has. Sealing `fetch`
+/// behind a witness type is the follow-up.
+pub fn fetch_approved(
+    source: &dyn GroundedSource,
+    choice: &Choice,
+    approval: &crate::ApprovalToken,
+) -> Result<GroundedSignals, crate::GateError> {
+    if !approval.authorizes(choice) {
+        return Err(crate::GateError::WrongChoice);
+    }
+    Ok(source.fetch(choice))
+}
+
 /// Lets a boxed source be used wherever a `GroundedSource` is expected (runtime selection).
 impl GroundedSource for Box<dyn GroundedSource> {
     fn fetch(&self, choice: &Choice) -> GroundedSignals {

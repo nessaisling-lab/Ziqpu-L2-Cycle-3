@@ -32,7 +32,7 @@ pub fn Checkpoint() -> Element {
         .request
         .read()
         .as_ref()
-        .map(|r| r.prompt.clone())
+        .map(|r| r.prompt().to_string())
         .unwrap_or_default();
     let proof = ctx.gate_proof.read().clone().unwrap_or_default();
 

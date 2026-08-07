@@ -77,7 +77,7 @@ fn run(
     println!("  measured: {} ({} / 100)", rec.fit.label(), rec.score);
 
     let request = session.propose_grounding(&choice);
-    println!("  checkpoint: {}", request.prompt);
+    println!("  checkpoint: {}", request.prompt());
     match session.pull_grounded(&choice, None) {
         Err(e) => println!("  ungated pull → blocked: {e}"),
         Ok(_) => println!("  *** BUG: pulled without approval ***"),
