@@ -349,26 +349,7 @@ mod tests {
 /// So the host is extracted properly — scheme off, path off, **userinfo off**, port off, IPv6
 /// brackets off — and then matched exactly.
 pub fn is_loopback_url(url: &str) -> bool {
-    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
-    // Authority ends at the first '/', '?' or '#'.
-    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-    // Anything before an '@' is userinfo, not the host. Take the LAST '@' — userinfo may contain one.
-    let hostport = authority
-        .rsplit_once('@')
-        .map(|(_, h)| h)
-        .unwrap_or(authority);
-
-    // IPv6 literal: [::1]:1234
-    let host = if let Some(end) = hostport.strip_prefix('[').and_then(|r| r.split_once(']')) {
-        end.0
-    } else {
-        // Strip a :port, but only when what follows is numeric (an IPv6 host has colons too).
-        match hostport.rsplit_once(':') {
-            Some((h, p)) if !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()) => h,
-            _ => hostport,
-        }
-    };
-    let host = host.trim().to_ascii_lowercase();
+    let host = url_host(url);
 
     if host == "localhost" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
         return true;
@@ -428,6 +409,92 @@ pub fn local_endpoint_is_offmachine() -> bool {
     local_endpoint().is_some_and(|url| !is_loopback_url(&url))
 }
 
+/// The lowercased host of `url` — scheme, path, **userinfo**, port and IPv6 brackets removed.
+///
+/// One parser, because every host decision in this crate has to agree about what the host *is*. The
+/// interesting case is userinfo: in `http://127.0.0.1@evil.com/v1` the loopback address is a
+/// username and the host is `evil.com`, which reads as local to a substring check and to a person.
+fn url_host(url: &str) -> String {
+    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    // Authority ends at the first '/', '?' or '#'.
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    // Anything before an '@' is userinfo, not the host. Take the LAST '@' — userinfo may contain one.
+    let hostport = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
+
+    // IPv6 literal: [::1]:1234
+    let host = if let Some(end) = hostport.strip_prefix('[').and_then(|r| r.split_once(']')) {
+        end.0
+    } else {
+        // Strip a :port, but only when what follows is numeric (an IPv6 host has colons too).
+        match hostport.rsplit_once(':') {
+            Some((h, p)) if !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()) => h,
+            _ => hostport,
+        }
+    };
+    host.trim().to_ascii_lowercase()
+}
+
+/// The hosts a seeker's own provider key may be sent to.
+///
+/// Short and exact on purpose. These are the three services whose keys this app knows how to use;
+/// anything else wanting one is either a mistake or someone else's endpoint.
+const PROVIDER_KEY_HOSTS: &[&str] = &["openrouter.ai", "api.openai.com", "api.anthropic.com"];
+
+/// Whether the **seeker's own provider key** may be attached to a request for `url`.
+///
+/// `OPENAI_BASE_URL` was honoured verbatim: whatever host it named received the key in an
+/// `Authorization` header, over any scheme, with nothing checked and nothing shown in the UI. A key
+/// is not like a chart — a chart leaked is a privacy harm, a key leaked is someone else spending the
+/// seeker's money.
+///
+/// A host allowlist is the right rule *here* because the variable names a known provider. Loopback
+/// is allowed: a local runtime is not a third party and ignores the bearer token anyway. Everything
+/// else must be one of [`PROVIDER_KEY_HOSTS`], over HTTPS. As with the model endpoint this
+/// **refuses rather than forbids** — `ZIQPU_ALLOW_CUSTOM_ENDPOINT=1` permits a gateway of the
+/// seeker's own, knowingly.
+pub fn key_destination_allowed(url: &str) -> bool {
+    if custom_endpoint_allowed() {
+        return true;
+    }
+    // A local runtime needs no TLS and is not a third party.
+    if is_loopback_url(url) {
+        return true;
+    }
+    if !url.starts_with("https://") {
+        return false;
+    }
+    let host = url_host(url);
+    PROVIDER_KEY_HOSTS.iter().any(|allowed| host == *allowed)
+}
+
+/// Whether the **built-in proxy token** may be sent to `url`.
+///
+/// Deliberately a weaker rule than [`key_destination_allowed`], and the difference is a fact about
+/// the deployment rather than a concession. The proxy is not a third-party provider with a known
+/// address — it is *our* endpoint, and whoever builds Ziqpu deploys their own Worker at their own
+/// domain. There is no host to put on an allowlist without breaking every fork, so requiring one
+/// would be security theatre that also breaks the product.
+///
+/// What is left is still worth enforcing, because it is the part that was actually missing: the
+/// token grants spend on the operator's account, so it must never travel in clear text. HTTPS, or
+/// loopback for local proxy development.
+pub fn token_destination_allowed(url: &str) -> bool {
+    custom_endpoint_allowed() || url.starts_with("https://") || is_loopback_url(url)
+}
+
+/// Whether the seeker has knowingly allowed a credential to go to an endpoint of their own choosing.
+pub fn custom_endpoint_allowed() -> bool {
+    std::env::var("ZIQPU_ALLOW_CUSTOM_ENDPOINT")
+        .map(|v| {
+            let v = v.trim().to_ascii_lowercase();
+            !(v.is_empty() || v == "0" || v == "false" || v == "no" || v == "off")
+        })
+        .unwrap_or(false)
+}
+
 /// Whether the seeker has knowingly allowed a non-loopback model endpoint.
 pub fn remote_model_allowed() -> bool {
     std::env::var("ZIQPU_ALLOW_REMOTE_MODEL")
@@ -436,6 +503,62 @@ pub fn remote_model_allowed() -> bool {
             !(v.is_empty() || v == "0" || v == "false" || v == "no" || v == "off")
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod credential_destination_tests {
+    use super::*;
+
+    /// A key is not a chart. A chart leaked is a privacy harm; a key leaked is someone else spending
+    /// the seeker's money — so the destination is checked before the header is ever attached.
+    #[test]
+    fn a_provider_key_only_goes_to_a_provider() {
+        let _guard = ();
+        std::env::remove_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT");
+
+        for good in [
+            "https://openrouter.ai/api/v1",
+            "https://api.openai.com/v1",
+            "https://api.anthropic.com/v1/messages",
+            "http://localhost:1234/v1", // a local runtime is not a third party
+            "http://127.0.0.1:8080/v1",
+        ] {
+            assert!(key_destination_allowed(good), "must allow {good}");
+        }
+
+        for bad in [
+            "https://evil.com/v1",
+            "http://openrouter.ai/api/v1", // plaintext — the key would be readable in transit
+            "https://openrouter.ai.evil.com/v1", // merely starts with the provider name
+            "https://openrouter.ai@evil.com/v1", // the provider is USERINFO; the host is evil.com
+            "https://api.openai.com.evil.com/v1",
+        ] {
+            assert!(!key_destination_allowed(bad), "must refuse {bad}");
+        }
+
+        // Refuses rather than forbids: a seeker's own gateway is legitimate, knowingly.
+        std::env::set_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT", "1");
+        assert!(key_destination_allowed("https://my-gateway.example/v1"));
+        std::env::remove_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT");
+    }
+
+    /// The proxy token gets the weaker rule, and the reason is a deployment fact: the proxy is our
+    /// own endpoint and every build deploys its own domain, so there is no fixed host to allowlist.
+    /// What remains — never in clear text — is the part that was actually missing.
+    #[test]
+    fn the_proxy_token_needs_tls_but_not_a_known_host() {
+        std::env::remove_var("ZIQPU_ALLOW_CUSTOM_ENDPOINT");
+        assert!(token_destination_allowed(
+            "https://p.example.workers.dev/v1/messages"
+        ));
+        assert!(token_destination_allowed(
+            "http://localhost:8787/v1/messages"
+        ));
+        assert!(
+            !token_destination_allowed("http://p.example.workers.dev/v1/messages"),
+            "a spend-granting token must not travel in clear text"
+        );
+    }
 }
 
 #[cfg(test)]

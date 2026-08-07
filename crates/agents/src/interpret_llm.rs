@@ -192,6 +192,13 @@ impl AnthropicInterpreter {
         let token = std::env::var("ZIQPU_PROXY_TOKEN")
             .ok()
             .filter(|t| !t.is_empty())?;
+        // The app token grants spend on the operator's account, so it must not travel in clear text.
+        // No host allowlist here on purpose: the proxy is our own endpoint and every deployment
+        // picks its own domain, so there is nothing fixed to allowlist (see
+        // `llm_http::token_destination_allowed`).
+        if !crate::llm_http::token_destination_allowed(&url) {
+            return None;
+        }
         let model = anthropic_model();
         Some(Self {
             endpoint: url,
@@ -354,6 +361,12 @@ impl OpenAiCompatInterpreter {
             .ok()
             .filter(|u| !u.is_empty())
             .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
+        // `OPENAI_BASE_URL` was honoured verbatim, so whatever host it named received the seeker's
+        // API key in an Authorization header. Refuse unless it is a provider we know, a local
+        // runtime, or an endpoint the seeker knowingly allowed.
+        if !crate::llm_http::key_destination_allowed(&base_url) {
+            return None;
+        }
         let model = openai_compat_model();
         Some(Self {
             fallback: TemplateInterpreter,
