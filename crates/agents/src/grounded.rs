@@ -555,11 +555,11 @@ impl Default for WikidataSource {
 impl GroundedSource for WikidataSource {
     fn fetch(&self, choice: &Choice) -> GroundedSignals {
         let mut items = Vec::new();
-        if let Some((qid, label)) = self.resolve_qid(&choice.name) {
+        if let Some((qid, label)) = wikidata_resolve_qid(&choice.name, &self.user_agent) {
             // Guard against a name search that landed on the wrong entity: the resolved label must
             // share a real word with the company name.
             if label_overlaps(&choice.name, &label) {
-                if let Some(entity) = self.entity_json(&qid) {
+                if let Some(entity) = wikidata_entity(&qid, &self.user_agent) {
                     if is_organization(&entity, &qid) {
                         if let Some(year) = inception_year(&entity, &qid) {
                             items.push(format!("founded: {year}"));
@@ -579,31 +579,32 @@ impl GroundedSource for WikidataSource {
     }
 }
 
-impl WikidataSource {
-    /// Resolve a company name to its Wikidata `(QID, label)` via the keyless entity search. Searches
-    /// on the name with its corporate suffix stripped — Wikidata labels are the bare trade name
-    /// ("Manhattan Associates"), so an unstripped "MANHATTAN ASSOCIATES INC" returns *no hit* and
-    /// silently kills coverage for nearly every ticker. Takes the top hit; the caller's label-overlap
-    /// and organization guards catch the rare miss.
-    fn resolve_qid(&self, name: &str) -> Option<(String, String)> {
-        let q = urlencoding_min(&search_name(name));
-        let url = format!(
-            "https://www.wikidata.org/w/api.php?action=wbsearchentities&search={q}&language=en&format=json&limit=1"
-        );
-        let bytes = http_get(&url, &self.user_agent)?;
-        let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
-        let hit = value["search"].as_array()?.first()?;
-        let id = hit["id"].as_str()?.to_string();
-        let label = hit["label"].as_str().unwrap_or("").to_string();
-        Some((id, label))
-    }
+/// Resolve a name to its Wikidata `(QID, label)` via the keyless entity search. Searches on the name
+/// with its corporate suffix stripped — Wikidata labels are the bare trade name ("Manhattan
+/// Associates"), so an unstripped "MANHATTAN ASSOCIATES INC" returns *no hit* and silently kills
+/// coverage for nearly every ticker. Takes the top hit; the caller's label-overlap and entity-type
+/// guards catch the rare miss.
+///
+/// Free rather than a method because both the company worker and the product worker resolve names
+/// the same way — one search, two readings of the result.
+fn wikidata_resolve_qid(name: &str, user_agent: &str) -> Option<(String, String)> {
+    let q = urlencoding_min(&search_name(name));
+    let url = format!(
+        "https://www.wikidata.org/w/api.php?action=wbsearchentities&search={q}&language=en&format=json&limit=1"
+    );
+    let bytes = http_get(&url, user_agent)?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let hit = value["search"].as_array()?.first()?;
+    let id = hit["id"].as_str()?.to_string();
+    let label = hit["label"].as_str().unwrap_or("").to_string();
+    Some((id, label))
+}
 
-    /// The full entity JSON (`Special:EntityData/{qid}.json`) — one call carries every claim we read.
-    fn entity_json(&self, qid: &str) -> Option<serde_json::Value> {
-        let url = format!("https://www.wikidata.org/wiki/Special:EntityData/{qid}.json");
-        let bytes = http_get(&url, &self.user_agent)?;
-        serde_json::from_slice(&bytes).ok()
-    }
+/// The full entity JSON (`Special:EntityData/{qid}.json`) — one call carries every claim we read.
+fn wikidata_entity(qid: &str, user_agent: &str) -> Option<serde_json::Value> {
+    let url = format!("https://www.wikidata.org/wiki/Special:EntityData/{qid}.json");
+    let bytes = http_get(&url, user_agent)?;
+    serde_json::from_slice(&bytes).ok()
 }
 
 /// The `claims` object of an entity, indexed by property id.
@@ -729,6 +730,120 @@ pub(crate) fn urlencoding_min(s: &str) -> String {
         }
     }
     out
+}
+
+/// Real, CC0 **product launch dates** from Wikidata's publication-date property (`P577`).
+///
+/// This is the worker that gives a consumer product a genuine, day-precise origin moment — a games
+/// console, a video game, a film, an album, a device. It completes the honest ladder: a vehicle can
+/// only offer identity and place, a drug offers its FDA approval, and a released product offers the
+/// day it entered the world.
+///
+/// Three decisions the data forced:
+///
+/// - **The earliest release wins.** A product often carries several `P577` values because it shipped
+///   region by region — the PlayStation 5 has 2020-11-12, 2020-11-19 and 2020-12-11. The birth is the
+///   *first* of those; the later ones are the same product arriving somewhere else. Later dates are
+///   counted and mentioned, never silently averaged or picked at random.
+/// - **Only day precision becomes a date.** Wikidata stamps every time value with a `precision`
+///   (11 = day, 10 = month, 9 = year), and a year-precision value is stored as January 1st. Reading
+///   that as a launch *day* would reinvent the exact fabrication this project deleted 904 charts to
+///   get rid of. A year-only `P577` is reported as a year and named as unchartable.
+/// - **An organization is not a product.** The company worker already speaks for companies, so a name
+///   that resolves to one contributes nothing here rather than competing with it.
+pub struct ProductSource {
+    pub user_agent: String,
+}
+
+impl Default for ProductSource {
+    fn default() -> Self {
+        Self {
+            user_agent: sec_user_agent(),
+        }
+    }
+}
+
+impl GroundedSource for ProductSource {
+    fn fetch(&self, choice: &Choice) -> GroundedSignals {
+        GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "Wikidata (product launch)".to_string(),
+            items: self.fetch_launch(&choice.name).unwrap_or_default(),
+        }
+    }
+}
+
+impl ProductSource {
+    fn fetch_launch(&self, name: &str) -> Option<Vec<String>> {
+        let (qid, label) = wikidata_resolve_qid(name, &self.user_agent)?;
+        if !label_overlaps(name, &label) {
+            return None;
+        }
+        let entity = wikidata_entity(&qid, &self.user_agent)?;
+        // The company worker owns organizations; this one must not compete for them.
+        if is_organization(&entity, &qid) {
+            return None;
+        }
+
+        let releases = publication_dates(&entity, &qid);
+        if releases.is_empty() {
+            return None;
+        }
+        let mut items = Vec::new();
+
+        // Day-precise values are the only ones that can name a day. Earliest = first existence.
+        let mut days: Vec<&String> = releases
+            .iter()
+            .filter(|(_, p)| *p >= 11)
+            .map(|(t, _)| t)
+            .collect();
+        days.sort();
+        if let Some(first) = days.first() {
+            items.push(format!("product: {label}"));
+            items.push(format!("released: {first}"));
+            if days.len() > 1 {
+                items.push(format!(
+                    "later releases: {} more (regional or re-release)",
+                    days.len() - 1
+                ));
+            }
+            return Some(items);
+        }
+
+        // No day anywhere — report the coarsest truth rather than a January 1st.
+        let mut years: Vec<&String> = releases.iter().map(|(t, _)| t).collect();
+        years.sort();
+        let first = years.first()?;
+        let year = first.get(0..4)?;
+        items.push(format!("product: {label}"));
+        items.push(format!(
+            "released: {year} (year precision only — not a chartable moment)"
+        ));
+        Some(items)
+    }
+}
+
+/// Every `P577` value as `(YYYY-MM-DD, precision)`. Wikidata times look like `+2020-11-12T00:00:00Z`
+/// and carry their own precision, which is the field that decides whether a day is real or a
+/// placeholder — so it is returned rather than assumed.
+fn publication_dates(entity: &serde_json::Value, qid: &str) -> Vec<(String, u64)> {
+    let Some(cl) = claims(entity, qid) else {
+        return Vec::new();
+    };
+    let Some(values) = cl["P577"].as_array() else {
+        return Vec::new();
+    };
+    values
+        .iter()
+        .filter_map(|c| {
+            let v = &c["mainsnak"]["datavalue"]["value"];
+            let time = v["time"].as_str()?;
+            let precision = v["precision"].as_u64()?;
+            // "+2020-11-12T00:00:00Z" → "2020-11-12"
+            let date = time.trim_start_matches('+').get(0..10)?.to_string();
+            (date.len() == 10).then_some((date, precision))
+        })
+        .collect()
 }
 
 /// Fans a choice out across several [`GroundedSource`]s and merges what they return into one honest
@@ -1140,6 +1255,84 @@ mod tests {
         assert_eq!(sig.items, vec![NO_SIGNALS.to_string()]);
         // is_placeholder(NO_SIGNALS) is true → the reading layer will (correctly) mark this unsourced.
         assert!(is_placeholder(&sig.items[0]));
+    }
+
+    /// `P577` values are read with their precision, because precision is what separates a real
+    /// launch day from Wikidata's January-1st placeholder for a year-only fact.
+    #[test]
+    fn publication_dates_carry_their_precision() {
+        let entity = serde_json::json!({
+            "entities": { "Q1": { "claims": { "P577": [
+                { "mainsnak": { "datavalue": { "value": { "time": "+2020-11-12T00:00:00Z", "precision": 11 } } } },
+                { "mainsnak": { "datavalue": { "value": { "time": "+2020-11-19T00:00:00Z", "precision": 11 } } } },
+                { "mainsnak": { "datavalue": { "value": { "time": "+1998-01-01T00:00:00Z", "precision": 9  } } } }
+            ]}}}
+        });
+        let dates = publication_dates(&entity, "Q1");
+        assert_eq!(
+            dates,
+            vec![
+                ("2020-11-12".to_string(), 11),
+                ("2020-11-19".to_string(), 11),
+                ("1998-01-01".to_string(), 9),
+            ]
+        );
+        // An entity with no P577 yields nothing rather than an empty-string date.
+        let bare = serde_json::json!({ "entities": { "Q2": { "claims": {} } } });
+        assert!(publication_dates(&bare, "Q2").is_empty());
+    }
+
+    /// LIVE — a released product grounds with a **day-precise launch date**, and the *earliest*
+    /// release wins when a product shipped region by region.
+    ///
+    /// The PlayStation 5 carries three `P577` values (2020-11-12, 11-19, 12-11). Its birth is the
+    /// first: the later ones are the same console arriving somewhere else, not a different thing
+    /// being born. Also pins the negative guard — a company name must not be answered here, because
+    /// the company worker already speaks for it.
+    /// Run: `cargo test -p agents grounded -- --ignored --nocapture live_product`
+    #[test]
+    #[ignore = "hits live Wikidata"]
+    fn live_product_grounds_with_its_launch_day() {
+        let console = Choice {
+            ticker: "PS5".to_string(),
+            name: "PlayStation 5".to_string(),
+            ..demo_choice()
+        };
+        let sig = ProductSource::default().fetch(&console);
+        eprintln!("\nsource: {}", sig.source);
+        for item in &sig.items {
+            eprintln!("  - {item}");
+        }
+        let released = sig
+            .items
+            .iter()
+            .find(|i| i.starts_with("released:"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "a released product must carry a launch date: {:?}",
+                    sig.items
+                )
+            });
+        assert!(
+            released.contains("2020-11-12"),
+            "the EARLIEST release is the birth, not a later regional one: {released}"
+        );
+        assert!(
+            !released.contains("year precision"),
+            "this one is day-precise: {released}"
+        );
+
+        // A company is not a product — the company worker owns that, so this must stay silent.
+        let company = Choice {
+            name: "Manhattan Associates Inc".to_string(),
+            ..demo_choice()
+        };
+        let miss = ProductSource::default().fetch(&company);
+        assert!(
+            miss.items.is_empty(),
+            "an organization must contribute nothing here, got {:?}",
+            miss.items
+        );
     }
 
     #[test]

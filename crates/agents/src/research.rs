@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 
 use crate::grounded::{
     is_placeholder, sec_user_agent, urlencoding_min, DrugSource, EdgarSource, GroundedSource,
-    SecFactsSource, WikidataSource, NO_SIGNALS,
+    ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 use crate::tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 use crate::types::{Choice, GroundedSignals};
@@ -341,6 +341,13 @@ fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Too
                  (day-precise), dosage form, and sponsor. Only matches actual drug brand names.",
                 Box::<DrugSource>::default(),
             ),
+            tool(
+                "product_launch",
+                "Look this name up as a released product — a console, game, film, album or device — \
+                 and return the day it first launched, from Wikidata's publication dates. Only \
+                 matches things that were actually released; companies are not products.",
+                Box::<ProductSource>::default(),
+            ),
         ],
     }
 }
@@ -466,10 +473,14 @@ mod tests {
         );
 
         // A bare name: the SEC workers could only return nothing, so they aren't dispatched — but
-        // company-vs-drug is genuinely undecidable from the data, so BOTH candidate workers are
-        // offered and the model chooses. This is the one kind where the model does the deciding.
+        // company-vs-drug-vs-product is genuinely undecidable from the data, so EVERY candidate
+        // worker is offered and the model chooses. This is the one kind where the model decides,
+        // and it is the kind that grows as new domains land.
         let named = names(&demo_choice());
-        assert_eq!(named, vec!["company_facts", "drug_approval"]);
+        assert_eq!(
+            named,
+            vec!["company_facts", "drug_approval", "product_launch"]
+        );
         assert!(
             !named.iter().any(|n| n.starts_with("sec_")),
             "no CIK means the SEC workers can only return nothing: {named:?}"

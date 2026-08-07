@@ -47,8 +47,8 @@ pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
 }
 
 pub use grounded::{
-    CompositeSource, DrugSource, EdgarSource, GroundedSource, MockGroundedSource, SecFactsSource,
-    WikidataSource, NO_SIGNALS,
+    CompositeSource, DrugSource, EdgarSource, GroundedSource, MockGroundedSource, ProductSource,
+    SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};
