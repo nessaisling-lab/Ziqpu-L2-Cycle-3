@@ -251,7 +251,7 @@ pub(crate) const NO_SIGNALS: &str = "no public signals available";
 /// worker thread whose only exit is a result, behind a checkpoint view with no cancel path, so a
 /// stalled socket is a permanent silent spinner. `--max-time` bounds a connection that is accepted
 /// then blackholed; `--max-filesize` bounds a multi-MB payload we only skim the head of.
-fn http_get(url: &str, user_agent: &str) -> Option<Vec<u8>> {
+pub(crate) fn http_get(url: &str, user_agent: &str) -> Option<Vec<u8>> {
     let output = crate::no_window(std::process::Command::new("curl"))
         .args([
             "-sS",
@@ -273,7 +273,7 @@ fn http_get(url: &str, user_agent: &str) -> Option<Vec<u8>> {
 /// these before merging so one source's "nothing here" never pollutes another's real signals, and so
 /// the merged set is only marked unsourced when *every* source came up empty. Kept in lockstep with
 /// [`has_real_signals`](crate::)'s marker list.
-fn is_placeholder(item: &str) -> bool {
+pub(crate) fn is_placeholder(item: &str) -> bool {
     let i = item.trim().to_lowercase();
     i.is_empty()
         || i.contains("no public signals available")
@@ -286,7 +286,7 @@ fn is_placeholder(item: &str) -> bool {
 /// The default SEC contact User-Agent, honoring `ZIQPU_EDGAR_UA` — shared by every SEC-hitting
 /// source so the whole fleet identifies one way. See [`DEFAULT_EDGAR_UA`] for why it is a role
 /// address by necessity.
-fn sec_user_agent() -> String {
+pub(crate) fn sec_user_agent() -> String {
     std::env::var("ZIQPU_EDGAR_UA")
         .map(|s| s.trim().to_string())
         .ok()
@@ -616,7 +616,7 @@ fn search_name(name: &str) -> String {
 /// Minimal percent-encoding for a query value — enough for company names in a Wikidata/EDGAR query
 /// string. Keeps the crate dependency-free (no `urlencoding` crate) the way the rest of `agents`
 /// shells out rather than pulling HTTP/encoding deps.
-fn urlencoding_min(s: &str) -> String {
+pub(crate) fn urlencoding_min(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
     for b in s.bytes() {
         match b {

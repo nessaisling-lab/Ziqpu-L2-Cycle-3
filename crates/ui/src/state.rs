@@ -433,12 +433,24 @@ pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
 /// mock/composite selection [`build_session`] makes. Called only from a worker thread (the source's
 /// `curl` calls block), never on the event loop.
 pub fn fetch_grounded(choice: &Choice) -> GroundedSignals {
-    let source: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
-        Box::new(MockGroundedSource)
-    } else {
-        Box::new(CompositeSource::live_default())
-    };
-    source.fetch(choice)
+    if std::env::var("ZIQPU_MOCK").is_ok() {
+        return MockGroundedSource.fetch(choice);
+    }
+    // Opt-in **agentic research** path (`ZIQPU_RESEARCH`): the model drives which real sources to
+    // query via the tool loop (needs a served tool-capable local model, or an OpenAI-compat endpoint
+    // in the env). `ZIQPU_RESEARCH_DEEP` adds the gated open-web reach. It falls back to the
+    // deterministic multi-source composite whenever the loop collects nothing (no model / offline),
+    // so enabling it can only add reach, never lose the reliable grounding.
+    if std::env::var("ZIQPU_RESEARCH").is_ok() {
+        let deep = std::env::var("ZIQPU_RESEARCH_DEEP").is_ok();
+        let researched =
+            agents::research_grounded(choice, &agents::ResearchConfig::local_from_env(), deep);
+        // `merge_sink` labels an all-empty result "(no public signals)"; anything else is real.
+        if researched.source != "(no public signals)" {
+            return researched;
+        }
+    }
+    CompositeSource::live_default().fetch(choice)
 }
 
 /// ACT (gated), **without freezing the window**. The analog of [`run_recommend`] for the grounded

@@ -22,6 +22,7 @@ pub mod measure_llm;
 pub mod models;
 pub mod orchestrator;
 pub mod profile;
+pub mod research;
 pub mod score;
 pub mod tier;
 pub mod tools;
@@ -65,6 +66,7 @@ pub use orchestrator::{
     is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken, Session,
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
+pub use research::{research_grounded, ResearchConfig};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
