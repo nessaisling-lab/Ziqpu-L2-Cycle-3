@@ -2,6 +2,10 @@
 
 **Team:** Ziqpu (Pursuit L2, Cycle 3) · **Week 6 deliverable:** pattern summary + team decision
 
+> **Feature PRD:** [Ziqpu_Feature_PRD_EntityKind.docx](Ziqpu_Feature_PRD_EntityKind.docx)
+> ([PDF](Ziqpu_Feature_PRD_EntityKind.pdf)) — problem, users, requirements, success metrics, and the
+> agent sections (tools, blast radius, system prompt, evals) for the change described in §5.
+>
 > **Visual teachback deck:** <https://claude.ai/code/artifact/3cc0a6d8-3381-46a9-9781-85cb989433d3>
 > — the same argument laid out for the table, with the latency measurement drawn as a range plot.
 > *(Private to the author's Claude workspace unless explicitly shared; this document is the canonical
