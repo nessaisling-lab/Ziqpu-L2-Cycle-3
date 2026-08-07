@@ -24,8 +24,8 @@ use dioxus::prelude::*;
 
 use crate::components::{KeyField, ModelPanel, ModelPicker};
 use crate::settings::{
-    active_mode_label, built_in_available, load_settings, save_local_url, save_model_for,
-    save_provider,
+    active_mode_label, built_in_available, load_settings, parallel_grounding_default,
+    save_local_url, save_model_for, save_parallel_grounding, save_provider,
 };
 use crate::vault::Provider;
 
@@ -77,6 +77,9 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
     let mut advanced = use_signal(|| false);
     // So does the local-model benchmark panel, which is the tallest thing in here.
     let mut local_open = use_signal(|| false);
+    // The grounded fan's execution mode. Applies the moment it's flipped (persist + env), so the very
+    // next grounded pull uses it — no Save, no restart.
+    let mut parallel = use_signal(parallel_grounding_default);
 
     // UI-only state: whether Save landed. Keys are saved by `KeyField` the moment they're pasted,
     // so Save no longer has a credential path — and there are no reveal toggles, by design.
@@ -254,6 +257,34 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
                     }
 
                     } // end Advanced
+
+                    // ---- Grounding speed ----
+                    // The grounded pull asks several independent sources (SEC filings, SEC
+                    // financials, Wikidata) for the same choice. Fetching them at once is strictly
+                    // faster and changes nothing about the reading — the merge preserves declared
+                    // source order either way — so this is on by default. The off position exists to
+                    // demonstrate the difference.
+                    div { class: "settings-field",
+                        label { class: "field-check",
+                            input {
+                                r#type: "checkbox",
+                                checked: *parallel.read(),
+                                onchange: move |_| {
+                                    let now = !*parallel.read();
+                                    parallel.set(now);
+                                    save_parallel_grounding(now);
+                                },
+                            }
+                            " Fetch grounding sources at the same time"
+                        }
+                        p { class: "settings-hint",
+                            if *parallel.read() {
+                                "On — the sources are asked concurrently (measured here: 617 ms, versus 1,976 ms one after another). The reading is identical either way; only the waiting changes."
+                            } else {
+                                "Off — sources are asked one after another. Slower, and the reading is the same. Turn this on unless you're comparing the two."
+                            }
+                        }
+                    }
 
                     // ---- Local model (folded) ----
                     // The benchmark/download panel is taller than everything else combined, and

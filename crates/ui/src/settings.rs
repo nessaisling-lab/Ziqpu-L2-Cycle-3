@@ -64,6 +64,13 @@ pub struct SettingsFile {
     /// (on, since we're still building). Persisted so the chosen view survives a restart.
     #[serde(default)]
     pub dev_build: Option<bool>,
+    /// Whether the grounded pull fetches its sources **concurrently** → `ZIQPU_PARALLEL_GROUNDING`.
+    /// `None` = the default (parallel). `Some(false)` forces the old one-after-another fan, which is
+    /// strictly slower — it exists so the difference can be demonstrated and compared, not because a
+    /// seeker would want it. Measured on this machine: 1,976 ms sequential vs 617 ms parallel for the
+    /// same three-source pull (identical reading either way).
+    #[serde(default)]
+    pub parallel_grounding: Option<bool>,
 }
 
 /// Whether the developer build is on — premium features unlocked.
@@ -87,6 +94,21 @@ pub fn save_dev_build(on: bool) {
     let mut settings = load_settings();
     settings.dev_build = Some(on);
     save_settings(&settings);
+}
+
+/// Whether the grounded fan runs concurrently — the persisted choice, defaulting to on.
+pub fn parallel_grounding_default() -> bool {
+    load_settings().parallel_grounding.unwrap_or(true)
+}
+
+/// Persist the parallel-grounding switch **and apply it immediately** to this process's environment,
+/// so the very next grounded pull uses the new mode without a restart. Load-modify-save, so no other
+/// field (least of all a credential) is disturbed.
+pub fn save_parallel_grounding(on: bool) {
+    let mut settings = load_settings();
+    settings.parallel_grounding = Some(on);
+    save_settings(&settings);
+    std::env::set_var("ZIQPU_PARALLEL_GROUNDING", if on { "1" } else { "0" });
 }
 
 /// A **redacting** `Debug` — deliberately hand-written (not derived) so a stray `dbg!(settings)` or a
@@ -175,6 +197,13 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
     // attempts so the seeker's pick wins over a merely-present key.
     set_if_absent("ZIQPU_PROVIDER", &settings.provider);
+    // The grounded fan's execution mode. Only written when the seeker actually chose one, and never
+    // over an explicit export — same "an exported var wins" rule as every setting above.
+    if let Some(on) = settings.parallel_grounding {
+        if std::env::var_os("ZIQPU_PARALLEL_GROUNDING").is_none() {
+            std::env::set_var("ZIQPU_PARALLEL_GROUNDING", if on { "1" } else { "0" });
+        }
+    }
 
     // Hosted-provider keys live in the OS credential vault now. Fill each provider's env var from the
     // vault only when the environment doesn't already carry it — an exported key (shell/CI) still

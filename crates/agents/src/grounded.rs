@@ -635,13 +635,32 @@ pub(crate) fn urlencoding_min(s: &str) -> String {
 /// actually contributed; and the whole set is marked unsourced ([`NO_SIGNALS`]) only when *every*
 /// source came up empty. This is the deterministic multi-source grounding — the same fetchers become
 /// the tools the agentic loop selects from in the next increment.
+/// Whether the fan runs its sources **concurrently** by default. Off only when
+/// `ZIQPU_PARALLEL_GROUNDING` is explicitly falsey (`0`/`false`/`off`/`no`) — the app's Settings
+/// toggle writes that var, so a seeker (or a benchmark) can force the sequential path and compare.
+/// Default is parallel: the sources are independent network calls, so serializing them only adds
+/// latency.
+fn parallel_default() -> bool {
+    match std::env::var("ZIQPU_PARALLEL_GROUNDING") {
+        Ok(v) => !matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "off" | "no"
+        ),
+        Err(_) => true,
+    }
+}
+
 pub struct CompositeSource {
-    sources: Vec<Box<dyn GroundedSource>>,
+    sources: Vec<Box<dyn GroundedSource + Send + Sync>>,
+    /// Fetch the sources concurrently (default) or one after another. See [`CompositeSource::fetch`]
+    /// — this changes only *when* the calls happen, never *what* the reading says.
+    parallel: bool,
 }
 
 impl CompositeSource {
     /// The shipped live grounding: SEC filings + Wikipedia (with the demo fixture fallback), plus the
-    /// two new provenance-clean dimensions — SEC financials and Wikidata structured facts.
+    /// two new provenance-clean dimensions — SEC financials and Wikidata structured facts. Runs the
+    /// fan concurrently unless [`parallel_default`] says otherwise.
     pub fn live_default() -> Self {
         Self {
             sources: vec![
@@ -649,45 +668,102 @@ impl CompositeSource {
                 Box::new(SecFactsSource::default()),
                 Box::new(WikidataSource::default()),
             ],
+            parallel: parallel_default(),
         }
     }
 
     /// Build a composite from an explicit source list — used by tests to fan deterministic in-memory
     /// sources and assert the merge behavior without touching the network.
-    pub fn from_sources(sources: Vec<Box<dyn GroundedSource>>) -> Self {
-        Self { sources }
+    pub fn from_sources(sources: Vec<Box<dyn GroundedSource + Send + Sync>>) -> Self {
+        Self {
+            sources,
+            parallel: parallel_default(),
+        }
+    }
+
+    /// Force the execution mode — the benchmark runs the *same* sources both ways to time them, and
+    /// tests pin it so a machine's env can't change what they assert.
+    pub fn with_parallel(mut self, parallel: bool) -> Self {
+        self.parallel = parallel;
+        self
     }
 }
 
 impl GroundedSource for CompositeSource {
+    /// Fetch every source, then merge once.
+    ///
+    /// **The two execution modes share the merge**, deliberately: collection produces the same
+    /// `Vec<GroundedSignals>` *in declared source order* either way, so going parallel changes only
+    /// **when** the network calls happen, never **what** the reading says. Two consequences worth
+    /// keeping:
+    ///
+    /// - **Readings stay deterministic.** Merging in completion order would let a fast Wikidata beat a
+    ///   slow EDGAR and silently reorder a seeker's grounded lines between two runs of the same
+    ///   choice. For a product whose whole claim is "measured, and you can check it", a reading that
+    ///   reshuffles itself by network weather is a defect, not a detail. Declared order is the
+    ///   authored order — filings, then financials, then structured facts.
+    /// - **A panicking source degrades, it doesn't crash the reading.** A worker that unwinds is
+    ///   treated exactly like one that fetched nothing (it contributes no items and isn't named),
+    ///   which is the same honest degrade a failed HTTP call already gets.
     fn fetch(&self, choice: &Choice) -> GroundedSignals {
-        let mut items: Vec<String> = Vec::new();
-        let mut labels: Vec<String> = Vec::new();
-        for source in &self.sources {
-            let sig = source.fetch(choice);
-            let real: Vec<String> = sig
-                .items
-                .into_iter()
-                .filter(|i| !is_placeholder(i))
-                .collect();
-            if !real.is_empty() {
-                labels.push(sig.source);
-                items.extend(real);
-            }
-        }
-        if items.is_empty() {
-            return GroundedSignals {
-                choice: choice.ticker.clone(),
-                source: "(no public signals)".to_string(),
-                items: vec![NO_SIGNALS.to_string()],
-            };
-        }
-        labels.dedup();
-        GroundedSignals {
+        let empty = || GroundedSignals {
             choice: choice.ticker.clone(),
-            source: labels.join(" · "),
-            items,
+            source: String::new(),
+            items: Vec::new(),
+        };
+
+        let fetched: Vec<GroundedSignals> = if self.parallel {
+            // Scoped threads let each worker borrow the source in place — no `Arc`, no `'static`
+            // bound, and every thread is joined before this returns.
+            std::thread::scope(|scope| {
+                let handles: Vec<_> = self
+                    .sources
+                    .iter()
+                    .map(|source| scope.spawn(move || source.fetch(choice)))
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|h| h.join().unwrap_or_else(|_| empty()))
+                    .collect()
+            })
+        } else {
+            self.sources.iter().map(|s| s.fetch(choice)).collect()
+        };
+
+        merge_fetched(&choice.ticker, fetched)
+    }
+}
+
+/// The one honest merge, shared by both execution modes: strip each source's placeholder lines (so
+/// one source's "nothing here" never dilutes another's real facts), name only the sources that
+/// actually contributed, and mark the whole set unsourced ([`NO_SIGNALS`]) only when *every* source
+/// came up empty.
+fn merge_fetched(ticker: &str, fetched: Vec<GroundedSignals>) -> GroundedSignals {
+    let mut items: Vec<String> = Vec::new();
+    let mut labels: Vec<String> = Vec::new();
+    for sig in fetched {
+        let real: Vec<String> = sig
+            .items
+            .into_iter()
+            .filter(|i| !is_placeholder(i))
+            .collect();
+        if !real.is_empty() {
+            labels.push(sig.source);
+            items.extend(real);
         }
+    }
+    if items.is_empty() {
+        return GroundedSignals {
+            choice: ticker.to_string(),
+            source: "(no public signals)".to_string(),
+            items: vec![NO_SIGNALS.to_string()],
+        };
+    }
+    labels.dedup();
+    GroundedSignals {
+        choice: ticker.to_string(),
+        source: labels.join(" · "),
+        items,
     }
 }
 
@@ -724,6 +800,179 @@ mod tests {
             cik: None,
             wiki: None,
         }
+    }
+
+    /// A source that sleeps before answering — stands in for a slow network call so concurrency is
+    /// provable without touching the network.
+    struct SlowSource {
+        source: &'static str,
+        item: &'static str,
+        delay_ms: u64,
+    }
+    impl GroundedSource for SlowSource {
+        fn fetch(&self, choice: &Choice) -> GroundedSignals {
+            std::thread::sleep(std::time::Duration::from_millis(self.delay_ms));
+            GroundedSignals {
+                choice: choice.ticker.clone(),
+                source: self.source.to_string(),
+                items: vec![self.item.to_string()],
+            }
+        }
+    }
+
+    fn slow_trio() -> Vec<Box<dyn GroundedSource + Send + Sync>> {
+        vec![
+            Box::new(SlowSource {
+                source: "A",
+                item: "a1",
+                delay_ms: 200,
+            }),
+            Box::new(SlowSource {
+                source: "B",
+                item: "b1",
+                delay_ms: 200,
+            }),
+            Box::new(SlowSource {
+                source: "C",
+                item: "c1",
+                delay_ms: 200,
+            }),
+        ]
+    }
+
+    /// The whole point of the parallel fan: three 200 ms sources take ~600 ms serially and ~200 ms
+    /// concurrently. Deterministic (sleeps, no network) and generously bounded so a loaded CI box
+    /// can't flake it — it only has to prove the calls overlap at all.
+    #[test]
+    fn the_parallel_fan_overlaps_its_sources() {
+        let seq = CompositeSource::from_sources(slow_trio()).with_parallel(false);
+        let t0 = std::time::Instant::now();
+        let seq_sig = seq.fetch(&demo_choice());
+        let seq_ms = t0.elapsed().as_millis();
+
+        let par = CompositeSource::from_sources(slow_trio()).with_parallel(true);
+        let t1 = std::time::Instant::now();
+        let par_sig = par.fetch(&demo_choice());
+        let par_ms = t1.elapsed().as_millis();
+
+        eprintln!("sequential: {seq_ms} ms · parallel: {par_ms} ms");
+        assert!(
+            seq_ms >= 550,
+            "three 200ms sources should take ~600ms serially, took {seq_ms}ms"
+        );
+        assert!(
+            par_ms < 400,
+            "concurrent sources should finish in ~200ms, took {par_ms}ms"
+        );
+        // …and the reading is byte-identical either way — the invariant that makes the switch safe.
+        assert_eq!(seq_sig.items, par_sig.items);
+        assert_eq!(seq_sig.source, par_sig.source);
+    }
+
+    /// Declared source order is preserved under concurrency — a fast source must never jump ahead of
+    /// a slow one in the merged reading. This is what keeps a grounded reading reproducible instead
+    /// of reshuffling with network weather.
+    #[test]
+    fn parallel_preserves_declared_source_order_not_completion_order() {
+        // C is fastest, A slowest — completion order would be C, B, A.
+        let sources: Vec<Box<dyn GroundedSource + Send + Sync>> = vec![
+            Box::new(SlowSource {
+                source: "A",
+                item: "a1",
+                delay_ms: 150,
+            }),
+            Box::new(SlowSource {
+                source: "B",
+                item: "b1",
+                delay_ms: 80,
+            }),
+            Box::new(SlowSource {
+                source: "C",
+                item: "c1",
+                delay_ms: 10,
+            }),
+        ];
+        let sig = CompositeSource::from_sources(sources)
+            .with_parallel(true)
+            .fetch(&demo_choice());
+        assert_eq!(
+            sig.items,
+            vec!["a1".to_string(), "b1".to_string(), "c1".to_string()],
+            "items must follow DECLARED order, not which source answered first"
+        );
+        assert_eq!(sig.source, "A · B · C");
+    }
+
+    /// A source that panics is treated exactly like one that found nothing — the other sources still
+    /// ground the reading, and the panicking one is not named.
+    #[test]
+    fn a_panicking_source_degrades_instead_of_killing_the_reading() {
+        struct PanicSource;
+        impl GroundedSource for PanicSource {
+            fn fetch(&self, _choice: &Choice) -> GroundedSignals {
+                panic!("this source blew up");
+            }
+        }
+        let sources: Vec<Box<dyn GroundedSource + Send + Sync>> = vec![
+            Box::new(PanicSource),
+            Box::new(FakeSource {
+                source: "Wikidata",
+                items: vec!["founded: 1990".to_string()],
+            }),
+        ];
+        let sig = CompositeSource::from_sources(sources)
+            .with_parallel(true)
+            .fetch(&demo_choice());
+        assert_eq!(sig.items, vec!["founded: 1990".to_string()]);
+        assert_eq!(sig.source, "Wikidata");
+    }
+
+    /// The before/after numbers, against the REAL sources. Prints both timings and asserts the
+    /// readings are identical. Network + SEC/Wikidata availability; run explicitly:
+    /// `cargo test -p agents grounded -- --ignored --nocapture bench_parallel`
+    #[test]
+    #[ignore = "hits SEC EDGAR + Wikidata live"]
+    fn bench_parallel_vs_sequential_on_real_sources() {
+        let manh = Choice {
+            ticker: "MANH".to_string(),
+            name: "Manhattan Associates Inc".to_string(),
+            birth: crate::BirthMoment {
+                date: chrono::NaiveDate::from_ymd_opt(1998, 4, 24).unwrap(),
+                time: None,
+                tz: chrono_tz::America::New_York,
+                lat: 0.0,
+                lon: 0.0,
+            },
+            cik: Some(1_056_696),
+            wiki: None,
+        };
+
+        let t0 = std::time::Instant::now();
+        let seq = CompositeSource::live_default()
+            .with_parallel(false)
+            .fetch(&manh);
+        let seq_ms = t0.elapsed().as_millis();
+
+        let t1 = std::time::Instant::now();
+        let par = CompositeSource::live_default()
+            .with_parallel(true)
+            .fetch(&manh);
+        let par_ms = t1.elapsed().as_millis();
+
+        eprintln!("\n=== grounded fan: {} ===", manh.ticker);
+        eprintln!("sequential : {seq_ms} ms");
+        eprintln!("parallel   : {par_ms} ms");
+        if par_ms > 0 {
+            eprintln!("speedup    : {:.2}×", seq_ms as f64 / par_ms as f64);
+        }
+        eprintln!("sources    : {}", par.source);
+        for item in &par.items {
+            eprintln!("  - {item}");
+        }
+        assert_eq!(
+            seq.items, par.items,
+            "the reading must be identical in both modes"
+        );
     }
 
     #[test]
