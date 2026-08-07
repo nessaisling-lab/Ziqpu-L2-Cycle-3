@@ -63,7 +63,8 @@ pub use measure::{
 };
 pub use measure_llm::LocalMeasurer;
 pub use orchestrator::{
-    is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken, Session,
+    grounding_consent, is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken,
+    Session,
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use research::{classify_entity, research_grounded, EntityKind, ResearchConfig};

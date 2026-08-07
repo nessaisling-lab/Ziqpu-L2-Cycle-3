@@ -14,6 +14,44 @@ use crate::types::{
 use chrono::NaiveDate;
 use engine::{detect_patterns, NatalChart, PatternOrbs, Placed, Who};
 
+/// The **one** sentence of consent for a grounded pull, shared by every surface that asks.
+///
+/// There is exactly one of these on purpose. The consent text drifted twice: first it said
+/// "SEC EDGAR" while the fetch also reached Wikipedia, and later it still named that pair while the
+/// roster had grown SEC financials, Wikidata, vPIC and openFDA. Both times the *reading* disclosed
+/// more than the consent that authorized it. A second copy of this string in the MCP server was how
+/// the second drift survived, so there is no second copy now — the desktop checkpoint and the MCP
+/// host read the same function.
+///
+/// It names the sources **this entity's roster can actually spend**, and where the identifier itself
+/// is sensitive it says so. A stock ticker is public and impersonal; a VIN identifies one specific
+/// vehicle, and a medicine name discloses a health interest. Those leave the machine on approval, so
+/// the person approving deserves to know before they press yes, not after.
+pub fn grounding_consent(choice: &Choice) -> String {
+    use crate::research::{classify_entity, EntityKind};
+
+    let (sources, sensitivity) = match classify_entity(choice) {
+        EntityKind::Vehicle => (
+            "NHTSA vPIC (the federal VIN database)",
+            " This sends the VIN, which identifies one specific vehicle.",
+        ),
+        EntityKind::PublicCompany => (
+            "SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia",
+            "",
+        ),
+        EntityKind::Named => (
+            "Wikidata, Wikipedia and the FDA's public drug register",
+            " If this name is a medicine, that query goes to a public FDA endpoint.",
+        ),
+    };
+
+    format!(
+        "Ground this read for {}? I'll pull real external signals ({sources}) — external, gated, \
+         costed calls.{sensitivity} Approve to proceed; decline to keep the symbolic read.",
+        choice.ticker
+    )
+}
+
 /// One run of the loop. Holds the tool sources and records the tool-call order (the eval basis).
 pub struct Session<C: ChartSource, G: GroundedSource, I: Interpreter> {
     chart: C,
@@ -217,36 +255,9 @@ impl<C: ChartSource, G: GroundedSource, I: Interpreter> Session<C, G, I> {
     /// it. Consent that understates its blast radius isn't consent. Keep this list in step with
     /// what `fetch` actually calls.
     pub fn propose_grounding(&self, choice: &Choice) -> ApprovalRequest {
-        use crate::research::{classify_entity, EntityKind};
-
-        // Name the sources this entity's roster can actually spend, and — where the *identifier
-        // itself* is sensitive — say so. A stock ticker is public and impersonal; a VIN identifies
-        // one specific vehicle, and a medicine name discloses a health interest. Those leave the
-        // machine on approval, so the person approving deserves to know that before they press yes,
-        // not after.
-        let (sources, sensitivity) = match classify_entity(choice) {
-            EntityKind::Vehicle => (
-                "NHTSA vPIC (the federal VIN database)",
-                " This sends the VIN, which identifies one specific vehicle.",
-            ),
-            EntityKind::PublicCompany => (
-                "SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia",
-                "",
-            ),
-            EntityKind::Named => (
-                "Wikidata, Wikipedia and the FDA's public drug register",
-                " If this name is a medicine, that query goes to a public FDA endpoint.",
-            ),
-        };
-
         ApprovalRequest {
             choice: choice.ticker.clone(),
-            prompt: format!(
-                "Ground this read for {}? I'll pull real external signals ({sources}) — external, \
-                 gated, costed calls.{sensitivity} Approve to proceed; decline to keep the symbolic \
-                 read.",
-                choice.ticker
-            ),
+            prompt: grounding_consent(choice),
         }
     }
 

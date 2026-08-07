@@ -86,7 +86,7 @@ fn tools() -> Value {
         },
         {
             "name": "pull_grounded_signals",
-            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL and fetches nothing; with approved=true it makes the gated, costed external pull (SEC EDGAR filings and Wikipedia).",
+            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL — naming the exact sources that call would spend — and fetches nothing; with approved=true it makes the gated, costed external pull. Which sources run depends on what the entity is: SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia for a public filer; NHTSA vPIC for a vehicle; Wikidata, Wikipedia and the FDA drug register for a bare name.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -238,14 +238,14 @@ fn call_pull(args: &Value) -> (String, bool) {
         .and_then(|a| a.as_bool())
         .unwrap_or(false);
     if !approved {
-        // The checkpoint, surfaced to the host: nothing external ran.
+        // The checkpoint, surfaced to the host: nothing external ran. The sentence comes from
+        // `agents::grounding_consent` — the same function the desktop checkpoint uses — because a
+        // second hand-written copy here is exactly how this text fell behind the roster last time.
         return (
-            // Names every source the approval would spend — this text *is* the consent an MCP host
-            // shows before authorizing the pull, so it can't understate what runs.
             format!(
-                "PENDING_APPROVAL — grounding {ticker} makes gated, costed external calls \
-                 (SEC EDGAR filings and Wikipedia). Nothing was fetched. Re-call with \
-                 {{ \"approved\": true }} to proceed, or keep the symbolic read."
+                "PENDING_APPROVAL — {} Nothing was fetched. Re-call with \
+                 {{ \"approved\": true }} to proceed, or keep the symbolic read.",
+                agents::grounding_consent(&choice)
             ),
             false,
         );
@@ -260,10 +260,16 @@ fn call_pull(args: &Value) -> (String, bool) {
     (out, false)
 }
 
-/// The grounded source: real SEC EDGAR when `ZIQPU_LIVE` is set, else the deterministic mock.
+/// The grounded source: the real **multi-source** pull when `ZIQPU_LIVE` is set, else the
+/// deterministic mock.
+///
+/// This used to be `EdgarSource` alone, which quietly made the MCP server a second-class surface:
+/// a host driving Ziqpu got one source while the desktop app got five, and the difference was
+/// invisible from the outside. Same [`CompositeSource`](agents::CompositeSource) now, so a grounded
+/// briefing is the same briefing wherever the loop is driven from.
 fn grounded() -> Box<dyn agents::GroundedSource> {
     if std::env::var("ZIQPU_LIVE").is_ok() {
-        Box::new(agents::EdgarSource::default())
+        Box::new(agents::CompositeSource::live_default())
     } else {
         Box::new(agents::MockGroundedSource)
     }
@@ -344,6 +350,33 @@ mod tests {
         );
         assert!(grounded.contains("GROUNDED"));
         assert!(grounded.contains("not financial advice"));
+    }
+
+    /// The MCP checkpoint and the desktop checkpoint must ask for the **same** consent.
+    ///
+    /// They didn't. This server hand-wrote its own "SEC EDGAR filings and Wikipedia" sentence, so
+    /// when the roster grew to SEC financials, Wikidata, vPIC and openFDA, the desktop prompt was
+    /// updated and this one silently wasn't — an MCP host was authorizing more than it was told.
+    /// Both now render `agents::grounding_consent`, and this test fails if a second copy ever
+    /// reappears.
+    #[test]
+    fn the_mcp_checkpoint_asks_for_the_same_consent_as_the_app() {
+        let choice = agents::demo_choices()
+            .into_iter()
+            .find(|c| c.ticker == "AAPL")
+            .expect("AAPL is seeded");
+        let canonical = agents::grounding_consent(&choice);
+
+        let pending = call_tool("pull_grounded_signals", json!({ "ticker": "AAPL" }));
+        assert!(
+            pending.contains(&canonical),
+            "the MCP checkpoint must render the shared consent verbatim.\n  expected: {canonical}\n  \
+             got: {pending}"
+        );
+        // And the thing that actually matters: it names every source the approval would spend.
+        for source in ["SEC EDGAR", "SEC XBRL", "Wikidata", "Wikipedia"] {
+            assert!(pending.contains(source), "{source} unnamed in: {pending}");
+        }
     }
 
     #[test]
