@@ -279,9 +279,9 @@ pub fn SettingsPage(on_close: EventHandler<()>) -> Element {
                         }
                         p { class: "settings-hint",
                             if *parallel.read() {
-                                "On — the sources are asked concurrently (measured here: 617 ms, versus 1,976 ms one after another). The reading is identical either way; only the waiting changes."
+                                "On — the sources are asked concurrently, so the wait is the slowest single source rather than the sum of all of them (measured here: ~0.6 s, versus 1.3–2.3 s one after another). The reading is identical either way; only the waiting changes."
                             } else {
-                                "Off — sources are asked one after another. Slower, and the reading is the same. Turn this on unless you're comparing the two."
+                                "Off — sources are asked one after another, so every source's delay adds up. Slower, and the reading is the same. Turn this on unless you're comparing the two."
                             }
                         }
                     }

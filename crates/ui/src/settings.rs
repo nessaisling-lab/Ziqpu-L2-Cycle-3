@@ -67,8 +67,11 @@ pub struct SettingsFile {
     /// Whether the grounded pull fetches its sources **concurrently** → `ZIQPU_PARALLEL_GROUNDING`.
     /// `None` = the default (parallel). `Some(false)` forces the old one-after-another fan, which is
     /// strictly slower — it exists so the difference can be demonstrated and compared, not because a
-    /// seeker would want it. Measured on this machine: 1,976 ms sequential vs 617 ms parallel for the
-    /// same three-source pull (identical reading either way).
+    /// seeker would want it. Measured on this machine over 4 runs of the same three-source pull
+    /// (identical reading either way): **sequential 1,255–2,326 ms, parallel 617–667 ms** — a 2.0–3.5×
+    /// win. Note the *spreads*: concurrent time is bounded by the slowest single source (~50 ms of
+    /// variance), while sequential time is the sum and so accumulates every source's variance
+    /// (~1,000 ms). Going parallel makes the wait shorter **and** far more predictable.
     #[serde(default)]
     pub parallel_grounding: Option<bool>,
 }
