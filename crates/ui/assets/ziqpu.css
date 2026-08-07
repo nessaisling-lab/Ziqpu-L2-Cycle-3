@@ -714,6 +714,20 @@ td.b{color:var(--ink)}
   color:var(--ink);font-family:var(--f-body);font-size:16px;padding:11px 14px;width:100%;
 }
 .field-input:disabled{opacity:.55}
+/* The webcam scan — sits beside the universe search, because reading a code off an object and
+   typing a name are the same act. Present only in a `--features camera` build. */
+.scan{margin:14px 0 6px}
+.scan__btn{width:100%}
+.scan__hint{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
+.scan__hint--fail{color:var(--carnelian)}
+.scan__result{
+  margin-top:10px;padding:12px 14px;background:var(--parchment-2);
+  border-left:3px solid var(--gold);border-radius:0 10px 10px 0;
+}
+.scan__sym{font:600 12px/1 var(--f-mono);letter-spacing:.04em;color:var(--ink-soft);margin-bottom:8px}
+.scan__lines{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:5px}
+.scan__lines li{font-size:14px;color:var(--ink)}
+
 .field-check{display:flex;align-items:center;gap:8px;font:500 13px/1 var(--f-body);color:var(--ink-soft);margin-top:4px}
 /* The deeper-reach opt-in inside the seal — centered, marked in lapis so the "reach further" consent
    reads as distinct from grounding itself. */

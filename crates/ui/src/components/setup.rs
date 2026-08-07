@@ -223,6 +223,11 @@ fn MarketPanel() -> Element {
                 })}
             }
 
+            // Reading a code off a physical object sits beside searching a universe, because it is
+            // the same act — naming the thing you're weighing — just with the object in your hand.
+            // Renders nothing unless the build has `--features camera`.
+            crate::components::ScanButton {}
+
             div { class: "ticker-search",
                 input {
                     "aria-label": "Search the {current_universe.label()} universe",

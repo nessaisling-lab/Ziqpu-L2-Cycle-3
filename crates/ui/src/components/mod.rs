@@ -14,6 +14,9 @@ mod model_panel;
 mod model_picker;
 mod onboarding;
 mod ranked;
+/// The webcam scan button. Always compiled; renders nothing without `--features camera`, so the
+/// call site needs no `cfg` and an affordance that cannot work never reaches the screen.
+mod scan;
 mod settings;
 mod setup;
 mod wheat_loader;
@@ -33,6 +36,7 @@ pub use model_panel::ModelPanel;
 pub use model_picker::ModelPicker;
 pub use onboarding::Onboarding;
 pub use ranked::Ranked;
+pub use scan::ScanButton;
 pub use settings::{SettingsButton, SettingsPage};
 pub use setup::Setup;
 pub use wheat_loader::{WheatLoader, WheatPhase, WheatTier, WheatTierState};
