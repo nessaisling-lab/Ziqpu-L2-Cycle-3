@@ -922,6 +922,24 @@ fn usable_reading(text: String, fit: Fit, measures: &Measures) -> Option<String>
     if band != fit.label() {
         return None;
     }
+    // The guardrail must ride with the words, not depend on the model remembering it.
+    //
+    // Eval Card Case 4 caught this: across five live cards, one came back with no REMINDER line at
+    // all. Cases 1-3 each check a single reading, so a disclaimer that goes missing one time in five
+    // is invisible to them — that is the whole reason the ranked list earned its own case. The
+    // unsourced path already forces the line (`to_unsourced`) and the template always writes it;
+    // a model-written sourced reading was the one shape with nothing behind it.
+    let text = if text.lines().any(|l| l.trim_start().starts_with("REMINDER")) {
+        text
+    } else {
+        format!(
+            "{}
+  {}",
+            text.trim_end(),
+            crate::interpret::REMINDER
+        )
+    };
+
     let caveat = measures.time_caveat();
     Some(if caveat.is_empty() {
         text

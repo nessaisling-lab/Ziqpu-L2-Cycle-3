@@ -147,6 +147,46 @@ refusal, a scrubbed reading, or a degraded rung all pass.
 
 ---
 
+## Case 4 — Golden: the path the demo actually walks
+
+Added after the first three ran green, because of a gap the retro surfaced: **Cases 1–3 all exercise
+one flow** — a single choice, through the checkpoint, into a grounded reading. The first screen a
+person sees is not that. It is **five choices ranked at once**, and no case touched it.
+
+**Input.** The seeker × all five seeded choices (Apple, Microsoft, Tesla, Coca-Cola, Johnson &
+Johnson), Live mode, **before** any checkpoint. This is the DECIDE step on its own — the cheap,
+always-on half of the product that most users never go past.
+
+**What the agent should do**
+
+1. **Five in, five out.** No choice silently dropped, whatever its data. Coca-Cola has no listing
+   time and Johnson & Johnson's is a 1944 NYSE listing; neither may vanish.
+2. **Ranked best-first**, and the ordering must actually be non-increasing by score. A "ranked list"
+   that isn't sorted is the kind of bug that reads as a matter of taste.
+3. **Every card's band matches its own score** — not just the top one. Case 1 only ever checked one
+   card, so a band/score contradiction on card four would have shipped.
+4. **The graded tool order holds across all five**: `get_chart(you) → get_chart(choice) →
+   get_synastry` per choice, in that order, five times. This is the sequence the loop is graded on,
+   and running five choices is where a shared session could double-count or interleave.
+5. **No advice on any card**, and `REMINDER` on every one. Five chances to leak, not one.
+6. **Deterministic.** The same seeker and the same five choices produce the same ranking every run.
+   The scores are arithmetic; only the prose should vary.
+
+**Why this case earns its place.** It is the only one that tests the loop at *plurality*. Everything
+that can go wrong with a shared, `!Send` session — double-recorded tool calls, a reading attached to
+the wrong ticker, a fallback that fires for one card and not its neighbours — needs more than one
+choice to show up at all.
+
+**Known cost, stated rather than tested.** In Live mode this fires **one billed model call per
+card** — five, before any checkpoint. That is audit rank 4 and it is still open: the orb precision
+was coarsened, but the one-time consent naming the provider is not built. The case documents the
+spend rather than asserting it away.
+
+**Pass/fail.** Fails on a dropped choice, an out-of-order ranking, any band that contradicts its
+score, a broken tool sequence, advice anywhere, or a ranking that changes between runs.
+
+---
+
 ## Results — run 2026-08-07
 
 Reproduce with `ZIQPU_LIVE=1 cargo run -p agents --example eval_card`.

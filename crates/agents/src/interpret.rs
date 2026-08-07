@@ -5,7 +5,7 @@
 use crate::types::{Confidence, DayBeat, Fit, GroundedSignals, Measures, TransitBeat};
 use chrono::NaiveDate;
 
-const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
+pub(crate) const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
 
 /// The interpreter seam. Never computes; never advises.
 pub trait Interpreter {
