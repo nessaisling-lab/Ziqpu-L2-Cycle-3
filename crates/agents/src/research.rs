@@ -576,6 +576,72 @@ mod tests {
         );
     }
 
+    /// LIVE — **the dispatch proof**: a REAL tool-calling model, handed two different entities,
+    /// must call *different* workers, because it is offered different rosters.
+    ///
+    /// Everything else about the roster is asserted without a model (see
+    /// `the_roster_is_a_function_of_the_entity_kind`). What that can't show is the half that only
+    /// exists at inference time: that a real model, given these tool specs, actually calls the
+    /// vehicle worker for a VIN and never reaches for an SEC one — and that on a bare name, where
+    /// the roster deliberately offers two candidates, it picks rather than calling both blindly.
+    ///
+    /// Serve a tool-capable chat model first (`ziqpu-model serve` passes `--jinja`), then:
+    /// `cargo test -p agents research -- --ignored --nocapture live_dispatch`
+    /// Point elsewhere with `ZIQPU_LLM_URL` / `ZIQPU_LOCAL_MODEL`.
+    #[test]
+    #[ignore = "needs a served tool-capable llama-server (--jinja)"]
+    fn live_dispatch_differs_by_entity_kind() {
+        let cfg = ResearchConfig::local_from_env();
+        eprintln!("\nendpoint: {} · model: {}", cfg.base_url, cfg.model);
+
+        // Which workers were actually exercised is recorded by the sink, by source label.
+        let sources_used = |choice: &Choice| -> Vec<String> {
+            let sig = research_grounded(choice, &cfg, false);
+            eprintln!("\n{} -> source: {}", choice.ticker, sig.source);
+            for item in &sig.items {
+                eprintln!("   - {item}");
+            }
+            sig.source.split(" · ").map(str::to_string).collect()
+        };
+
+        // A vehicle: the roster holds only the vPIC worker.
+        let car = car_choice();
+        assert_eq!(classify_entity(&car), EntityKind::Vehicle);
+        let car_sources = sources_used(&car);
+        assert!(
+            car_sources.iter().any(|s| s.contains("vPIC")),
+            "the model should have called the vehicle worker, got {car_sources:?}"
+        );
+        assert!(
+            !car_sources.iter().any(|s| s.contains("SEC")),
+            "a vehicle must never reach an SEC worker: {car_sources:?}"
+        );
+
+        // A public company: the SEC pair is on offer and should be used.
+        let company = Choice {
+            ticker: "MANH".to_string(),
+            name: "Manhattan Associates Inc".to_string(),
+            cik: Some(1_056_696),
+            ..demo_choice()
+        };
+        assert_eq!(classify_entity(&company), EntityKind::PublicCompany);
+        let company_sources = sources_used(&company);
+        assert!(
+            company_sources.iter().any(|s| s.contains("SEC")),
+            "a public filer should have reached an SEC worker, got {company_sources:?}"
+        );
+        assert!(
+            !company_sources.iter().any(|s| s.contains("vPIC")),
+            "a company must never reach the vehicle worker: {company_sources:?}"
+        );
+
+        // The two rosters must actually have produced different work — that IS the dispatch claim.
+        assert_ne!(
+            car_sources, company_sources,
+            "different entity kinds must exercise different workers"
+        );
+    }
+
     /// LIVE end-to-end: a REAL served `llama-server --jinja` decides which source tools to call and
     /// grounds a real ticker; the grounding is the tools' real returns. Ignored (needs a GPU/served
     /// model). Serve first, then:
