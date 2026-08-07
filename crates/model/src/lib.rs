@@ -71,6 +71,113 @@ fn no_console_window(cmd: std::process::Command) -> std::process::Command {
 mod credential_scrub_tests {
     use super::looks_like_credential;
 
+    /// Every asset the picker can land on must have a digest, on every platform we ship to.
+    ///
+    /// This is the test that makes bumping [`PINNED_RUNTIME_TAG`] safe. Update the tag without
+    /// updating a digest and some machine — likely one you do not own, running the vendor build you
+    /// do not have — silently loses the ability to install a runtime at all. Enumerating the picker
+    /// over every platform and GPU vendor catches that here rather than in someone's install.
+    #[test]
+    fn every_asset_the_picker_can_choose_has_a_digest() {
+        use super::{expected_digest, pick_runtime_asset_for, PINNED_RUNTIME_TAG};
+        use super::{GpuInfo, TargetArch, TargetOs};
+
+        // The asset list of the pinned release, as published.
+        let names: Vec<&str> = super::RUNTIME_DIGESTS.iter().map(|(n, _)| *n).collect();
+
+        let vendors = [
+            None,
+            Some("NVIDIA GeForce RTX 4070 Laptop GPU"),
+            Some("NVIDIA GeForce RTX 5080 Laptop GPU"), // the CUDA-13 branch
+            Some("AMD Radeon RX 7900 XTX"),
+            Some("Intel(R) Arc(TM) A770 Graphics"),
+            Some("Apple M3 Pro"),
+        ];
+        let platforms = [
+            (TargetOs::Windows, TargetArch::X64),
+            (TargetOs::Windows, TargetArch::Arm64),
+            (TargetOs::Mac, TargetArch::Arm64),
+            (TargetOs::Mac, TargetArch::X64),
+            (TargetOs::Linux, TargetArch::X64),
+            (TargetOs::Linux, TargetArch::Arm64),
+        ];
+
+        let mut chosen = 0;
+        for (os, arch) in platforms {
+            for vendor in vendors {
+                let gpu = vendor.map(|name| GpuInfo {
+                    name: name.to_string(),
+                    vram_gb: 12.0,
+                    unified: name.starts_with("Apple"),
+                });
+                let Some(pick) = pick_runtime_asset_for(os, arch, &names, gpu.as_ref()) else {
+                    continue;
+                };
+                chosen += 1;
+                assert!(
+                    expected_digest(&pick.asset).is_some(),
+                    "{os:?}/{arch:?} with {vendor:?} picks {} — no digest for it at {PINNED_RUNTIME_TAG}",
+                    pick.asset
+                );
+                if let Some(companion) = &pick.companion {
+                    assert!(
+                        expected_digest(companion).is_some(),
+                        "companion {companion} has no digest at {PINNED_RUNTIME_TAG}"
+                    );
+                }
+            }
+        }
+        assert!(chosen >= 6, "the sweep picked almost nothing ({chosen})");
+    }
+
+    /// An unknown asset is refused, not trusted. "We never hashed this" and "this hash is wrong"
+    /// have to reach the same answer, or the pin means nothing.
+    #[test]
+    fn an_asset_with_no_digest_entry_is_refused() {
+        use super::expected_digest;
+        assert!(expected_digest("llama-b99999-bin-win-cpu-x64.zip").is_none());
+        assert!(expected_digest("totally-made-up.zip").is_none());
+        // ...and a real pinned asset still resolves, so the check above isn't vacuous.
+        assert!(expected_digest("llama-b10321-bin-win-cpu-x64.zip").is_some());
+    }
+
+    /// The download host check must not be fooled by the same lookalikes the endpoint gate handles.
+    #[test]
+    fn the_runtime_download_host_is_checked_properly() {
+        use super::is_github_release_host;
+        for good in [
+            "https://github.com/ggml-org/llama.cpp/releases/download/b10321/llama-b10321-bin-win-cpu-x64.zip",
+            "https://objects.githubusercontent.com/some/path.zip",
+            "https://release-assets.githubusercontent.com/x.zip",
+        ] {
+            assert!(is_github_release_host(good), "must accept {good}");
+        }
+        for bad in [
+            "https://github.com.evil.com/x.zip",
+            "https://evil.com/github.com/x.zip",
+            "https://github.com@evil.com/x.zip",
+            "http://github.com/x.zip", // plaintext
+            "https://raw.githubusercontent.com/x.zip",
+        ] {
+            assert!(!is_github_release_host(bad), "must reject {bad}");
+        }
+    }
+
+    /// The hash must be a real SHA-256 of the bytes, not something that merely looks like one.
+    #[test]
+    fn sha256_file_matches_the_known_digest_of_known_bytes() {
+        let dir = std::env::temp_dir().join("ziqpu-sha-test");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("abc.txt");
+        std::fs::write(&path, b"abc").unwrap();
+        // The canonical SHA-256("abc") test vector.
+        assert_eq!(
+            super::sha256_file(&path).unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// A remote name must not be able to steer a path — least of all the recursive delete.
     #[test]
     fn only_a_plain_file_name_may_become_a_path_component() {
@@ -1918,7 +2025,172 @@ pub struct RuntimeRelease {
     pub assets: Vec<RuntimeAsset>,
 }
 
-/// Parse the GitHub `releases/latest` response. Pure; unit-tested against a fixture.
+/// The llama.cpp release this build of Ziqpu installs and runs.
+///
+/// **Why a pin rather than `releases/latest`.** This crate downloads a native binary and executes
+/// it. Following `latest` meant running whatever ggml-org published that morning — code no Ziqpu
+/// build had ever been tested against, and (before [`RUNTIME_DIGESTS`]) with no way to state what
+/// "correct" even was. Pinning turns the runtime into a dependency like any other: a known version,
+/// a known hash, changed deliberately.
+///
+/// **Bumping it** is a three-step chore, and all three steps are required:
+/// 1. Pick the new tag and re-run the digest listing for it (`GET
+///    api.github.com/repos/ggml-org/llama.cpp/releases/tags/<tag>`; each asset carries a
+///    `digest: "sha256:…"` field).
+/// 2. Replace `PINNED_RUNTIME_TAG` and every entry in [`RUNTIME_DIGESTS`] together — a stale digest
+///    beside a new tag fails closed, which is the right failure but a confusing one to debug.
+/// 3. Actually serve a model on at least one machine per family you claim to support.
+pub const PINNED_RUNTIME_TAG: &str = "b10321";
+
+/// SHA-256 of every release asset [`pick_runtime_asset_for`] is able to choose, at
+/// [`PINNED_RUNTIME_TAG`].
+///
+/// These are **shipped in the binary, not fetched alongside the download**, and that distinction is
+/// the entire point. GitHub's API does return a per-asset `digest`, but an attacker able to forge
+/// the API response supplies the asset *and* the digest that vouches for it — verifying one against
+/// the other only proves the response is self-consistent. A digest compiled into Ziqpu is a claim
+/// made at authoring time by someone who looked, and no runtime response can revise it.
+///
+/// The release carries 22 buildable assets; only these 13 are reachable from the picker, and an
+/// asset with no entry here is refused rather than trusted (see [`expected_digest`]).
+const RUNTIME_DIGESTS: &[(&str, &str)] = &[
+    // Windows x64 — NVIDIA (CUDA) plus the version-matched cudart companions.
+    (
+        "llama-b10321-bin-win-cuda-12.4-x64.zip",
+        "7d9c9bfd91e7073a0ba4f693e5ab14911f01577744c337b167a81e1b7653fc37",
+    ),
+    (
+        "llama-b10321-bin-win-cuda-13.3-x64.zip",
+        "b85a03d82bf801dbb3b3e915e144116486737b80367bca87db56a970027f1e9a",
+    ),
+    (
+        "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
+    ),
+    (
+        "cudart-llama-bin-win-cuda-13.3-x64.zip",
+        "1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e",
+    ),
+    // Windows — AMD/Intel (Vulkan), no-GPU (CPU), and ARM64.
+    (
+        "llama-b10321-bin-win-vulkan-x64.zip",
+        "5329bed07998380bdb13cb334f5f6ab2fd532e74391b1f6c22effa3668016f09",
+    ),
+    (
+        "llama-b10321-bin-win-cpu-x64.zip",
+        "3ca059fb8a1c836f00d062f42abbe32e26216833bb98199b904dcbb5b0720dc7",
+    ),
+    (
+        "llama-b10321-bin-win-cpu-arm64.zip",
+        "f2e425abd17f8e837dcd4f4dc4044c85594af9df7eda351cd15fbf1e53e38f50",
+    ),
+    // macOS — Metal rides in the arm64 build; Intel Macs get the x64 CPU build.
+    (
+        "llama-b10321-bin-macos-arm64.tar.gz",
+        "862563f1e317d672129e104633feac9530bb667b99165fb8b19d28c890ec9830",
+    ),
+    (
+        "llama-b10321-bin-macos-x64.tar.gz",
+        "273fa67db572b1bc57eb0f6472c010b64220c71453172303e89d2af73dbc716f",
+    ),
+    // Linux x64 and ARM64, Vulkan and CPU.
+    (
+        "llama-b10321-bin-ubuntu-vulkan-x64.tar.gz",
+        "15d59d82d7e59c0277212ece6032236e7eb6bb32334e2804766f4a669c58dbd3",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-x64.tar.gz",
+        "535f6f32b675463695d9ede510fa4756d0055a6b0d201fa947cb752a15827bdf",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-vulkan-arm64.tar.gz",
+        "212463a2d0f2c68633dd5734a71895f1e2d720dfbd7070d82113e88e6d4e0889",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-arm64.tar.gz",
+        "bbb66eda80b35c4e06019ea37ca35d46c48c3dc2cbe766e7492ddb345c56539f",
+    ),
+];
+
+/// The digest this build expects for `asset`, or `None` if we make no claim about it.
+///
+/// `None` means refuse. An asset we have never hashed is exactly the case the pin exists to
+/// exclude, so "unknown" and "wrong" get the same answer.
+fn expected_digest(asset: &str) -> Option<&'static str> {
+    RUNTIME_DIGESTS
+        .iter()
+        .find(|(name, _)| *name == asset)
+        .map(|(_, digest)| *digest)
+}
+
+/// SHA-256 of a file on disk, lowercase hex. Streams in chunks — these archives run to hundreds of
+/// megabytes and must not be read into memory whole.
+fn sha256_file(path: &std::path::Path) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+
+    let mut file =
+        std::fs::File::open(path).map_err(|e| format!("couldn't open download ({e})"))?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let read = file
+            .read(&mut buf)
+            .map_err(|e| format!("couldn't read download ({e})"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buf[..read]);
+    }
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
+}
+
+/// Check a downloaded archive against the digest shipped in this binary, deleting it on any doubt.
+///
+/// Called **before extraction**, which is before anything from the archive touches disk and long
+/// before anything in it is executed. The file is removed on failure so a rejected download cannot
+/// be found and trusted by a later run.
+fn verify_download(path: &std::path::Path, asset: &str) -> Result<(), String> {
+    let expected = expected_digest(asset).ok_or_else(|| {
+        format!(
+            "{asset} is not an asset this build knows how to verify (expected a {PINNED_RUNTIME_TAG} build)"
+        )
+    })?;
+    let actual = sha256_file(path)?;
+    if !actual.eq_ignore_ascii_case(expected) {
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "{asset} does not match the digest this build expects — refusing to unpack or run it \
+             (expected {expected}, got {actual})"
+        ));
+    }
+    Ok(())
+}
+
+/// Whether a release-asset URL points where a llama.cpp release actually lives.
+///
+/// Belt to the digest's braces: it keeps a redirected or rewritten download from starting off at an
+/// arbitrary host. It is deliberately the *weaker* of the two checks — `curl -L` follows redirects
+/// we never see, so the digest is what actually decides whether the bytes are acceptable.
+fn is_github_release_host(url: &str) -> bool {
+    let rest = url.strip_prefix("https://").unwrap_or("");
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host = host.rsplit_once('@').map(|(_, h)| h).unwrap_or(host);
+    let host = host.split(':').next().unwrap_or("").to_ascii_lowercase();
+    matches!(
+        host.as_str(),
+        "github.com"
+            | "objects.githubusercontent.com"
+            | "release-assets.githubusercontent.com"
+            | "api.github.com"
+    )
+}
+
+/// Parse the GitHub release response. Pure; unit-tested against a fixture.
 pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     let tag = v.get("tag_name")?.as_str()?.to_string();
@@ -1937,21 +2209,30 @@ pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
     Some(RuntimeRelease { tag, assets })
 }
 
-/// GET the latest ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
+/// GET the **pinned** ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
 /// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
 /// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
+///
+/// This asks for [`PINNED_RUNTIME_TAG`] by name rather than `releases/latest`. The API is still only
+/// consulted for the download URLs and sizes — nothing it returns decides what is acceptable, since
+/// [`RUNTIME_DIGESTS`] already settled that at authoring time.
 pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
+    let url = format!(
+        "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{PINNED_RUNTIME_TAG}"
+    );
     let out = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "-L",
+            "--proto",
+            "=https",
             "--max-time",
             "20",
             "--max-filesize",
             "3000000",
             "-A",
             HF_USER_AGENT,
-            "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+            &url,
         ])
         .output()
         .ok()?;
@@ -1964,11 +2245,20 @@ pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
 /// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
 /// bundles). Returns a human-readable reason on failure.
 fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    // Where the bytes come from, before a single one is fetched. `--proto '=https'` additionally
+    // refuses to be redirected down to a plaintext scheme part-way through.
+    if !is_github_release_host(url) {
+        return Err(format!(
+            "refusing to download the runtime from an unexpected host: {url}"
+        ));
+    }
     let status = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
         .args([
             "-sS",
             "-L",
             "--fail",
+            "--proto",
+            "=https",
             "--max-time",
             "3600",
             "--max-filesize",
@@ -2097,6 +2387,12 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
         asset.size as f64 / 1_048_576.0
     ));
     download_to(&asset.url, &archive)?;
+
+    // Before extraction, and therefore before anything from the archive reaches disk or runs.
+    progress("verifying the download…");
+    verify_download(&archive, &pick.asset).inspect_err(|_| {
+        let _ = std::fs::remove_file(&archive);
+    })?;
     progress("unpacking…");
 
     // Everything from extraction onward runs inside this closure so that ONE failure branch below
@@ -2124,6 +2420,12 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
                 casset.size as f64 / 1_048_576.0
             ));
             download_to(&casset.url, &carchive)?;
+            // The companion gets the same check as the main archive, and it matters more here: it
+            // is extracted straight into `llama-server.exe`'s own directory, which is exactly where
+            // the Windows loader resolves that executable's DLLs from.
+            verify_download(&carchive, companion).inspect_err(|_| {
+                let _ = std::fs::remove_file(&carchive);
+            })?;
             let cextracted = extract_archive(&carchive, exe_dir);
             let _ = std::fs::remove_file(&carchive);
             cextracted?;
