@@ -113,10 +113,14 @@ pub fn run_tool_loop(
                 })
                 .unwrap_or_else(|| format!("error: no such tool `{name}`"));
 
+            // A tool result is fetched text: the news tool returns third-party headlines and the
+            // grounded tool returns whatever the sources said. Fenced for the same reason the
+            // prompt's signals are — the model reads instructions and fetched bytes as one stream,
+            // so the boundary has to be marked or it does not exist.
             messages.push(json!({
                 "role": "tool",
                 "tool_call_id": id,
-                "content": result,
+                "content": crate::fence::as_data(&result),
             }));
         }
     }

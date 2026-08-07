@@ -16,6 +16,7 @@
 /// for why the capture edge is gated and the decoding is not.
 #[cfg(feature = "camera")]
 pub mod camera;
+mod fence;
 pub mod grounded;
 pub mod gs1;
 pub mod identity;
