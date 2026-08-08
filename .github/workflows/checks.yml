@@ -63,7 +63,15 @@ jobs:
         # when CI ran only `licenses bans sources`).
         run: cargo deny check
       - name: Advisory audit (second layer)
-        # Belt-and-suspenders alongside `cargo deny check advisories` — same accepted advisory.
+        # NOT the same accepted-advisory set as cargo-deny, and deliberately so. cargo-deny reads the
+        # FEATURE-RESOLVED graph, where `rsa` is unreachable (sidecar takes sqlx without the MySQL
+        # feature that pulls it), so RUSTSEC-2023-0071 is not in deny.toml's ignore list any more.
+        # cargo-audit reads Cargo.lock, where `rsa` is still a resolvable package, so it still needs
+        # the exception. See the long note in deny.toml.
+        #
+        # The flag duplicates `.cargo/audit.toml`, which cargo-audit reads on its own — kept as an
+        # explicit belt-and-braces so a reader of this file can see the exception without opening a
+        # dotfile. If they ever disagree, `.cargo/audit.toml` is the source of truth.
         run: cargo audit --ignore RUSTSEC-2023-0071
       - name: Bundled-asset licenses (fonts + data — outside the Cargo graph)
         # cargo-deny only sees the dependency graph, so redistributed assets are checked here:
