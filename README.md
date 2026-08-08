@@ -32,7 +32,7 @@ Everything below is for **building from source**.
 
 | Layer | State |
 |---|---|
-| **Data** — 5,271 US-market tickers, compiled into the binary | ✅ built · **4,507 chartable** (Polygon + SEC 8-A), 764 honestly date-unknown |
+| **Data** — 5,271 US-market tickers, compiled into the binary | ✅ built · **4,507 chartable** — conception from Wikidata `P571` (CC0), birth from SEC EDGAR 424B4/424B1 (public domain); 764 honestly date-unknown |
 | **Ephemeris** — pluggable trait, 12 bodies | ✅ built · **JPL DE440 (default, bundled + digest-pinned)**, analytic VSOP87 fallback, Chiron table, all JPL-validated |
 | **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
 | **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
@@ -40,7 +40,7 @@ Everything below is for **building from source**.
 | **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
 | **Sidecar** — read-only HTTP API over Postgres | 🧪 dev/CI only · **the app does not use it** (see [Architecture](#architecture)) |
 
-Stable **v1.2.0** on `main`; build-ahead **v1.4.0** on `nightfall`. Full history in
+Stable **v1.4.1** on `main`; build-ahead **v1.5.0** on `nightfall`. Full history in
 [CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
 
 ## The two-agent design (the graded artifact)
@@ -52,6 +52,42 @@ Every reading is produced by **two visible agents**:
   **measured → meaning → reminder** — and refuses to give advice.
 
 The separation *is* the product's integrity guarantee: measurement and meaning are distinct by architecture.
+
+## What the agent can actually do — the tools
+
+The loop is **orchestrator-and-workers**: code narrows the roster to the workers that could possibly
+apply, then the model decides which of those to call. Two layers, and they are graded differently.
+
+**Measurement — the fixed sequence, never model-chosen.** Hamun-ana records the order; the arithmetic
+is exact and cannot be influenced by a model.
+
+| Tool | Returns |
+|---|---|
+| `get_chart(you)` | your natal positions |
+| `get_chart(choice)` | the choice's natal positions |
+| `get_synastry(you, choice)` | the cross-aspects between them |
+
+**Grounding — dispatched by what the entity IS** (`classify_entity`), so impossible lookups are never
+made. A car has no filings; a company has no VIN.
+
+| Entity kind | Tools offered |
+|---|---|
+| `PublicCompany` (has a CIK) | `sec_filings` · `sec_financials` (XBRL) · `company_facts` (Wikidata) |
+| `Vehicle` (valid VIN) | `vehicle_record` — NHTSA vPIC: make, model, year, assembly plant. **A VIN carries no build date**, so it never claims one |
+| `ScannedItem` (GS1 barcode) | `scanned_code` — offline; the object's own record, and the day *this unit* was made if the code carries it · `product_launch` |
+| `Named` (a bare name) | `company_facts` · `drug_approval` (openFDA) · `product_launch` (Wikidata `P577`) — genuinely ambiguous, so the model chooses |
+
+Plus `web_news_search` behind the deep-research path, and the **N3 origin resolver**
+(`origin::resolve_origin`) which turns a typed name into the *lifecycle* of dates Wikidata holds for
+it — released, opened, entered service, founded — and marks which are day-precise enough to chart.
+
+**Every grounding call is gated.** `propose_grounding` returns a consent prompt naming the exact
+sources; nothing external is fetched until a human approves. Fetched text is fenced as data, and
+items shaped like instructions or trading advice are withheld before they reach the model *and*
+before they reach the screen.
+
+**From an MCP host** (Claude Desktop, IDEs): `make_profile` · `chart` · `recommend` ·
+`pull_grounded_signals`.
 
 ## Architecture
 
@@ -100,13 +136,13 @@ the numbers it shows.
 
 | Crate | Purpose | State |
 |---|---|---|
-| `crates/ephemeris` | `Ephemeris` trait, analytic + ANISE backends, Chiron table, Asc/MC | ✅ |
+| `crates/ephemeris` | `Ephemeris` trait, runtime engine resolver (DE440 default, analytic floor), Chiron table, Asc/MC | ✅ |
 | `crates/engine` | chart assembly (`compute_chart`) + `find_aspect` keystone | ✅ |
 | `crates/astro` | astrotopography — relocation charts (additive; soaking on `nightfall`) | 🔄 nightfall |
 | `crates/sidecar` | axum read-only API (`/chart/:t`, `/synastry/:a/:b`, `/transits/:date`) | ✅ |
 | `crates/geo` | offline geocoder over a committed GeoNames gazetteer | ✅ |
 | `crates/tickers` | choice universes — Stocks · Airlines · Insurance | ✅ |
-| `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile + tool-calling loop + free-tier health + VIN resolver (N3) | ✅ |
+| `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile + tool-calling loop + free-tier health + VIN resolver + Wikidata origin resolver (N3) | ✅ |
 | `crates/model` | local-model tier benchmark + `get`/`serve` (llama.cpp) + CUDA-first runtime resolution + quant-aware fit | ✅ |
 | `crates/mcp` | MCP server: drive the loop from any host (Claude Desktop, IDEs) | ✅ |
 | `crates/ui` | Dioxus 0.6 desktop app (`ziqpu-ui`) | ✅ |
@@ -153,6 +189,20 @@ cargo deny check                                          # advisories + license
 ```
 
 Copy `.env.example` to `.env` for local runs (never commit it).
+
+**To evaluate the agent rather than the code** — these are the instruments, and they print for a
+human to grade rather than asserting:
+
+```bash
+cargo run -p agents --example eval_card       # the Eval Card; add ZIQPU_LIVE=1 for real sources + model
+cargo run -p agents --example scores          # measured scores + which ephemeris produced them
+cargo run -p agents --example origin_probe    # N3: a name -> its origin lifecycle -> a chart
+cargo run -p agents --example model_compare   # one reading, several writer models, input held constant
+cargo run -p agents --example key_doctor      # diagnose a stored key by SHAPE — never prints its value
+```
+
+`ZIQPU_TRACE=1` records every model turn to an in-memory ring buffer (shapes only; `full` for
+verbatim). It never touches disk. Reading it is how the provider-substitution bug was found.
 
 ## Data
 
