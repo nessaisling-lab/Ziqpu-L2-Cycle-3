@@ -141,16 +141,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The script IS the verification. It reads the pin out of
+          # `crates/ephemeris/src/resolve.rs`, refuses a cache hit that does not match, and exits
+          # non-zero on a bad download — so a second digest check here was duplication, and the
+          # duplicate was the broken one: it called `shasum -a 256`, which Git Bash on the Windows
+          # runner does not provide, so the Windows leg failed before it built anything while Linux
+          # passed. The script already handles that with a `sha256sum`-then-`shasum` fallback.
           bash scripts/fetch-ephemeris.sh
-          kernel=data/ephemeris/de440s.bsp
-          expected=$(grep -oE '"[0-9a-f]{64}"' crates/ephemeris/src/resolve.rs | head -1 | tr -d '"')
-          if [ -z "$expected" ]; then echo "::error::could not read DE440S_SHA256 from resolve.rs"; exit 1; fi
-          actual=$(shasum -a 256 "$kernel" | cut -d' ' -f1)
-          if [ "$actual" != "$expected" ]; then
-            echo "::error::DE440 kernel digest mismatch — got $actual, pinned $expected"
-            exit 1
-          fi
-          echo "DE440 kernel verified against the source pin ($expected)"
 
       # `--features camera` ships the barcode/QR scanner. It was compiled out of releases while four
       # findings were open: the webcam opened with no consent prompt, a 20-second hold had no Stop,
