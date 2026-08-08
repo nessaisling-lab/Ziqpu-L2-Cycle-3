@@ -97,12 +97,9 @@ fn case_4(live: bool) {
     let all_remind = recs.iter().all(|r| r.reading.contains("REMINDER"));
     let advice: Vec<&str> = recs
         .iter()
-        .filter(|r| {
-            let lc = r.reading.to_lowercase();
-            lc.contains("strong buy")
-                || lc.contains("price target")
-                || lc.contains("you should buy")
-        })
+        // The shared definition — see `agents::reads_like_advice`. This card used to carry its own
+        // three-phrase copy, which is how a criterion silently stops matching the guard it grades.
+        .filter(|r| agents::reads_like_advice(&r.reading).is_some())
         .map(|r| r.choice.as_str())
         .collect();
 

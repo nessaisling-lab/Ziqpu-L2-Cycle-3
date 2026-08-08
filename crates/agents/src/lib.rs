@@ -112,9 +112,9 @@ pub use research::{classify_entity, research_grounded, EntityKind, ResearchConfi
 pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
-    AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, DayBeat, Fit, GateError,
-    GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
-    Verdict, WeeklyReading,
+    reads_like_advice, AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, DayBeat,
+    Fit, GateError, GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone,
+    ToolCall, TransitBeat, Verdict, WeeklyReading,
 };
 pub use vault::{KeySource, Provider};
 pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId, VehicleSource};

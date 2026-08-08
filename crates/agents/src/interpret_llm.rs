@@ -668,21 +668,77 @@ pub fn active_source_label() -> String {
 fn try_live<T>(
     with_openai: impl Fn(&OpenAiCompatInterpreter) -> Option<T>,
     with_anthropic: impl Fn(&AnthropicInterpreter) -> Option<T>,
-) -> Option<(T, String)> {
-    let try_openai = || {
-        let interp = OpenAiCompatInterpreter::from_env()?;
-        let value = with_openai(&interp)?;
-        Some((value, interp.model().to_string()))
+) -> Option<LiveAnswer<T>> {
+    let attempt_openai = || match OpenAiCompatInterpreter::from_env() {
+        None => Attempt::NotConfigured,
+        Some(i) => match with_openai(&i) {
+            Some(v) => Attempt::Answered(v, i.model().to_string()),
+            None => Attempt::Failed(i.model().to_string()),
+        },
     };
-    let try_anthropic = || {
-        let interp = anthropic_live()?;
-        let value = with_anthropic(&interp)?;
-        Some((value, interp.model().to_string()))
+    let attempt_anthropic = || match anthropic_live() {
+        None => Attempt::NotConfigured,
+        Some(i) => match with_anthropic(&i) {
+            Some(v) => Attempt::Answered(v, i.model().to_string()),
+            None => Attempt::Failed(i.model().to_string()),
+        },
     };
     if prefers_anthropic() {
-        try_anthropic().or_else(try_openai)
+        resolve(attempt_anthropic(), attempt_openai)
     } else {
-        try_openai().or_else(try_anthropic)
+        resolve(attempt_openai(), attempt_anthropic)
+    }
+}
+
+/// What one provider attempt produced.
+///
+/// The three cases exist because the previous shape — `Option<(T, String)>` from a closure whose
+/// first line was `from_env()?` — collapsed two of them. "No key configured" and "configured, called,
+/// and it did not answer" both arrived as `None`, so nothing downstream could tell precedence
+/// working from a substitution. Encoding it in the type means a future edit cannot re-merge them by
+/// accident: there is no way to say "it failed" without naming which model failed.
+enum Attempt<T> {
+    /// No key, no URL — nothing was tried, so nothing failed.
+    NotConfigured,
+    /// Configured and asked; it did not answer. Carries the model id so the reader can be told which.
+    Failed(String),
+    /// Configured, asked, and it answered.
+    Answered(T, String),
+}
+
+/// A Live answer, and whether it came from the writer that was asked first.
+struct LiveAnswer<T> {
+    value: T,
+    /// The model that actually produced `value` — never the one that was merely requested.
+    model: String,
+    /// `Some(model_id)` when a **configured** first choice failed and this is the substitute.
+    ///
+    /// `None` when the first choice answered, or was never configured. That distinction is the whole
+    /// point: with only one provider set up, every reading "falls through" the other, and a note on
+    /// each one would be noise that trains the reader to ignore the note that matters.
+    fell_back_from: Option<String>,
+}
+
+/// Combine a first attempt with a lazily-evaluated second, in preference order.
+fn resolve<T>(first: Attempt<T>, second: impl FnOnce() -> Attempt<T>) -> Option<LiveAnswer<T>> {
+    let fell_back_from = match first {
+        Attempt::Answered(value, model) => {
+            return Some(LiveAnswer {
+                value,
+                model,
+                fell_back_from: None,
+            })
+        }
+        Attempt::NotConfigured => None,
+        Attempt::Failed(model) => Some(model),
+    };
+    match second() {
+        Attempt::Answered(value, model) => Some(LiveAnswer {
+            value,
+            model,
+            fell_back_from,
+        }),
+        _ => None,
     }
 }
 
@@ -786,11 +842,11 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
 /// `(TemplateInterpreter.fit_read(measures, fit, name), None)`, so the offline demo and CI stay
 /// deterministic.
 pub fn reading_for(measures: &Measures, fit: Fit, name: &str) -> (String, Option<String>) {
-    if let Some((prose, model)) = try_live(
+    if let Some(answer) = try_live(
         |i| i.try_fit_read(measures, fit, name),
         |i| i.try_fit_read(measures, fit, name),
     ) {
-        return (prose, Some(model));
+        return (answer.value, Some(answer.model));
     }
     (TemplateInterpreter.fit_read(measures, fit, name), None)
 }
@@ -941,11 +997,11 @@ pub fn grounded_brief_for(
             None,
         ),
         ReadMode::Live => {
-            if let Some((prose, model)) = try_live(
+            if let Some(answer) = try_live(
                 |i| i.try_grounded_brief(measures, fit, name, grounded),
                 |i| i.try_grounded_brief(measures, fit, name, grounded),
             ) {
-                return (prose, Some(model));
+                return (answer.value, Some(answer.model));
             }
             (
                 TemplateInterpreter.grounded_brief(measures, fit, name, grounded),
@@ -1409,7 +1465,7 @@ fn frontier_grounded(
     name: &str,
     grounded: &GroundedSignals,
     draft: Option<&str>,
-) -> Option<(String, String)> {
+) -> Option<LiveAnswer<String>> {
     let user = grounded_prompt_with_draft(measures, fit, name, grounded, draft);
     try_live(|i| i.complete(&user), |i| i.complete(&user))
 }
@@ -1619,7 +1675,35 @@ pub fn grounded_layered(
             source: None,
         },
         ReadMode::Live => {
-            if let Some((prose, model)) = frontier_grounded(measures, fit, name, grounded, draft) {
+            if let Some(answer) = frontier_grounded(measures, fit, name, grounded, draft) {
+                // A different model than the one asked for is still a live reading — but the reader
+                // is owed the substitution. Found by asking for the free OpenRouter tier and reading
+                // the trace: it timed out at 60s, failover went to the *paid* model, and the reading
+                // came back badged "GROUNDED · LIVE" with nothing to distinguish it. Someone who
+                // picked free to avoid spending money spent money and had no way to know.
+                //
+                // This is the sibling of `GroundedRung::Degraded`, and the harder one: there, no
+                // writer answered and the prose visibly changed. Here the prose is excellent, which
+                // is exactly why nothing looks wrong.
+                let prose = match &answer.fell_back_from {
+                    None => answer.value,
+                    Some(failed) => {
+                        crate::trace::note(&format!(
+                            "substituted: {failed} did not answer, {} wrote it",
+                            answer.model
+                        ));
+                        insert_above_reminder(
+                            &answer.value,
+                            &format!(
+                                "  note: {failed} did not answer, so {} wrote this reading instead. \
+                                 If you chose {failed} to control what a reading costs, this one did \
+                                 not honour that choice.",
+                                answer.model
+                            ),
+                        )
+                    }
+                };
+
                 // The same fork `local_fallback` makes one tier down, and it was missing here.
                 // Nothing checked that any real signal had been fetched before badging the frontier's
                 // prose "GROUNDED · LIVE" with `is_sourced() == true` — so a pull that found nothing
@@ -1631,13 +1715,13 @@ pub fn grounded_layered(
                         // Citation already enforced by `try_grounded_brief`.
                         reading: prose,
                         rung: GroundedRung::Frontier,
-                        source: Some(model),
+                        source: Some(answer.model),
                     }
                 } else {
                     LayeredBrief {
                         reading: to_unsourced(&prose),
                         rung: GroundedRung::FrontierUnsourced,
-                        source: Some(model),
+                        source: Some(answer.model),
                     }
                 };
             }
@@ -1898,6 +1982,45 @@ mod tests {
     ///
     /// Network-free: the closures return a marker immediately, so `try_live` only exercises the
     /// env-reading constructors + the ordering rule.
+    /// A substitution is reported; precedence past an unconfigured provider is not.
+    ///
+    /// These two look identical from inside `try_live`'s old `Option<(T, String)>` return — both
+    /// arrive as "the first one gave me `None`" — and conflating them is what would make the note
+    /// either miss the real case or fire on every reading of a single-provider install. Testing
+    /// `resolve` directly is deliberate: it is the whole decision, and it is testable without a key,
+    /// a network, or a model.
+    #[test]
+    fn only_a_configured_failure_counts_as_a_substitution() {
+        let fell = |first| match resolve(first, || Attempt::Answered("second", "b".to_string())) {
+            Some(a) => (a.value, a.fell_back_from),
+            None => ("none", None),
+        };
+
+        // The first choice answered — nothing was substituted.
+        assert_eq!(
+            fell(Attempt::Answered("first", "a".to_string())),
+            ("first", None)
+        );
+
+        // The first choice has no key. Falling past it is precedence working as designed; a note
+        // here would appear on every reading of an install that only ever configured one provider,
+        // and a note that always fires is a note nobody reads.
+        assert_eq!(fell(Attempt::NotConfigured), ("second", None));
+
+        // The first choice was configured, was asked, and did not answer. THIS is the one the reader
+        // is owed, and it must name the model that went quiet — "something failed" is not actionable.
+        assert_eq!(
+            fell(Attempt::Failed("a".to_string())),
+            ("second", Some("a".to_string()))
+        );
+
+        // Nothing answered at all → `local_fallback`'s problem, which badges it `Degraded`.
+        assert!(resolve(Attempt::Failed("a".into()), || {
+            Attempt::<&str>::NotConfigured
+        })
+        .is_none());
+    }
+
     #[test]
     fn explicit_provider_choice_reorders_live_attempts() {
         let _env = env_guard();
@@ -1912,7 +2035,7 @@ mod tests {
         // Both providers configured — the ONLY thing that decides is the choice.
         std::env::set_var("OPENROUTER_API_KEY", "dummy-openrouter-not-real");
         std::env::set_var("ANTHROPIC_API_KEY", "dummy-anthropic-not-real");
-        let pick = || try_live(|_| Some("openai"), |_| Some("anthropic")).map(|(v, _)| v);
+        let pick = || try_live(|_| Some("openai"), |_| Some("anthropic")).map(|a| a.value);
 
         // No choice → the historical default order (OpenAI-compat first).
         std::env::remove_var("ZIQPU_PROVIDER");
@@ -1972,7 +2095,7 @@ mod tests {
         assert!(label.contains("Claude"), "{label}");
         // And it agrees with the router on the same environment.
         assert_eq!(
-            try_live(|_| Some("openai"), |_| Some("anthropic")).map(|(v, _)| v),
+            try_live(|_| Some("openai"), |_| Some("anthropic")).map(|a| a.value),
             Some("anthropic")
         );
 

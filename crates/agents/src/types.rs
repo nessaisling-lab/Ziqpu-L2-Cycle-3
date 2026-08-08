@@ -348,17 +348,55 @@ fn carries_instruction_or_advice(item: &str) -> bool {
         || lc.contains("you are now")
         || lc.contains("disregard your instructions");
 
-    // A trading call, which never leaves this app whatever its origin.
-    let advice = lc.contains("strong buy")
-        || lc.contains("strong sell")
-        || lc.contains("buy rating")
-        || lc.contains("sell rating")
-        || lc.contains("price target")
-        || lc.contains("target $")
-        || lc.contains("verdict: buy")
-        || lc.contains("verdict: sell");
+    instruction || reads_like_advice(item).is_some()
+}
 
-    instruction || advice
+/// The phrase that makes this text a trading call, if any — the ONE definition of "advice" in this
+/// codebase.
+///
+/// Every surface that has to answer "is this advice?" asks here: the fetched-signal filter
+/// ([`GroundedSignals::fact_shaped_items`]), the Eval Card, and the model comparison harness. They
+/// had three separate lists, which is this project's most-repeated defect shape — one decision,
+/// several implementations, drifting apart until they disagree.
+///
+/// # Why every entry is a phrase
+///
+/// Matching bare `buy`, `sell`, or `hold` is wrong, and wrong in the direction that destroys the
+/// check. The app's own citation line quotes Wikipedia — *"designs, manufactures, and **sells**
+/// battery electric vehicles"* — so a bare `sell` flags text the app wrote itself; and a reading
+/// that says *"whether you're at peace to **hold** both the excitement and the disagreement"* trips
+/// a bare `hold`. Both happened on the first live comparison run. A check that fires on correct
+/// output gets waved through, and then it is not a check any more.
+///
+/// Returns the matched phrase rather than a bool so a caller can say *what* it found. "Advice
+/// detected" sends someone reading 400 words looking for it.
+pub fn reads_like_advice(text: &str) -> Option<&'static str> {
+    let lc = text.to_lowercase();
+    [
+        // Ratings language, whoever wrote it.
+        "strong buy",
+        "strong sell",
+        "buy rating",
+        "sell rating",
+        "price target",
+        "target $",
+        "verdict: buy",
+        "verdict: sell",
+        // The second-person forms a *model* reaches for. Fetched items rarely address the reader;
+        // prose does, which is why the fetched-item list alone was not enough to grade a reading.
+        "you should buy",
+        "you should sell",
+        "you should invest",
+        "i'd buy",
+        "i would buy",
+        "recommend buying",
+        "recommend selling",
+        "worth buying",
+        "buy the stock",
+        "sell the stock",
+    ]
+    .into_iter()
+    .find(|phrase| lc.contains(phrase))
 }
 
 /// A ranked fit read for one choice (the DECIDE output).
@@ -429,6 +467,41 @@ impl std::error::Error for GateError {}
 
 #[cfg(test)]
 mod tests {
+    /// The exact strings that made the first draft of this check useless.
+    ///
+    /// Both are verbatim from the first live model-comparison run. The first is text **the app
+    /// itself writes** into every Tesla citation; the second is ordinary prose about sitting with a
+    /// feeling. A bare-substring check flagged both, on correct output, which is how a guard becomes
+    /// noise and then gets ignored.
+    #[test]
+    fn ordinary_words_are_not_trading_calls() {
+        for innocent in [
+            "GROUNDED (Wikipedia): it designs, manufactures, and sells battery electric vehicles",
+            "whether you're at peace to hold both the excitement and the disagreement in one hand",
+            "a company that buys back its own shares has a different shape of confidence",
+            "this choice's restlessness will not hold still for you",
+        ] {
+            assert_eq!(
+                super::reads_like_advice(innocent),
+                None,
+                "flagged as advice: {innocent}"
+            );
+        }
+
+        // And the phrases that ARE a trading call still are — the point is precision, not silence.
+        for real in [
+            "analysts rate it a STRONG BUY with a price target of $500",
+            "Verdict: BUY",
+            "honestly, you should buy it",
+            "I'd buy this one",
+        ] {
+            assert!(
+                super::reads_like_advice(real).is_some(),
+                "missed advice: {real}"
+            );
+        }
+    }
+
     use super::*;
 
     /// A [`BirthMoment`] survives a `serde_json` round-trip byte-for-byte — the UI persists it.
