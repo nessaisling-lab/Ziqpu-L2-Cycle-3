@@ -35,6 +35,7 @@ pub mod tools;
 pub mod trace;
 pub mod traction;
 pub mod types;
+pub mod vault;
 pub mod vin;
 
 /// Prepare a subprocess this crate is about to spawn: **strip inherited credentials**, and don't
@@ -114,6 +115,7 @@ pub use types::{
     GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
     Verdict, WeeklyReading,
 };
+pub use vault::{KeySource, Provider};
 pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId, VehicleSource};
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can

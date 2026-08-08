@@ -190,6 +190,34 @@ pub fn get_key(provider: Provider) -> Option<String> {
     }
 }
 
+/// Fill each provider's env var from the vault, for **every** binary — not just the GUI.
+///
+/// # The gap this closes
+///
+/// The GUI called an equivalent of this at startup, and the vault lived in `ui`, so nothing else
+/// could. A seeker who saved their key in Settings and then pointed an MCP host at `ziqpu-mcp` got
+/// the deterministic template with no explanation — the key was sitting in the OS keystore and the
+/// server structurally could not read it. The same was true of `ziqpu-agent` and of every eval and
+/// trace harness, which is why every measurement taken while tracing this week went to whichever
+/// provider happened to be exported in the shell.
+///
+/// **An exported variable always wins.** This only fills what is missing, so a power user, a CI job,
+/// or a deliberate one-off comparison run keeps control by setting the env directly.
+///
+/// Best-effort and silent: no keystore (headless Linux, a locked login keyring) simply leaves the
+/// environment as it was, and the caller degrades exactly as it did before. Nothing is logged,
+/// because the only thing there is to log is the thing that must never be logged.
+pub fn fill_env_from_vault() {
+    for provider in [Provider::Anthropic, Provider::OpenRouter] {
+        if std::env::var_os(provider.env_var()).is_some_and(|v| !v.is_empty()) {
+            continue;
+        }
+        if let Some(key) = get_key(provider) {
+            std::env::set_var(provider.env_var(), key);
+        }
+    }
+}
+
 /// Remove `provider`'s stored key. Idempotent — `Ok(())` also when there was nothing to delete.
 pub fn delete_key(provider: Provider) -> Result<(), String> {
     let Some(entry) = entry(provider) else {
@@ -205,46 +233,10 @@ pub fn delete_key(provider: Provider) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    /// The owner's rule, enforced: *"It should only show proof of the key being present. Simply
-    /// that. You're not allowed to see it."*
-    ///
-    /// [`get_key`] is the only function that can hand a caller a key, so the invariant reduces to a
-    /// single checkable fact: **no UI surface calls it.** This is a source-level test because that
-    /// is exactly the shape of the invariant — Rust's type system can't say "this module may not
-    /// call that function", and the failure it guards against is a quiet one. The old surface
-    /// looked fine (the field was a masked `password` input) while the plaintext sat in a signal
-    /// and in the DOM, one devtools peek from being read.
-    #[test]
-    fn no_ui_surface_reads_a_key_back() {
-        let surfaces = [
-            (
-                "components/key_field.rs",
-                include_str!("components/key_field.rs"),
-            ),
-            (
-                "components/settings.rs",
-                include_str!("components/settings.rs"),
-            ),
-            (
-                "components/onboarding.rs",
-                include_str!("components/onboarding.rs"),
-            ),
-        ];
-        for (name, src) in surfaces {
-            for (n, line) in src.lines().enumerate() {
-                // Prose may discuss `get_key` — only executable code is in scope.
-                let code = line.split("//").next().unwrap_or("");
-                assert!(
-                    !code.contains("get_key"),
-                    "{name}:{} calls vault::get_key. A key that reaches a component is a key that \
-                     can be shown. Ask key_source() for presence + origin instead.",
-                    n + 1
-                );
-            }
-        }
-    }
+    // The source-scanning guard that used to live here now lives in `ui`, beside the components
+    // it scans. It broke the moment this module moved — a test that reads files by relative path
+    // is coupled to its directory, not to the function it protects. See `ui::settings`.
 
-    /// A key exists in two of the three states, and only the vault-held one is Ziqpu's to manage.
     #[test]
     fn presence_covers_vault_and_env_but_not_none() {
         assert!(KeySource::Vault.present());

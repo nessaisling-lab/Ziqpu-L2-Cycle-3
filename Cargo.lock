@@ -59,6 +59,7 @@ dependencies = [
  "engine",
  "ephemeris",
  "image",
+ "keyring",
  "nokhwa",
  "rxing",
  "serde",

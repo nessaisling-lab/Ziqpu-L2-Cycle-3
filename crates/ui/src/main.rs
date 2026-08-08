@@ -15,7 +15,11 @@ mod preflight;
 mod profile;
 mod settings;
 mod state;
-mod vault;
+/// The credential vault now lives in `agents`, because that is the crate that reads a key when a
+/// reading is written. It was here, which meant the MCP server and the CLI surfaces could not see a
+/// key the seeker had already saved. Re-exported under the old path so this crate's call sites read
+/// the same as they always did.
+use agents::vault;
 
 /// Prepare a subprocess the GUI is about to spawn: **strip inherited credentials**, and don't flash
 /// a console window on Windows. Wrap every `Command::new(...)` the GUI reaches.

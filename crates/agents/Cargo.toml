@@ -59,10 +59,18 @@ nokhwa = { version = "0.10", optional = true, default-features = false, features
     "input-native",
 ] }
 
+# The OS credential vault. It lives here rather than in `ui` because THIS is the crate that reads a
+# key at reading time — so "the agent knows how to obtain its credentials" is one answer in one
+# place. It used to live in `ui`, which meant the MCP server and every CLI surface could not reach a
+# key the seeker had already saved, and silently served the deterministic template instead.
+# Best-effort by design: no keystore (headless Linux) degrades to env-only, exactly as before.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
 [features]
 default = []
 # Read a GS1 code from a webcam. See `agents::camera`.
 camera = ["dep:rxing", "dep:nokhwa", "dep:image"]
+
 
 [dev-dependencies]
 # Examples only. `tickers` depends on `agents`, so this is a deliberate dev-cycle — Cargo permits

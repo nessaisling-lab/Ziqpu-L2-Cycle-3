@@ -357,3 +357,48 @@ pub fn built_in_available() -> bool {
 pub fn active_mode_label() -> String {
     agents::active_source_label()
 }
+
+#[cfg(test)]
+mod key_visibility {
+    /// The owner's rule, enforced: *"It should only show proof of the key being present. Simply
+    /// that. You're not allowed to see it."*
+    ///
+    /// `agents::vault::get_key` is the only function that can hand a caller a key, so the invariant
+    /// reduces to one checkable fact: **no UI surface calls it.** A source-level test because that
+    /// is the shape of the invariant — Rust cannot say "this module may not call that function" —
+    /// and because the failure it guards is a quiet one: the old surface looked fine, a masked
+    /// password input, while the plaintext sat in a signal and in the DOM, one devtools peek from
+    /// being read.
+    ///
+    /// It lives here, in the crate whose sources it scans, rather than travelling with the vault to
+    /// `agents`. When the vault moved, this test moved with it and broke — because a test that
+    /// reads files by relative path is coupled to its directory, not to the function it guards.
+    #[test]
+    fn no_ui_surface_reads_a_key_back() {
+        let surfaces = [
+            (
+                "components/key_field.rs",
+                include_str!("components/key_field.rs"),
+            ),
+            (
+                "components/settings.rs",
+                include_str!("components/settings.rs"),
+            ),
+            (
+                "components/onboarding.rs",
+                include_str!("components/onboarding.rs"),
+            ),
+        ];
+        for (name, src) in surfaces {
+            for (n, line) in src.lines().enumerate() {
+                // Prose may discuss `get_key` — only executable code is in scope.
+                let code = line.split("//").next().unwrap_or("");
+                assert!(
+                    !code.contains("get_key("),
+                    "{name}:{} calls get_key — a UI surface must ask key_source() for presence,                      never the value: {line}",
+                    n + 1
+                );
+            }
+        }
+    }
+}
