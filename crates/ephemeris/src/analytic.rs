@@ -162,6 +162,16 @@ impl Ephemeris for AnalyticBackend {
                 ))
             }
             Body::MeanNode => (mean_node(jd_to_t(jde)), 0.0, 0.0),
+            // Refused, not approximated. This backend's Moon is a longitude-only series with
+            // latitude identically 0, so its Moon lies IN the ecliptic and has no orbital plane to
+            // cross it — there is no node to compute. Returning the mean node here is exactly the
+            // false label that got the phantom `TrueNode` deleted.
+            Body::TrueNode => {
+                return Err(EphemerisError(
+                    "the true node needs the Moon's latitude, which the analytic backend does not                      model (its Moon is longitude-only); use the DE440 backend"
+                        .into(),
+                ))
+            }
             Body::Chiron => match crate::chiron_longitude(jde) {
                 Some(l) => (l, 0.0, 0.0),
                 None => {

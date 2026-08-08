@@ -22,7 +22,40 @@ pub const ZODIAC: [&str; 12] = [
     "Pisces",
 ];
 
-/// The bodies Ziqpu charts, in canonical order.
+/// Which lunar node a chart carries.
+///
+/// A choice, never a pair. The mean and true nodes are the same point in the sky measured two ways,
+/// ~1.5° apart, so a chart holding both double-counts every node contact — and because synastry is a
+/// cross-product, node-to-node contacts count four times. That is not hypothetical: this codebase
+/// shipped it, when a phantom `TrueNode` returned the mean node's own longitude under a second name
+/// and Apple's chart listed sixteen node contacts that were seven facts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NodeMode {
+    /// The classical smoothed formula. **The default**, because it is what every chart this project
+    /// has produced used, it needs no lunar latitude, and it is therefore the only node the analytic
+    /// floor can supply.
+    #[default]
+    Mean,
+    /// The true (osculating) node — the real crossing. Requires a backend that models the Moon's
+    /// latitude; on the analytic floor the body errors and the chart comes out without a node rather
+    /// than with a fabricated one.
+    True,
+}
+
+impl NodeMode {
+    pub fn body(self) -> Body {
+        match self {
+            NodeMode::Mean => Body::MeanNode,
+            NodeMode::True => Body::TrueNode,
+        }
+    }
+}
+
+/// The bodies Ziqpu charts, in canonical order — with the **mean** node.
+///
+/// Kept as a constant because it is part of the shipped contract and several tests count it. For a
+/// chart with the true node, use [`compute_chart_with`] and [`NodeMode::True`], which substitutes
+/// rather than appends.
 pub const CHART_BODIES: [Body; 12] = [
     Body::Sun,
     Body::Moon,
@@ -77,8 +110,36 @@ pub fn compute_chart<E: Ephemeris + ?Sized>(
     longitude: f64,
     time_known: bool,
 ) -> NatalChart {
+    compute_chart_with(
+        eph,
+        jd_ut,
+        latitude,
+        longitude,
+        time_known,
+        NodeMode::default(),
+    )
+}
+
+/// [`compute_chart`], choosing which lunar node the chart carries.
+///
+/// The node is **substituted**, not added: the body list is the same length either way. A chart with
+/// both nodes would double-count every node contact, which is the defect [`NodeMode`] exists to make
+/// impossible to reintroduce by accident.
+pub fn compute_chart_with<E: Ephemeris + ?Sized>(
+    eph: &E,
+    jd_ut: f64,
+    latitude: f64,
+    longitude: f64,
+    time_known: bool,
+    node: NodeMode,
+) -> NatalChart {
     let mut bodies = Vec::new();
     for &body in &CHART_BODIES {
+        let body = if body == Body::MeanNode {
+            node.body()
+        } else {
+            body
+        };
         if let Ok(p) = eph.position(body, jd_ut) {
             let (sign, degree) = sign_of(p.longitude);
             bodies.push(BodyPosition {
@@ -144,6 +205,80 @@ mod tests {
             .filter(|b| b.body.name().contains("Node"))
             .count();
         assert_eq!(nodes, 1, "one node body, or every score is inflated");
+    }
+
+    /// The true node is a DIFFERENT number from the mean node, and the chart still holds one node.
+    ///
+    /// The negative half is the point: this is where a phantom `TrueNode` would be caught. It once
+    /// existed and returned `mean_node()`, so the two were bit-identical — a test that only asserted
+    /// "the body is present" passed happily on a body that was a lie.
+    #[test]
+    fn the_true_node_differs_from_the_mean_node_and_does_not_join_it() {
+        let jd = julian_day(2024, 6, 1, 12.0);
+        let engine = ephemeris::shared();
+        if !engine.source.is_authoritative() {
+            eprintln!("SKIPPED the true-node comparison: no DE440 kernel — the analytic floor has no lunar latitude");
+            // The floor must REFUSE rather than substitute. That half is checkable everywhere.
+            assert!(ephemeris::AnalyticBackend
+                .position(Body::TrueNode, jd)
+                .is_err());
+            return;
+        }
+
+        let mean = compute_chart_with(
+            engine.backend.as_ref(),
+            jd,
+            40.7,
+            -74.0,
+            true,
+            NodeMode::Mean,
+        );
+        let true_ = compute_chart_with(
+            engine.backend.as_ref(),
+            jd,
+            40.7,
+            -74.0,
+            true,
+            NodeMode::True,
+        );
+
+        // Substituted, not appended — same body count, exactly one node in each.
+        assert_eq!(mean.bodies.len(), true_.bodies.len());
+        for chart in [&mean, &true_] {
+            assert_eq!(
+                chart
+                    .bodies
+                    .iter()
+                    .filter(|b| b.body.name().contains("Node"))
+                    .count(),
+                1,
+                "one node, or every node contact is counted twice"
+            );
+        }
+
+        let m = mean
+            .bodies
+            .iter()
+            .find(|b| b.body == Body::MeanNode)
+            .unwrap();
+        let t = true_
+            .bodies
+            .iter()
+            .find(|b| b.body == Body::TrueNode)
+            .unwrap();
+
+        let mut sep = (t.longitude - m.longitude).abs();
+        if sep > 180.0 {
+            sep = 360.0 - sep;
+        }
+        assert!(
+            sep > 1e-6,
+            "the true node is not a relabelled mean node — that was the deleted bug"
+        );
+        assert!(
+            sep < 2.5,
+            "but it librates AROUND the mean node, so a large gap means the derivation is wrong: {sep}deg"
+        );
     }
 
     #[test]

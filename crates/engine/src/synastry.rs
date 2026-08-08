@@ -57,7 +57,9 @@ pub fn body_weight(body: Body) -> f64 {
         Body::Mercury | Body::Venus | Body::Mars => 0.9,
         Body::Jupiter | Body::Saturn => 0.7,
         Body::Uranus | Body::Neptune | Body::Pluto => 0.4,
-        Body::MeanNode | Body::Chiron => 0.3,
+        // The two nodes weigh the same because they are the same point measured two ways — never
+        // charted together (see `Body::TrueNode`), so this is a choice of node, not an addition.
+        Body::MeanNode | Body::TrueNode | Body::Chiron => 0.3,
     }
 }
 

@@ -66,8 +66,20 @@ pub enum Body {
     /// seven facts.
     ///
     /// The true (osculating) node is real work — it needs the Moon's actual orbital elements, not a
-    /// rename — and is tracked for the DE440 ephemeris work.
+    /// rename. It exists now as [`Body::TrueNode`], backed by [`true_node`].
     MeanNode,
+    /// The **true (osculating)** lunar node — where the Moon's instantaneous orbital plane actually
+    /// crosses the ecliptic. See [`true_node`] for the derivation and its requirements.
+    ///
+    /// A variant of this name existed once and was deleted, because both backends mapped it to
+    /// `mean_node()` and it returned bit-identical longitudes under a different label. It is back
+    /// only now that it computes something different from the mean node: it librates ±1.9° around
+    /// it and moves direct on roughly a quarter of days, which the mean node never does.
+    ///
+    /// **Never chart this alongside [`Body::MeanNode`].** They are two names for the same point in
+    /// the sky, ~1.5° apart, so a chart carrying both double-counts every node contact — the exact
+    /// defect the phantom variant caused. Pick one; see `engine::NodeMode`.
+    TrueNode,
     Chiron,
 }
 
@@ -86,6 +98,7 @@ impl Body {
             Body::Neptune => "Neptune",
             Body::Pluto => "Pluto",
             Body::MeanNode => "MeanNode",
+            Body::TrueNode => "TrueNode",
             Body::Chiron => "Chiron",
         }
     }
@@ -139,6 +152,92 @@ pub fn norm360(deg: f64) -> f64 {
     deg.rem_euclid(360.0)
 }
 
+/// The **true (osculating) lunar node** — ascending, ecliptic longitude in degrees.
+///
+/// # What makes it "true" rather than mean
+///
+/// The mean node is a smooth polynomial: a fiction that regresses at a constant ~0.053°/day and is
+/// never exactly where the Moon's orbit actually crosses the ecliptic. The true node is that real
+/// crossing, computed from the Moon's instantaneous orbital plane, and it librates around the mean
+/// by up to roughly ±1.6° — occasionally turning direct for a few days, which the mean node never
+/// does.
+///
+/// This project shipped a `TrueNode` body once before that was a *relabelled mean node*: both
+/// backends matched `MeanNode | TrueNode` to the same call, so two names returned bit-identical
+/// longitudes. It was deleted rather than left, because on a project that refuses to invent a birth
+/// time, a body whose name is a lie is the same error one layer down. This is the real computation;
+/// the name is earned now.
+///
+/// # Why it is derived from state rather than read from the backend
+///
+/// The osculating node needs the Moon's **velocity**, and [`Ephemeris::position`] returns only
+/// [`EclipticPos`] — longitude, latitude, distance, and speed in longitude. That is not a velocity
+/// vector: it says nothing about how the latitude is changing, which is precisely the component that
+/// defines the orbital plane.
+///
+/// So the state is reconstructed by central difference around `jd_ut`, which needs no change to the
+/// trait and works on **every** backend, including ones added later. The node is then the standard
+/// orbital-elements derivation: with position `r` and velocity `v`, the specific angular momentum
+/// `h = r × v` is normal to the orbital plane, the node vector is `ẑ × h = (−h_y, h_x, 0)`, and the
+/// ascending node is its longitude.
+///
+/// `DELTA` is the tuned part. Too small and the difference is dominated by the backend's own
+/// rounding; too large and the central-difference truncation error grows. It is measured, not
+/// guessed — the tests check the libration amplitude and the regression rate against the known
+/// behaviour of the real node.
+///
+/// # It requires a backend that knows the Moon's LATITUDE
+///
+/// This returns an error on the analytic floor, and that is correct rather than a gap to paper over.
+/// The analytic Moon is a longitude-only Meeus series: its latitude is identically `0.0`, so its
+/// Moon lies *in* the ecliptic by construction. A body with no inclination has no orbital plane
+/// distinct from the ecliptic and therefore **no node at all** — `r` and `v` are coplanar with the
+/// ecliptic, `r × v` points straight along `ẑ`, and the node line vanishes.
+///
+/// Computing a number anyway would mean inventing an inclination the source never had, which is the
+/// same failure as the year dressed up as a day. So it refuses, and says which backend limitation
+/// caused it. On DE440, measured over 2024–2025: libration −1.88°…+1.90° around the mean node, mean
+/// libration +0.003°, direct motion on 182 of 730 days, and −39.9° of net regression over two years
+/// against the ~−38.7° the mean node covers.
+pub fn true_node<E: Ephemeris + ?Sized>(eph: &E, jd_ut: f64) -> Result<f64, EphemerisError> {
+    /// Half-width of the central difference, in days (~72 minutes).
+    const DELTA: f64 = 0.05;
+
+    let at = |jd: f64| -> Result<[f64; 3], EphemerisError> {
+        let p = eph.position(Body::Moon, jd)?;
+        let (lon, lat) = (p.longitude.to_radians(), p.latitude.to_radians());
+        let d = p.distance_au;
+        Ok([
+            d * lat.cos() * lon.cos(),
+            d * lat.cos() * lon.sin(),
+            d * lat.sin(),
+        ])
+    };
+
+    let r = at(jd_ut)?;
+    let (before, after) = (at(jd_ut - DELTA)?, at(jd_ut + DELTA)?);
+    let v = [
+        (after[0] - before[0]) / (2.0 * DELTA),
+        (after[1] - before[1]) / (2.0 * DELTA),
+        (after[2] - before[2]) / (2.0 * DELTA),
+    ];
+
+    // h = r × v — normal to the instantaneous orbital plane.
+    let h = [
+        r[1] * v[2] - r[2] * v[1],
+        r[2] * v[0] - r[0] * v[2],
+        r[0] * v[1] - r[1] * v[0],
+    ];
+    // The node line is ẑ × h = (−h_y, h_x, 0); the ASCENDING node is its longitude.
+    if h[0].abs() < f64::EPSILON && h[1].abs() < f64::EPSILON {
+        return Err(EphemerisError(
+            "this backend reports no lunar latitude, so the Moon has no orbital plane and no true              node — the analytic floor is longitude-only; DE440 provides it"
+                .into(),
+        ));
+    }
+    Ok(norm360(h[0].atan2(-h[1]).to_degrees()))
+}
+
 /// Ascendant and Midheaven ecliptic longitudes (degrees) for a UT instant at a geographic
 /// latitude/longitude (degrees; longitude East-positive). Uses mean sidereal time + mean
 /// obliquity — well inside astrology tolerance. Angles depend on location, so they live here
@@ -188,6 +287,98 @@ pub use anise_backend::AniseBackend;
 
 #[cfg(test)]
 mod tests {
+    /// The osculating node's PHYSICS, not a golden number.
+    ///
+    /// A single hardcoded longitude would pass on a subtly wrong derivation as easily as a right
+    /// one — and this project already shipped a node body that passed every test it had by being a
+    /// copy of another body. So this asserts the properties that distinguish the true node from the
+    /// mean node and from a mistake:
+    ///
+    ///   * it librates around the mean node, within a couple of degrees, never far;
+    ///   * that libration averages to about zero over a long window;
+    ///   * it moves DIRECT on a substantial minority of days, which the mean node never does;
+    ///   * and it regresses at roughly the mean node's long-run rate.
+    ///
+    /// Measured over 2024–2025 on DE440: −1.877°…+1.900°, mean +0.0025°, direct on 182 of 730 days.
+    #[test]
+    fn the_true_node_behaves_like_the_real_one() {
+        let engine = super::shared();
+        if !engine.source.is_authoritative() {
+            eprintln!("SKIPPED: no DE440 kernel; the analytic floor has no lunar latitude");
+            assert!(super::true_node(&super::AnalyticBackend, 2_460_000.0).is_err());
+            return;
+        }
+        let eph = engine.backend.as_ref();
+        let start = super::julian_day(2024, 1, 1, 0.0);
+
+        let wrap = |d: f64| {
+            if d > 180.0 {
+                d - 360.0
+            } else if d < -180.0 {
+                d + 360.0
+            } else {
+                d
+            }
+        };
+
+        let (mut lo, mut hi, mut sum, mut direct, mut prev) =
+            (f64::MAX, f64::MIN, 0.0, 0usize, None::<f64>);
+        for step in 0..730 {
+            let jd = start + step as f64;
+            let t = super::true_node(eph, jd).expect("DE440 supplies lunar latitude");
+            let m = eph.position(super::Body::MeanNode, jd).unwrap().longitude;
+            let lib = wrap(t - m);
+            lo = lo.min(lib);
+            hi = hi.max(lib);
+            sum += lib;
+            if let Some(p) = prev {
+                if wrap(t - p) > 0.0 {
+                    direct += 1;
+                }
+            }
+            prev = Some(t);
+        }
+
+        assert!(lo > -2.5 && hi < 2.5, "libration out of range: {lo}..{hi}");
+        assert!(
+            lo < -1.0 && hi > 1.0,
+            "too small to be the true node: {lo}..{hi}"
+        );
+        assert!(
+            (sum / 730.0).abs() < 0.2,
+            "libration should average near zero, got {}",
+            sum / 730.0
+        );
+        // The headline difference. A hardcoded retrograde rate would erase it.
+        assert!(
+            (100..400).contains(&direct),
+            "the true node moves direct on a real minority of days, got {direct}/730"
+        );
+
+        let net = wrap(
+            super::true_node(eph, start + 729.0).unwrap() - super::true_node(eph, start).unwrap(),
+        );
+        assert!(
+            (-45.0..-32.0).contains(&net),
+            "two years should regress about -38.7 deg, got {net}"
+        );
+    }
+
+    /// The floor refuses rather than substituting. Runs everywhere.
+    #[test]
+    fn the_analytic_floor_refuses_the_true_node_and_says_why() {
+        let err = super::true_node(&super::AnalyticBackend, super::julian_day(2024, 6, 1, 0.0))
+            .expect_err("a longitude-only Moon has no orbital plane");
+        assert!(err.0.contains("latitude"), "{}", err.0);
+
+        // And via the body, which is the path a chart takes.
+        use super::Ephemeris as _;
+        let err = super::AnalyticBackend
+            .position(super::Body::TrueNode, super::julian_day(2024, 6, 1, 0.0))
+            .expect_err("must refuse");
+        assert!(err.0.contains("latitude"), "{}", err.0);
+    }
+
     use super::*;
     use std::collections::HashSet;
 
