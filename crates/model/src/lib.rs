@@ -178,6 +178,79 @@ mod credential_scrub_tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Only CUDA runtime libraries reach the executable's DLL search directory.
+    ///
+    /// The companion zip used to be bulk-extracted into `llama-server.exe`'s own directory, which is
+    /// exactly where the Windows loader resolves that executable's DLLs from — so any member of a
+    /// third-party archive landed in the search path under whatever name it carried. A zip holding
+    /// `version.dll` would have been loaded ahead of the system copy on the next serve.
+    #[test]
+    fn the_companion_archive_cannot_plant_a_dll_beside_the_executable() {
+        let base = std::env::temp_dir().join("ziqpu-cudart-staging-test");
+        let (staging, exe_dir) = (base.join("staging"), base.join("exe"));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(staging.join("nested")).unwrap();
+        std::fs::create_dir_all(&exe_dir).unwrap();
+
+        // What a real cudart zip carries…
+        std::fs::write(staging.join("cudart64_12.dll"), b"x").unwrap();
+        std::fs::write(staging.join("cublas64_12.dll"), b"x").unwrap();
+        std::fs::write(staging.join("nested").join("cublasLt64_12.dll"), b"x").unwrap();
+        // …and what a hostile or merely sloppy one might.
+        std::fs::write(staging.join("version.dll"), b"x").unwrap();
+        std::fs::write(staging.join("dbghelp.dll"), b"x").unwrap();
+        std::fs::write(staging.join("readme.txt"), b"x").unwrap();
+        std::fs::write(staging.join("setup.exe"), b"x").unwrap();
+
+        super::copy_runtime_libs(&staging, &exe_dir).expect("real libraries present");
+
+        for wanted in ["cudart64_12.dll", "cublas64_12.dll", "cublasLt64_12.dll"] {
+            assert!(exe_dir.join(wanted).is_file(), "{wanted} must be copied");
+        }
+        for forbidden in ["version.dll", "dbghelp.dll", "readme.txt", "setup.exe"] {
+            assert!(
+                !exe_dir.join(forbidden).exists(),
+                "{forbidden} must NOT reach the DLL search path"
+            );
+        }
+
+        // An archive carrying no runtime libraries fails loudly rather than leaving a CUDA build
+        // that will not start — a silent success here becomes a confusing crash much later.
+        let empty = base.join("empty");
+        std::fs::create_dir_all(&empty).unwrap();
+        std::fs::write(empty.join("readme.txt"), b"x").unwrap();
+        assert!(super::copy_runtime_libs(&empty, &exe_dir).is_err());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// What gets executed must be provably inside the tree we laid down.
+    #[test]
+    fn the_located_binary_must_be_inside_the_runtime_root() {
+        let base = std::env::temp_dir().join("ziqpu-findbin-test");
+        let (root, outside) = (base.join("root"), base.join("outside"));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(root.join("a").join("b")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+
+        // Nothing there yet.
+        assert!(super::find_bin_under(&root, "llama-server.exe", 3).is_none());
+
+        // Found at depth, and the returned path is canonical and inside the root.
+        let real = root.join("a").join("b").join("llama-server.exe");
+        std::fs::write(&real, b"x").unwrap();
+        let found = super::find_bin_under(&root, "llama-server.exe", 3).expect("found at depth 3");
+        assert!(found.starts_with(root.canonicalize().unwrap()));
+
+        // Past the depth cap it is not found at all — the search stays bounded.
+        let deep = root.join("a").join("b").join("c").join("d");
+        std::fs::create_dir_all(&deep).unwrap();
+        std::fs::write(deep.join("other.exe"), b"x").unwrap();
+        assert!(super::find_bin_under(&root, "other.exe", 3).is_none());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     /// A remote name must not be able to steer a path — least of all the recursive delete.
     #[test]
     fn only_a_plain_file_name_may_become_a_path_component() {
@@ -1735,6 +1808,21 @@ fn llama_server_bin_name() -> &'static str {
 /// `llama-bNNNNN/` directory — and a depth-capped walk handles both without ever crawling a
 /// user's whole disk if the root is misconfigured.
 fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
+    let found = find_bin_unchecked(dir, bin, depth)?;
+    // The result of this search is **executed**, so it must be provably inside the tree we laid
+    // down. Canonicalizing both sides resolves `..` and follows symlinks first, which is the point:
+    // an archive member that is a link pointing out of the runtime root would otherwise pass a
+    // plain `starts_with` on the un-resolved path. Belt to the digest's braces — a verified archive
+    // cannot contain such a member today, but the check costs one syscall and outlives the pin.
+    let root = dir.canonicalize().ok()?;
+    let real = found.canonicalize().ok()?;
+    real.starts_with(&root).then_some(real)
+}
+
+/// The bounded depth-first search itself. Split out so [`find_bin_under`] can hold the containment
+/// check in one place rather than at each recursive step, where it would be re-derived and could
+/// disagree with itself.
+fn find_bin_unchecked(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
     let direct = dir.join(bin);
     if direct.is_file() {
         return Some(direct);
@@ -1746,7 +1834,58 @@ fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::pa
     entries
         .flatten()
         .filter(|e| e.path().is_dir())
-        .find_map(|e| find_bin_under(&e.path(), bin, depth - 1))
+        .find_map(|e| find_bin_unchecked(&e.path(), bin, depth - 1))
+}
+
+/// Copy the CUDA runtime libraries out of `staging` and beside `llama-server`, and nothing else.
+///
+/// The companion archive exists for one reason: the CUDA builds do not bundle `cudart`/`cublas`, so
+/// those DLLs have to sit next to the executable. That is a short, nameable list, which is what
+/// makes an allowlist the right instrument here — unlike grounded signals, where the set of valid
+/// shapes is open-ended and a blocklist was the honest choice.
+///
+/// Anything else in the archive is left in staging and deleted with it. A file that is not a CUDA
+/// runtime library has no business in an executable's DLL search path, whatever the archive says.
+fn copy_runtime_libs(staging: &std::path::Path, exe_dir: &std::path::Path) -> Result<(), String> {
+    fn is_runtime_lib(name: &str) -> bool {
+        let n = name.to_ascii_lowercase();
+        // The CUDA redistributables llama.cpp's cudart zips actually carry.
+        (n.starts_with("cudart64") || n.starts_with("cublas") || n.starts_with("cublaslt"))
+            && n.ends_with(".dll")
+    }
+
+    let mut copied = 0usize;
+    // Depth 2: the zips put the DLLs at the root, but a release has occasionally nested them one
+    // level. Bounded rather than unlimited, so a deep archive cannot turn this into a tree walk.
+    let mut dirs = vec![(staging.to_path_buf(), 2u8)];
+    while let Some((dir, depth)) = dirs.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if depth > 0 {
+                    dirs.push((path, depth - 1));
+                }
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if is_runtime_lib(name) && std::fs::copy(&path, exe_dir.join(name)).is_ok() {
+                copied += 1;
+            }
+        }
+    }
+    if copied == 0 {
+        return Err(
+            "the CUDA companion archive carried no runtime libraries — refusing to serve a CUDA \
+             build that will fail to start"
+                .to_string(),
+        );
+    }
+    Ok(())
 }
 
 /// A `llama-server` inside the managed runtime root, if one has been laid down. This is the
@@ -2426,7 +2565,20 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
             verify_download(&carchive, companion).inspect_err(|_| {
                 let _ = std::fs::remove_file(&carchive);
             })?;
-            let cextracted = extract_archive(&carchive, exe_dir);
+            // Extract to a staging directory and copy ONLY the runtime libraries across.
+            //
+            // The companion used to be unpacked straight into `exe_dir`, and `exe_dir` is where the
+            // Windows loader resolves `llama-server.exe`'s DLLs from — so every member of a
+            // third-party zip landed in that executable's own search path, whatever it happened to
+            // be named. A zip carrying `version.dll` or `dbghelp.dll` would be loaded in preference
+            // to the system copy the next time the server started. The archive is digest-verified
+            // now, so this is no longer reachable from outside, but "we bulk-extract a downloaded
+            // archive into a DLL search path" is not a sentence that should stay true of this code.
+            let staging = root.join(format!("{stem}-cudart-staging"));
+            let _ = std::fs::remove_dir_all(&staging);
+            let cextracted = extract_archive(&carchive, &staging)
+                .and_then(|()| copy_runtime_libs(&staging, exe_dir));
+            let _ = std::fs::remove_dir_all(&staging);
             let _ = std::fs::remove_file(&carchive);
             cextracted?;
         }
