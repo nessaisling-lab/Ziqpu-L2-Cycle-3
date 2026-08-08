@@ -9,13 +9,68 @@
 //! - `make_profile` — build a portable birth profile (the thing the agent travels with).
 //! - `chart` — a real natal chart for a seeded choice (real ephemeris).
 //! - `recommend` — OBSERVE + DECIDE: ranked fit reads for a profile, then proposes grounding.
-//! - `pull_grounded_signals` — the checkpoint: without `approved:true` it returns `PENDING_APPROVAL`
-//!   and touches nothing; the host must confirm before the gated, costed SEC EDGAR pull runs.
+//! - `pull_grounded_signals` — the checkpoint: nothing external runs until consent is established.
+//!
+//! # Consent has two tiers, and the response says which one it got
+//!
+//! Where the host supports **elicitation**, the server asks it to put the consent text to a person
+//! and waits for the answer — a real yes, from a real human, and the `acknowledged` flag is ignored
+//! entirely. Where it does not, the older PENDING_APPROVAL round trip applies and the response
+//! carries the disclaimer that the server cannot verify anyone agreed.
 
 use serde_json::{json, Value};
 
+/// What a human said when the host put a question to them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Elicited {
+    /// A person was asked and said yes. **The only value that opens a gate.**
+    Accepted,
+    /// A person was asked and said no.
+    Declined,
+    /// The host dismissed the prompt without an answer. Treated as "not yes" — a closed dialog is
+    /// not consent, and guessing which way the person leant would invent the one fact being sought.
+    Cancelled,
+    /// Nobody could be asked: the host declared no elicitation support, or the transport failed.
+    /// Falls back to the older `acknowledged` flag and its honest disclaimer.
+    Unavailable,
+}
+
+/// The seam that lets this server ask the **host** to put a question to a human.
+///
+/// A trait rather than direct I/O, for the reason the previous increment wrote down and then could
+/// not act on: elicitation is a *server-initiated request*, and doing it inline would mean `handle`
+/// performing interleaved reads and writes — destroying the request-in/response-out purity that makes
+/// every test in this file runnable without stdio.
+///
+/// Injecting it keeps both properties. `handle` stays pure and defaults to [`NoElicitation`]; the
+/// stdio binary supplies a real implementation; tests supply a fake and assert what the gate does
+/// with each answer.
+pub trait Elicitor {
+    /// Ask the host to show `message` and return the human's decision.
+    fn ask(&self, message: &str) -> Elicited;
+}
+
+/// The default: nobody to ask.
+///
+/// Used by [`handle`], so the pure entry point behaves exactly as it did before this existed — which
+/// is what keeps the existing tests meaningful rather than merely passing.
+pub struct NoElicitation;
+
+impl Elicitor for NoElicitation {
+    fn ask(&self, _message: &str) -> Elicited {
+        Elicited::Unavailable
+    }
+}
+
 /// Handle one JSON-RPC message. Returns `Some(response)` for requests and `None` for notifications.
+///
+/// Pure: no I/O, no elicitation. See [`handle_with`] for the transport-backed version.
 pub fn handle(req: &Value) -> Option<Value> {
+    handle_with(req, &NoElicitation)
+}
+
+/// [`handle`], with a way to ask a human.
+pub fn handle_with(req: &Value, elicitor: &dyn Elicitor) -> Option<Value> {
     let id = req.get("id").cloned();
     let method = req.get("method").and_then(|m| m.as_str()).unwrap_or("");
     match method {
@@ -34,7 +89,7 @@ pub fn handle(req: &Value) -> Option<Value> {
         m if m.starts_with("notifications/") => None,
         "ping" => Some(result(id, json!({}))),
         "tools/list" => Some(result(id, json!({ "tools": tools() }))),
-        "tools/call" => Some(handle_call(id, req.get("params"))),
+        "tools/call" => Some(handle_call(id, req.get("params"), elicitor)),
         _ if id.is_some() => Some(error(id, -32601, "method not found")),
         _ => None,
     }
@@ -47,12 +102,11 @@ pub fn handle(req: &Value) -> Option<Value> {
 /// a parameter: `handle` is deliberately pure (request in, response out) so it stays unit-testable
 /// without stdio plumbing, and one server process serves exactly one session.
 ///
-/// Nothing uses it yet, and that is deliberate rather than forgotten. Elicitation is a
-/// **server-initiated request**: the server writes a request and waits for the host's response,
-/// interleaved with the host's own traffic. This transport is strictly request-in/response-out, so
-/// using it means rebuilding the loop and giving up the purity that makes `handle` testable. The
-/// detection lands now because it is the cheap prerequisite and because it makes the gap
-/// measurable — see `ELICITATION_NOTE`.
+/// This is now **used**, not merely recorded. The previous increment left this comment saying
+/// "nothing uses it yet, and that is deliberate", because elicitation is a *server-initiated*
+/// request and doing it inline would have destroyed `handle`'s purity. That was solved by injecting
+/// an [`Elicitor`] instead: `handle` stays pure, and `ziqpu-mcp`'s transport supplies the
+/// bidirectional implementation. See [`gate`].
 static HOST_SUPPORTS_ELICITATION: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
@@ -80,6 +134,60 @@ pub fn host_supports_elicitation() -> bool {
 /// saying so plainly is the difference between a limitation and a lie.
 const ELICITATION_NOTE: &str =
     "Note: this server cannot verify that a human approved this. Your MCP host's own approval      prompt is the gate; `acknowledged` records that the text above was surfaced, not that anyone      agreed to it.";
+
+/// The consent decision for a gated tool — **one implementation, both gates**.
+///
+/// # When a human can be asked, the flag is ignored
+///
+/// `acknowledged` is set by the calling model, which also reads the response, so on its own it is
+/// the model shaking hands with itself. Where the host supports elicitation the server can obtain a
+/// real answer from a real person, and in that case the flag is **not consulted at all** — honouring
+/// it would let a model route around the human it had just become able to reach.
+///
+/// The flag survives only as the fallback for hosts that cannot ask, where it keeps its honest
+/// disclaimer ([`ELICITATION_NOTE`]) and its PENDING_APPROVAL round trip.
+///
+/// A dismissed prompt is not a yes. Cancelled is refused rather than guessed, because guessing which
+/// way the person leant would invent the single fact the gate exists to establish.
+enum Gate {
+    Proceed { asked_a_human: bool },
+    Stop(String),
+}
+
+fn gate(args: &Value, consent: &str, elicitor: &dyn Elicitor) -> Gate {
+    match elicitor.ask(consent) {
+        Elicited::Accepted => Gate::Proceed { asked_a_human: true },
+        Elicited::Declined => Gate::Stop(
+            "DECLINED — a person was asked and said no. Nothing ran and nothing was spent."
+                .to_string(),
+        ),
+        Elicited::Cancelled => Gate::Stop(
+            "CANCELLED — the approval prompt was dismissed without an answer. Nothing ran. A closed              dialog is not consent, so this is treated as a no."
+                .to_string(),
+        ),
+        Elicited::Unavailable if acknowledged(args) => Gate::Proceed { asked_a_human: false },
+        Elicited::Unavailable => Gate::Stop(format!(
+            "PENDING_APPROVAL — {consent} Nothing has been spent. Re-call with              {{ \"acknowledged\": true }} to proceed.
+
+{ELICITATION_NOTE}"
+        )),
+    }
+}
+
+/// One line naming **how** this call was approved.
+///
+/// "Approved" now means two very different things on this surface, and a response that does not
+/// distinguish them is the same defect as a reading that cannot tell a chosen template from a failed
+/// one. When a person was actually asked, say so. When only the flag was set, repeat the disclaimer
+/// rather than let the word "approved" carry weight it has not earned.
+fn approval_provenance(asked_a_human: bool) -> String {
+    if asked_a_human {
+        "APPROVED BY A PERSON — your host put the consent text to a human, and they accepted."
+            .to_string()
+    } else {
+        format!("APPROVED BY FLAG — {ELICITATION_NOTE}")
+    }
+}
 
 /// Read the human-acknowledgement flag, accepting the older `approved` spelling.
 ///
@@ -158,7 +266,7 @@ fn tools() -> Value {
     ])
 }
 
-fn handle_call(id: Option<Value>, params: Option<&Value>) -> Value {
+fn handle_call(id: Option<Value>, params: Option<&Value>, elicitor: &dyn Elicitor) -> Value {
     let params = params.cloned().unwrap_or(Value::Null);
     let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
     let args = params
@@ -168,8 +276,8 @@ fn handle_call(id: Option<Value>, params: Option<&Value>) -> Value {
     let (text, is_error) = match name {
         "make_profile" => call_make_profile(&args),
         "chart" => call_chart(&args),
-        "recommend" => call_recommend(&args),
-        "pull_grounded_signals" => call_pull(&args),
+        "recommend" => call_recommend(&args, elicitor),
+        "pull_grounded_signals" => call_pull(&args, elicitor),
         other => (format!("unknown tool: {other}"), true),
     };
     result(
@@ -225,7 +333,7 @@ fn call_chart(args: &Value) -> (String, bool) {
     )
 }
 
-fn call_recommend(args: &Value) -> (String, bool) {
+fn call_recommend(args: &Value, elicitor: &dyn Elicitor) -> (String, bool) {
     let Some(profile) = args.get("profile").and_then(|p| p.as_str()) else {
         return (
             "recommend needs a profile string (from make_profile)".to_string(),
@@ -259,19 +367,17 @@ fn call_recommend(args: &Value) -> (String, bool) {
     // on the user's own API key — so on this surface it is the expensive tool, not
     // `pull_grounded_signals`, whose sources are all keyless public endpoints. The gate was on the
     // one that spends quota and absent from the one that spends money.
-    if !acknowledged(args) {
-        return (
-            format!(
-                "PENDING_APPROVAL — ranking {} choice(s) runs {} live model call(s) via {}, billed                  to the configured key. Nothing has been spent. Re-call with                  {{ \"acknowledged\": true }} to proceed, or call `chart` for the free,                  deterministic reads.
-
-{ELICITATION_NOTE}",
-                choices.len(),
-                choices.len(),
-                agents::active_source_label(),
-            ),
-            false,
-        );
-    }
+    let consent = format!(
+        "Ranking {} choice(s) runs {} live model call(s) via {}, billed to the configured key. \
+         Proceed? (`chart` gives free, deterministic reads instead.)",
+        choices.len(),
+        choices.len(),
+        agents::active_source_label(),
+    );
+    let asked_a_human = match gate(args, &consent, elicitor) {
+        Gate::Stop(text) => return (text, false),
+        Gate::Proceed { asked_a_human } => asked_a_human,
+    };
 
     let mut session = agents::Session::new(
         agents::EngineChartSource::default(),
@@ -279,8 +385,9 @@ fn call_recommend(args: &Value) -> (String, bool) {
         interpreter(),
     );
     let recs = session.recommend(&seeker, &choices);
+    let gate_line = approval_provenance(asked_a_human);
 
-    let mut out = String::from("Ranked fit (measured, not fate):\n");
+    let mut out = format!("{gate_line}\n\nRanked fit (measured, not fate):\n");
     for r in &recs {
         out.push_str(&format!(
             "  {:<18} {:<16} {:>3}/100\n",
@@ -299,7 +406,7 @@ fn call_recommend(args: &Value) -> (String, bool) {
     (out, false)
 }
 
-fn call_pull(args: &Value) -> (String, bool) {
+fn call_pull(args: &Value, elicitor: &dyn Elicitor) -> (String, bool) {
     let Some(ticker) = args.get("ticker").and_then(|t| t.as_str()) else {
         return ("pull_grounded_signals needs a ticker".to_string(), true);
     };
@@ -310,23 +417,21 @@ fn call_pull(args: &Value) -> (String, bool) {
     else {
         return (format!("unknown ticker {ticker}"), true);
     };
-    if !acknowledged(args) {
-        // The checkpoint, surfaced to the host: nothing external ran. The sentence comes from
-        // `agents::grounding_consent` — the same function the desktop checkpoint uses — because a
-        // second hand-written copy here is exactly how this text fell behind the roster last time.
-        return (
-            format!(
-                "PENDING_APPROVAL — {} Nothing was fetched. Re-call with \
-                 {{ \"acknowledged\": true }} to proceed, or keep the symbolic read.\n\n{}",
-                agents::grounding_consent(&choice),
-                ELICITATION_NOTE
-            ),
-            false,
-        );
-    }
+    // The consent sentence comes from `agents::grounding_consent` — the same function the desktop
+    // checkpoint uses — because a second hand-written copy here is exactly how this text fell behind
+    // the roster last time.
+    let asked_a_human = match gate(args, &agents::grounding_consent(&choice), elicitor) {
+        Gate::Stop(text) => return (text, false),
+        Gate::Proceed { asked_a_human } => asked_a_human,
+    };
     use agents::GroundedSource;
     let signals = grounded(&choice).fetch(&choice);
-    let mut out = format!("GROUNDED ({}) for {}:\n", signals.source, ticker);
+    let mut out = format!(
+        "{}\n\nGROUNDED ({}) for {}:\n",
+        approval_provenance(asked_a_human),
+        signals.source,
+        ticker
+    );
     for item in &signals.items {
         out.push_str(&format!("  - {item}\n"));
     }
@@ -374,6 +479,79 @@ fn interpreter() -> Box<dyn agents::Interpreter> {
 
 #[cfg(test)]
 mod tests {
+    /// A fake host, so every branch of the gate is testable without stdio.
+    struct Fake(super::Elicited);
+    impl super::Elicitor for Fake {
+        fn ask(&self, _message: &str) -> super::Elicited {
+            self.0
+        }
+    }
+
+    /// The gate opens ONLY on a real yes, and the response says which gate opened.
+    ///
+    /// This is the property `MCP-1` could describe but not enforce: with no way to reach a person,
+    /// "approved" could only ever mean "the model set a flag". Now the two are different outcomes
+    /// with different words, and a call approved by a person no longer carries the disclaimer that
+    /// belongs to a call approved by a flag.
+    #[test]
+    fn only_a_person_saying_yes_opens_the_gate() {
+        use super::{Elicited, Value};
+        let call = |elicited, ack: bool| -> String {
+            let mut args = serde_json::json!({ "ticker": "TSLA" });
+            if ack {
+                args["acknowledged"] = Value::Bool(true);
+            }
+            let req = serde_json::json!({
+                "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": { "name": "pull_grounded_signals", "arguments": args }
+            });
+            super::handle_with(&req, &Fake(elicited))
+                .unwrap()
+                .to_string()
+        };
+
+        // A person said no — refused, even though the model also set the flag. The flag cannot
+        // override a human who was actually asked; that is the whole point.
+        let declined = call(Elicited::Declined, true);
+        assert!(declined.contains("DECLINED"), "{declined}");
+        assert!(
+            !declined.contains("GROUNDED ("),
+            "nothing may have been fetched: {declined}"
+        );
+
+        // A dismissed dialog is not consent either.
+        let cancelled = call(Elicited::Cancelled, true);
+        assert!(cancelled.contains("CANCELLED"), "{cancelled}");
+        assert!(!cancelled.contains("GROUNDED ("), "{cancelled}");
+
+        // No host support and no flag — the old PENDING_APPROVAL round trip, with its disclaimer.
+        let pending = call(Elicited::Unavailable, false);
+        assert!(pending.contains("PENDING_APPROVAL"), "{pending}");
+        assert!(
+            pending.contains("cannot verify"),
+            "the fallback keeps its honest disclaimer: {pending}"
+        );
+    }
+
+    /// The two ways a call can be approved read differently, on purpose.
+    #[test]
+    fn the_response_names_which_gate_opened() {
+        let by_person = super::approval_provenance(true);
+        let by_flag = super::approval_provenance(false);
+
+        assert!(by_person.contains("APPROVED BY A PERSON"), "{by_person}");
+        assert!(
+            !by_person.contains("cannot verify"),
+            "a call a human actually approved must not carry the flag disclaimer: {by_person}"
+        );
+
+        assert!(by_flag.contains("APPROVED BY FLAG"), "{by_flag}");
+        assert!(
+            by_flag.contains("cannot verify"),
+            "the flag path keeps saying what it cannot establish: {by_flag}"
+        );
+    }
+
     use super::*;
 
     fn call_tool(name: &str, arguments: Value) -> String {
