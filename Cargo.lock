@@ -3436,6 +3436,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sysinfo",
+ "ureq 2.12.1",
  "wait-timeout",
 ]
 

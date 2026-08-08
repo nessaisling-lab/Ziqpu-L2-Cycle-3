@@ -21,10 +21,15 @@ path = "src/main.rs"
 [dependencies]
 # Only `detect_spec` touches this — the tier logic below is dependency-free and unit-tested.
 sysinfo = { version = "0.32", default-features = false, features = ["system"] }
-# Parse the Hugging Face Hub API response for layer 2. The HTTP itself is a `curl` subprocess (the
-# repo's established no-HTTP-crate approach; curl ships on Win10+/macOS/Linux) — only the JSON parse
-# needs a dep, and the parser is pure + unit-tested against a fixture.
+# Parse the Hugging Face Hub API response for layer 2. The parser is pure + unit-tested against a
+# fixture; the HTTP is in-process (see below).
 serde_json = "1"
+# In-process HTTPS, replacing five `curl` subprocesses. Same crate, same features as `crates/agents`
+# already uses — pure-Rust rustls with bundled Mozilla roots, no OpenSSL, no OS cert store, and no
+# dependency on a `curl` binary the app does not ship. This crate's doc comments used to call the
+# subprocess "the repo's no-HTTP-crate convention"; that convention ended when agents moved to ureq,
+# and this is the crate catching up rather than a new dependency entering the tree.
+ureq = { version = "2", default-features = false, features = ["tls"] }
 # A hard timeout on the GPU-probe subprocesses (nvidia-smi can hang on a wedged driver). Tiny,
 # MIT/Apache-licensed, no transitive weight beyond libc/winapi already in the tree.
 wait-timeout = "0.2"

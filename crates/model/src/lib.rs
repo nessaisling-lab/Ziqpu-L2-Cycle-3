@@ -37,7 +37,8 @@ pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
 ///
 /// This strips by **shape rather than by a list of names**, on purpose: a list has to be edited
 /// every time a provider is added, and the edit that gets forgotten is the one that matters. None of
-/// the children spawned here — `curl`, `tar`, `taskkill`, `llama-server`, the WebView2 bootstrapper —
+/// the children spawned here — `tar`, `taskkill`, `llama-server`, the GPU probes, the WebView2
+/// bootstrapper —
 /// needs a credential of any kind, so over-stripping costs nothing and under-stripping leaks.
 fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
     for (name, _) in std::env::vars_os() {
@@ -56,6 +57,10 @@ fn looks_like_credential(name: &str) -> bool {
 
 /// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
 /// it warning-clean on non-Windows.
+mod http;
+
+use std::time::Duration;
+
 #[cfg(windows)]
 fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
@@ -816,7 +821,7 @@ const HF_USER_AGENT: &str =
 /// **The vector is the application directory, not the CWD.** An earlier version of this comment
 /// blamed `CreateProcess` searching the current directory — that is true of raw `CreateProcess` but
 /// *not* of Rust's `std::process::Command`, whose `resolve_exe` deliberately excludes the CWD.
-/// Measured on Windows 11 / rustc 1.96: a planted `curl.exe` in the CWD is **not** picked up, while
+/// Measured on Windows 11 / rustc 1.96: a planted `tar.exe` in the CWD is **not** picked up, while
 /// one sitting **beside our own exe** is, because Rust's order is child-PATH → application
 /// directory → System32 → Windows → PATH. Pinning the System32 path defeats it (also measured).
 ///
@@ -925,7 +930,8 @@ fn resolve_on_path(bin: &str) -> Option<std::path::PathBuf> {
 /// *code* — the Windows registry query exits non-zero on a benign non-terminating error while still
 /// emitting valid lines, and each caller's parser rejects garbage/empty output on its own. Safe only
 /// for small outputs (well under the OS pipe buffer, so the wait-then-read can't deadlock) — exactly
-/// the GPU probes; the larger `curl` fetch keeps its own `--max-time`/`--max-filesize` instead.
+/// the GPU probes. The HTTP fetches do not use this at all any more — they are in-process and
+/// carry their own timeout and size caps (see [`crate::http`]).
 fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
     use std::io::Read;
     use std::process::{Command, Stdio};
@@ -952,32 +958,19 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
 }
 
 /// Query the Hub for current GGUF repos matching `term` — **thin I/O, not unit-tested** (the parser
-/// is). HTTP is a `curl` subprocess (the repo's cross-platform, no-HTTP-crate convention), pinned to
-/// System32 on Windows (SEC-001), bounded by both `--max-time` and `--max-filesize` (SEC-004), and
-/// sent with a descriptive User-Agent. Degrades quietly to an empty list; callers fall back to the
-/// static pick. `.output()` reads stdout concurrently, so a large body can't deadlock the call.
+/// is). HTTP is **in-process** via [`crate::http`] — HTTPS-only, bounded by a timeout and a byte cap
+/// (SEC-004), and sent with a descriptive User-Agent. Degrades quietly to an empty list; callers fall
+/// back to the static pick.
+///
+/// This was a `curl` subprocess, described in this comment as "the repo's no-HTTP-crate convention".
+/// That convention had already ended — `crates/agents` moved to `ureq` — so the sentence outlived the
+/// rule it described, which is how the subprocess survived. SEC-001's System32 pinning no longer
+/// applies here because no process is spawned to pin.
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
-    use std::process::Command;
-    let url = hf_api_url(term);
-    let Ok(out) = child_cmd(Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "--max-time",
-            "8",
-            "--max-filesize",
-            "5000000",
-            "-A",
-            HF_USER_AGENT,
-            url.as_str(),
-        ])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !out.status.success() {
-        return Vec::new();
+    match http::get_text(&hf_api_url(term), Duration::from_secs(8), 5_000_000) {
+        Some(body) => parse_hf_models(&body),
+        None => Vec::new(),
     }
-    parse_hf_models(&String::from_utf8_lossy(&out.stdout))
 }
 
 /// Repo markers that disqualify a base model for a **guarded** agent. Ungasaga must refuse advice
@@ -1092,30 +1085,14 @@ pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
 }
 
 /// Fetch a repo's GGUF quants from the Hub (`/api/models/<repo>/tree/main`). Thin I/O (the parser is
-/// tested); same `curl` discipline as [`resolve_candidates`] (System32-pinned, time/size-bounded,
+/// tested); same in-process discipline as [`resolve_candidates`] (HTTPS-only, time/size-bounded,
 /// User-Agent). Empty on any failure (offline-safe).
 pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
-    use std::process::Command;
     let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
-    let Ok(out) = child_cmd(Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "--max-time",
-            "8",
-            "--max-filesize",
-            "5000000",
-            "-A",
-            HF_USER_AGENT,
-            url.as_str(),
-        ])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !out.status.success() {
-        return Vec::new();
+    match http::get_text(&url, Duration::from_secs(8), 5_000_000) {
+        Some(body) => parse_repo_tree(&body),
+        None => Vec::new(),
     }
-    parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
 }
 
 /// Context window (tokens) the served model is capped to. `llama-server`'s default is 0 = "use the
@@ -1559,23 +1536,20 @@ pub fn model_cached(repo: &str, quant: &str) -> bool {
 /// a server still running from a prior session on startup. Only `llama-server` answers `/health` with
 /// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
 /// Runs at startup, before the window opens, so it probes up to 12 ports on every launch — which is
-/// why the spawn target is pinned via [`system_cmd`] like the file's other `curl` callers rather
-/// than left bare. (Known gap: on a machine with no `curl` at all this simply finds nothing and the
-/// app declines to reconnect — a soft, honest degrade, unlike the health probes in `agents`/`ui`
-/// which are now in-process.)
+/// why it matters that this is now in-process: it spawns nothing at all.
+///
+/// The known gap this comment used to describe — "on a machine with no `curl` at all this simply
+/// finds nothing and the app declines to reconnect" — is closed. There is no external binary left to
+/// be missing, and the probe is restricted to loopback so it cannot become a plaintext request to
+/// anywhere else.
 pub fn running_server_port() -> Option<u16> {
-    let curl = system_cmd("curl.exe", "curl");
     (1234u16..=1245).find(|&p| {
-        child_cmd(std::process::Command::new(&curl))
-            .args([
-                "-sS",
-                "--max-time",
-                "2",
-                &format!("http://127.0.0.1:{p}/health"),
-            ])
-            .output()
-            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
-            .unwrap_or(false)
+        http::get_text_loopback(
+            &format!("http://127.0.0.1:{p}/health"),
+            Duration::from_secs(2),
+            4096,
+        )
+        .is_some_and(|body| body.contains("\"ok\""))
     })
 }
 
@@ -2313,8 +2287,11 @@ fn verify_download(path: &std::path::Path, asset: &str) -> Result<(), String> {
 /// Whether a release-asset URL points where a llama.cpp release actually lives.
 ///
 /// Belt to the digest's braces: it keeps a redirected or rewritten download from starting off at an
-/// arbitrary host. It is deliberately the *weaker* of the two checks — `curl -L` follows redirects
-/// we never see, so the digest is what actually decides whether the bytes are acceptable.
+/// arbitrary host. It used to be the *weaker* of the two checks, because `curl -L` followed redirects
+/// we never saw. Now [`crate::http::get_to_file`] applies this same predicate a second time to the
+/// URL actually reached after redirects, so a redirect off the allowlist is refused before any bytes
+/// land. The digest still decides whether the bytes are acceptable; this decides whether they are
+/// fetched at all.
 fn is_github_release_host(url: &str) -> bool {
     let rest = url.strip_prefix("https://").unwrap_or("");
     let host = rest.split(['/', '?', '#']).next().unwrap_or("");
@@ -2349,8 +2326,8 @@ pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
 }
 
 /// GET the **pinned** ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
-/// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
-/// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
+/// (the parser is). Same in-process discipline as the HF calls: HTTPS-only, time- and size-bounded,
+/// descriptive UA. `None` = offline / rate-limited / drifted.
 ///
 /// This asks for [`PINNED_RUNTIME_TAG`] by name rather than `releases/latest`. The API is still only
 /// consulted for the download URLs and sizes — nothing it returns decides what is acceptable, since
@@ -2359,61 +2336,22 @@ pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
     let url = format!(
         "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{PINNED_RUNTIME_TAG}"
     );
-    let out = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "-L",
-            "--proto",
-            "=https",
-            "--max-time",
-            "20",
-            "--max-filesize",
-            "3000000",
-            "-A",
-            HF_USER_AGENT,
-            &url,
-        ])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    parse_runtime_release(&String::from_utf8_lossy(&out.stdout))
+    let body = http::get_text(&url, Duration::from_secs(20), 3_000_000)?;
+    parse_runtime_release(&body)
 }
 
-/// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
-/// bundles). Returns a human-readable reason on failure.
+/// Stream `url` to `dest` in-process, with a generous cap for the multi-hundred-MB CUDA bundles.
+/// Returns a human-readable reason on failure.
 fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
-    // Where the bytes come from, before a single one is fetched. `--proto '=https'` additionally
-    // refuses to be redirected down to a plaintext scheme part-way through.
-    if !is_github_release_host(url) {
-        return Err(format!(
-            "refusing to download the runtime from an unexpected host: {url}"
-        ));
-    }
-    let status = child_cmd(std::process::Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "-L",
-            "--fail",
-            "--proto",
-            "=https",
-            "--max-time",
-            "3600",
-            "--max-filesize",
-            "800000000",
-            "-A",
-            HF_USER_AGENT,
-            "-o",
-            &dest.to_string_lossy(),
-            url,
-        ])
-        .status()
-        .map_err(|e| format!("couldn't run curl ({e})"))?;
-    if !status.success() {
-        return Err(format!("download failed ({status})"));
-    }
-    Ok(())
+    // The host is checked on the URL given AND on the one actually reached after redirects — the
+    // second check is the one `curl -L` could not make, and this comment used to concede it.
+    http::get_to_file(
+        url,
+        dest,
+        Duration::from_secs(3600),
+        800_000_000,
+        is_github_release_host,
+    )
 }
 
 /// Extract `archive` into `dir` with the system `tar` — which reads BOTH formats the release ships
