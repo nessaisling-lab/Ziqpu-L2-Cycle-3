@@ -20,6 +20,28 @@ pub trait Interpreter {
         grounded: &GroundedSignals,
     ) -> String;
 
+    /// The live reading **without** the template fallback — `Some` only when a real model produced
+    /// usable prose. Defaults to `None`, which is correct for the deterministic template: it never
+    /// "tries", it always succeeds.
+    ///
+    /// These exist so a failover wrapper can tell "the model declined" from "the template wrote it".
+    /// [`Interpreter::fit_read`] hides that distinction by design — every live interpreter falls back
+    /// internally — and a wrapper that could not see through it would have nothing to react to.
+    fn try_fit_read(&self, _measures: &Measures, _fit: Fit, _name: &str) -> Option<String> {
+        None
+    }
+
+    /// The grounded counterpart of [`Interpreter::try_fit_read`].
+    fn try_grounded_brief(
+        &self,
+        _measures: &Measures,
+        _fit: Fit,
+        _name: &str,
+        _grounded: &GroundedSignals,
+    ) -> Option<String> {
+        None
+    }
+
     /// The flagship long-form **Report** reading — measured → meaning → confidence → reminder.
     /// Defaulted so real-model interpreters (e.g. [`crate::AnthropicInterpreter`]) compile
     /// unchanged; the deterministic template overrides it.
@@ -80,6 +102,18 @@ impl Interpreter for Box<dyn Interpreter> {
         grounded: &GroundedSignals,
     ) -> String {
         (**self).grounded_brief(measures, fit, name, grounded)
+    }
+    fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
+        (**self).try_fit_read(measures, fit, name)
+    }
+    fn try_grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> Option<String> {
+        (**self).try_grounded_brief(measures, fit, name, grounded)
     }
     fn report_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         (**self).report_read(measures, fit, name)

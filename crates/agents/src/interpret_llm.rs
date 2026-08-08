@@ -252,6 +252,10 @@ impl AnthropicInterpreter {
                 if self.is_built_in {
                     crate::tier::record(crate::tier::classify(code, &err_body));
                 }
+                // Same classification the OpenAI-compatible path makes: a 429 or 5xx is the
+                // provider unable to serve, which is the only failure another provider can answer.
+                crate::llm_http::note_provider_fault(crate::llm_http::is_provider_fault(code));
+                crate::trace::note(&format!("provider fault: http {code} from {}", self.model));
                 return None;
             }
             // A transport failure (offline / timeout) is NOT a tier verdict — leave the latch as-is
@@ -325,6 +329,21 @@ impl Interpreter for AnthropicInterpreter {
     fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         self.try_fit_read(measures, fit, name)
             .unwrap_or_else(|| self.fallback.fit_read(measures, fit, name))
+    }
+
+    // The trait hooks a failover reads through `dyn Interpreter`. Without these it would only ever
+    // see the trait defaults (`None`) and could never tell a declined model from a template.
+    fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
+        AnthropicInterpreter::try_fit_read(self, measures, fit, name)
+    }
+    fn try_grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> Option<String> {
+        AnthropicInterpreter::try_grounded_brief(self, measures, fit, name, grounded)
     }
 
     fn grounded_brief(
@@ -440,6 +459,21 @@ impl Interpreter for OpenAiCompatInterpreter {
             .unwrap_or_else(|| self.fallback.fit_read(measures, fit, name))
     }
 
+    // The trait hooks a failover reads through `dyn Interpreter`. Without these it would only ever
+    // see the trait defaults (`None`) and could never tell a declined model from a template.
+    fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
+        OpenAiCompatInterpreter::try_fit_read(self, measures, fit, name)
+    }
+    fn try_grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> Option<String> {
+        OpenAiCompatInterpreter::try_grounded_brief(self, measures, fit, name, grounded)
+    }
+
     fn grounded_brief(
         &self,
         measures: &Measures,
@@ -488,6 +522,90 @@ fn prefers_anthropic() -> bool {
 /// routing was right; only the label lied, and the label is the picker's sole confirmation.
 ///
 /// Reads presence and model ids only — never a key value.
+/// Try the seeker's chosen provider, and on a **provider fault** try the other one they configured.
+///
+/// # What this does and does not do
+///
+/// It fires only when the primary returns nothing *and* [`crate::llm_http::took_provider_fault`]
+/// says the reason was a 429 or a 5xx — the provider unable to serve, not the request being wrong.
+/// A bad key still fails loudly, a timeout is not doubled, and a malformed reading still degrades
+/// down the honesty ladder rather than being re-rolled on someone else's model.
+///
+/// It is only constructed when **both** providers are configured, so a seeker with one provider has
+/// byte-identical behaviour to before. There is no setting: a switch here would be a new control, a
+/// new preference, a new thing to explain and a new combination to test, all to configure something
+/// that only ever happens when the alternative is no reading at all.
+///
+/// # Why it discloses
+///
+/// A failover that changed which model wrote the reading and said nothing would turn "I chose
+/// Claude" into a preference the app quietly overrides — worse than the template it replaces. So the
+/// swap is stated in the reading itself, app-authored, next to the citation and the unknown-time
+/// caveat, which exist for the same reason: the honest line cannot depend on a model remembering it.
+struct FailoverInterpreter {
+    primary: Box<dyn Interpreter>,
+    primary_label: String,
+    secondary: Box<dyn Interpreter>,
+    secondary_label: String,
+    fallback: TemplateInterpreter,
+}
+
+impl FailoverInterpreter {
+    /// The note appended when a reading came from the other provider.
+    fn swap_note(&self) -> String {
+        format!(
+            "  note: {} could not serve this reading (over quota or unavailable), so it came from {} instead.",
+            self.primary_label, self.secondary_label
+        )
+    }
+}
+
+impl Interpreter for FailoverInterpreter {
+    fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
+        if let Some(prose) = self.primary.try_fit_read(measures, fit, name) {
+            return prose;
+        }
+        if crate::llm_http::took_provider_fault() {
+            crate::trace::note(&format!(
+                "failover: {} faulted, trying {}",
+                self.primary_label, self.secondary_label
+            ));
+            if let Some(prose) = self.secondary.try_fit_read(measures, fit, name) {
+                return insert_above_reminder(&prose, &self.swap_note());
+            }
+        }
+        self.fallback.fit_read(measures, fit, name)
+    }
+
+    fn grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> String {
+        if let Some(prose) = self
+            .primary
+            .try_grounded_brief(measures, fit, name, grounded)
+        {
+            return prose;
+        }
+        if crate::llm_http::took_provider_fault() {
+            crate::trace::note(&format!(
+                "failover: {} faulted, trying {}",
+                self.primary_label, self.secondary_label
+            ));
+            if let Some(prose) = self
+                .secondary
+                .try_grounded_brief(measures, fit, name, grounded)
+            {
+                return insert_above_reminder(&prose, &self.swap_note());
+            }
+        }
+        self.fallback.grounded_brief(measures, fit, name, grounded)
+    }
+}
+
 pub fn active_source_label() -> String {
     // Deliberately mirrors `build_interpreter`'s branches in order, including its fall-through.
     let anthropic_first = prefers_anthropic();
@@ -547,6 +665,38 @@ pub fn build_interpreter() -> Box<dyn Interpreter> {
     // An explicit in-app choice (ZIQPU_PROVIDER) is tried first; otherwise the historical order.
     // Mirrors `try_live`'s rule for the boxed-trait-object shape.
     let anthropic_first = prefers_anthropic();
+
+    // Both providers configured → the chosen one leads and the other is a safety net for a 429 or a
+    // 5xx. Only then: with one provider this is byte-identical to before, which is the point.
+    if let (Some(o), Some(a)) = (OpenAiCompatInterpreter::from_env(), anthropic_live()) {
+        let (o_label, a_label) = (
+            format!("OpenAI-compatible ({})", o.model),
+            format!("{} ({})", a.source_label(), a.model()),
+        );
+        let (primary, primary_label, secondary, secondary_label): (
+            Box<dyn Interpreter>,
+            String,
+            Box<dyn Interpreter>,
+            String,
+        ) = if anthropic_first {
+            (Box::new(a), a_label, Box::new(o), o_label)
+        } else {
+            (Box::new(o), o_label, Box::new(a), a_label)
+        };
+        BANNER.call_once(|| {
+            eprintln!(
+                "[interpreter: Ungasaga = {primary_label} — live, {secondary_label} on fault]"
+            )
+        });
+        return Box::new(FailoverInterpreter {
+            primary,
+            primary_label,
+            secondary,
+            secondary_label,
+            fallback: TemplateInterpreter,
+        });
+    }
+
     let openai = (!anthropic_first)
         .then(OpenAiCompatInterpreter::from_env)
         .flatten();
@@ -2043,6 +2193,65 @@ mod tests {
             1,
             "exactly one citation: {fixed}"
         );
+    }
+
+    /// Failover fires on a provider fault, stays silent otherwise, and always discloses.
+    ///
+    /// The three properties that make this safe to ship without a setting:
+    ///
+    /// 1. It only reacts to a 429/5xx. A bad key must still fail loudly rather than be papered over
+    ///    by the other provider, and a model that wrote something malformed is not a provider fault.
+    /// 2. It never silently overrides the seeker's pick — a reading written by the other provider
+    ///    says so, in an app-authored line, next to the citation and the unknown-time caveat.
+    /// 3. With one provider configured it is never constructed at all.
+    #[test]
+    fn failover_fires_only_on_a_provider_fault_and_says_so() {
+        use crate::llm_http::{is_provider_fault, took_provider_fault};
+
+        // (1) The classification itself.
+        assert!(is_provider_fault(429), "quota is a provider fault");
+        assert!(is_provider_fault(503) && is_provider_fault(500));
+        assert!(
+            !is_provider_fault(401),
+            "a bad key must fail loudly, not fail over"
+        );
+        assert!(
+            !is_provider_fault(400),
+            "a malformed request is ours to fix"
+        );
+        assert!(!is_provider_fault(404));
+
+        // (2) The flag is consumed, so one card's fault cannot trigger a second failover.
+        crate::llm_http::note_provider_fault(true);
+        assert!(took_provider_fault(), "the fault is visible once");
+        assert!(!took_provider_fault(), "and only once");
+
+        // (3) A swap is disclosed above the disclaimer, in the seeker's own reading.
+        let fo = FailoverInterpreter {
+            primary: Box::new(TemplateInterpreter),
+            primary_label: "Claude (claude-sonnet-4-6)".into(),
+            secondary: Box::new(TemplateInterpreter),
+            secondary_label: "OpenAI-compatible (nemotron)".into(),
+            fallback: TemplateInterpreter,
+        };
+        let note = fo.swap_note();
+        assert!(note.contains("Claude"), "names what was chosen: {note}");
+        assert!(note.contains("nemotron"), "and what actually ran: {note}");
+        assert!(note.contains("could not serve"), "and why: {note}");
+
+        let placed = insert_above_reminder(
+            "FIT: Mixed (50 / 100) — X
+A read.
+  REMINDER: measured, not fate.",
+            &note,
+        );
+        let lines: Vec<&str> = placed.lines().collect();
+        let n = lines
+            .iter()
+            .position(|l| l.contains("could not serve"))
+            .unwrap();
+        let r = lines.iter().position(|l| l.contains("REMINDER")).unwrap();
+        assert!(n < r, "disclosure belongs above the disclaimer: {placed}");
     }
 
     /// The doubled lunar node — found by reading a trace, invisible from the output.

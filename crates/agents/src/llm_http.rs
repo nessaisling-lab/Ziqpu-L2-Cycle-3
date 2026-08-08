@@ -132,6 +132,51 @@ pub(crate) fn openai_tool_turn(
     value.get("choices")?.get(0)?.get("message").cloned()
 }
 
+/// Whether the last model call on **this thread** failed because the provider itself could not
+/// serve it — a 429 (quota or rate limit) or a 5xx.
+///
+/// # Why this is narrower than "the call failed"
+///
+/// Most failures should not be retried anywhere. A 401 is a misconfigured key and retrying hides
+/// it. A timeout could double an already-long wait. A malformed reading is the model's doing, and
+/// the honesty ladder already handles that. Only "this provider cannot serve you right now" is a
+/// fault another provider could actually answer — which is exactly what a work key with a quota
+/// runs into, and exactly where today's behaviour is worst: the seeker drops to a deterministic
+/// template with no explanation.
+///
+/// Thread-local rather than global because readings run one per worker thread; a global would let
+/// one card's 429 trigger a failover on a card that was doing fine.
+mod fault {
+    use std::cell::Cell;
+    thread_local! {
+        static PROVIDER_FAULT: Cell<bool> = const { Cell::new(false) };
+    }
+    pub(super) fn note(faulted: bool) {
+        PROVIDER_FAULT.with(|f| f.set(faulted));
+    }
+    /// Read **and clear** — a fault is consumed by the one decision that acts on it.
+    pub(super) fn take() -> bool {
+        PROVIDER_FAULT.with(|f| f.replace(false))
+    }
+}
+
+/// Read and clear this thread's provider-fault flag. See [`fault`].
+pub(crate) fn took_provider_fault() -> bool {
+    fault::take()
+}
+
+/// Record whether the call that just finished hit a provider fault. Used by the Anthropic path,
+/// which builds its own request and so cannot go through `openai_chat`.
+pub(crate) fn note_provider_fault(faulted: bool) {
+    fault::note(faulted);
+}
+
+/// Whether an HTTP status means the provider could not serve the request, as opposed to the request
+/// being wrong.
+pub(crate) fn is_provider_fault(code: u16) -> bool {
+    code == 429 || (500..600).contains(&code)
+}
+
 /// One OpenAI-compatible `/chat/completions` round-trip. POSTs to `{base_url}/chat/completions`
 /// with a Bearer token and a system + user message (`stream:false`, no temperature), then parses
 /// `choices[0].message.content`. Returns `None` on any transport, HTTP, or parse error.
@@ -167,7 +212,7 @@ pub(crate) fn openai_chat(
 
     // The Bearer key rides an in-process header (post_json), never a command line.
     let started = std::time::Instant::now();
-    let text = post_json(
+    let outcome = post_json_outcome(
         &url,
         &[
             ("Authorization", &format!("Bearer {api_key}")),
@@ -176,17 +221,38 @@ pub(crate) fn openai_chat(
         &body,
     );
     let millis = started.elapsed().as_millis();
-    let Some(text) = text else {
-        crate::trace::turn(
-            "interpret",
-            model,
-            &url,
-            user,
-            None,
-            Some("transport"),
-            millis,
-        );
-        return None;
+    let text = match outcome {
+        PostOutcome::Ok(t) => {
+            fault::note(false);
+            t
+        }
+        // A 429 or 5xx is the provider saying it cannot serve this. Another provider might.
+        PostOutcome::Status(code, _) => {
+            fault::note(is_provider_fault(code));
+            crate::trace::turn(
+                "interpret",
+                model,
+                &url,
+                user,
+                None,
+                Some(&format!("http {code}")),
+                millis,
+            );
+            return None;
+        }
+        PostOutcome::Transport => {
+            fault::note(false);
+            crate::trace::turn(
+                "interpret",
+                model,
+                &url,
+                user,
+                None,
+                Some("transport"),
+                millis,
+            );
+            return None;
+        }
     };
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let finish = value["choices"][0]["finish_reason"].as_str();
