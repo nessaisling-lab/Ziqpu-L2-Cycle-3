@@ -800,33 +800,45 @@ impl GroundedSource for ProductSource {
 }
 
 impl ProductSource {
+    /// Signal lines for a released product, read out of [`crate::origin`].
+    ///
+    /// This used to carry its own copy of the whole chain: the Wikidata search, the label guard, the
+    /// entity fetch, a `publication_dates` extractor, and its own reading of Wikidata's `precision`
+    /// field. `crates/agents/src/origin.rs` then implemented the same chain again, correctly, for
+    /// the N3 resolver — and a precision rule living in two places is a precision rule that will
+    /// disagree with itself. It is now one implementation with two presentations: the resolver
+    /// returns structured moments, this turns them into the fact lines a reading quotes.
+    ///
+    /// The one thing that stays here is the organization guard, because it is this source's own
+    /// policy rather than a fact about the data: the company worker already speaks for companies,
+    /// and two workers answering for one entity is how a reading ends up citing itself twice.
     fn fetch_launch(&self, name: &str) -> Option<Vec<String>> {
-        let (qid, label) = wikidata_resolve_qid(name, &self.user_agent)?;
-        if !label_overlaps(name, &label) {
-            return None;
-        }
-        let entity = wikidata_entity(&qid, &self.user_agent)?;
-        // The company worker owns organizations; this one must not compete for them.
-        if is_organization(&entity, &qid) {
+        let resolved = crate::origin::resolve_entity(name, &self.user_agent).ok()?;
+        if is_organization(&resolved.entity, &resolved.qid) {
             return None;
         }
 
-        let releases = publication_dates(&entity, &qid);
+        let life =
+            crate::origin::lifecycle_from_entity(&resolved.entity, &resolved.qid, &resolved.label);
+        // Only P577 speaks for a *product launch*. The lifecycle may also carry an inception or a
+        // start date, which belong to the N3 chart chooser rather than to this fact line.
+        let releases: Vec<&crate::origin::OriginMoment> = life
+            .moments
+            .iter()
+            .filter(|m| m.property.id == "P577")
+            .collect();
         if releases.is_empty() {
             return None;
         }
-        let mut items = Vec::new();
 
-        // Day-precise values are the only ones that can name a day. Earliest = first existence.
-        let mut days: Vec<&String> = releases
-            .iter()
-            .filter(|(_, p)| *p >= 11)
-            .map(|(t, _)| t)
-            .collect();
-        days.sort();
+        let mut items = vec![format!("product: {}", resolved.label)];
+
+        // Day-precise values are the only ones that can name a day. The lifecycle is already sorted
+        // chartable-first then earliest, so the first day-precise release IS first existence.
+        let days: Vec<&&crate::origin::OriginMoment> =
+            releases.iter().filter(|m| m.is_chartable()).collect();
         if let Some(first) = days.first() {
-            items.push(format!("product: {label}"));
-            items.push(format!("released: {first}"));
+            items.push(format!("released: {}", first.date.format("%Y-%m-%d")));
             if days.len() > 1 {
                 items.push(format!(
                     "later releases: {} more (regional or re-release)",
@@ -837,39 +849,13 @@ impl ProductSource {
         }
 
         // No day anywhere — report the coarsest truth rather than a January 1st.
-        let mut years: Vec<&String> = releases.iter().map(|(t, _)| t).collect();
-        years.sort();
-        let first = years.first()?;
-        let year = first.get(0..4)?;
-        items.push(format!("product: {label}"));
+        let coarsest = releases.iter().min_by_key(|m| m.date)?;
         items.push(format!(
-            "released: {year} (year precision only — not a chartable moment)"
+            "released: {} (year precision only — not a chartable moment)",
+            coarsest.date.format("%Y")
         ));
         Some(items)
     }
-}
-
-/// Every `P577` value as `(YYYY-MM-DD, precision)`. Wikidata times look like `+2020-11-12T00:00:00Z`
-/// and carry their own precision, which is the field that decides whether a day is real or a
-/// placeholder — so it is returned rather than assumed.
-fn publication_dates(entity: &serde_json::Value, qid: &str) -> Vec<(String, u64)> {
-    let Some(cl) = claims(entity, qid) else {
-        return Vec::new();
-    };
-    let Some(values) = cl["P577"].as_array() else {
-        return Vec::new();
-    };
-    values
-        .iter()
-        .filter_map(|c| {
-            let v = &c["mainsnak"]["datavalue"]["value"];
-            let time = v["time"].as_str()?;
-            let precision = v["precision"].as_u64()?;
-            // "+2020-11-12T00:00:00Z" → "2020-11-12"
-            let date = time.trim_start_matches('+').get(0..10)?.to_string();
-            (date.len() == 10).then_some((date, precision))
-        })
-        .collect()
 }
 
 /// The **scanned-item** worker — reads a GS1 code's own record, offline.
@@ -1527,27 +1513,44 @@ mod tests {
         );
     }
 
+    /// The precision contract this source depends on, checked through the seam it now reads from.
+    ///
+    /// This used to test a `publication_dates` extractor that lived here. That extractor was a
+    /// second implementation of what `origin::lifecycle_from_entity` does, and a precision rule in
+    /// two places is a precision rule that eventually disagrees with itself. The extractor is gone;
+    /// the property it guarded is not, so the test follows the behaviour rather than the function.
     #[test]
-    fn publication_dates_carry_their_precision() {
+    fn a_year_precision_release_is_never_treated_as_a_launch_day() {
         let entity = serde_json::json!({
             "entities": { "Q1": { "claims": { "P577": [
-                { "mainsnak": { "datavalue": { "value": { "time": "+2020-11-12T00:00:00Z", "precision": 11 } } } },
                 { "mainsnak": { "datavalue": { "value": { "time": "+2020-11-19T00:00:00Z", "precision": 11 } } } },
+                { "mainsnak": { "datavalue": { "value": { "time": "+2020-11-12T00:00:00Z", "precision": 11 } } } },
                 { "mainsnak": { "datavalue": { "value": { "time": "+1998-01-01T00:00:00Z", "precision": 9  } } } }
             ]}}}
         });
-        let dates = publication_dates(&entity, "Q1");
+        let life = crate::origin::lifecycle_from_entity(&entity, "Q1", "Some Console");
+
+        // All three survive — the year is real and gets said, it just cannot be a day.
+        assert_eq!(life.moments.len(), 3);
+        let chartable: Vec<_> = life.moments.iter().filter(|m| m.is_chartable()).collect();
+        assert_eq!(chartable.len(), 2, "the 1998 value is year precision");
+
+        // Earliest day wins, regardless of the order Wikidata happened to return them in.
         assert_eq!(
-            dates,
-            vec![
-                ("2020-11-12".to_string(), 11),
-                ("2020-11-19".to_string(), 11),
-                ("1998-01-01".to_string(), 9),
-            ]
+            life.default_moment().unwrap().date,
+            chrono::NaiveDate::from_ymd_opt(2020, 11, 12).unwrap()
         );
-        // An entity with no P577 yields nothing rather than an empty-string date.
+        // And the 1998 January 1st is never mistaken for a launch day, which is the whole point.
+        assert!(life
+            .unchartable()
+            .iter()
+            .all(|m| m.describe().contains("not chartable")));
+
+        // An entity with no P577 yields nothing rather than a placeholder date.
         let bare = serde_json::json!({ "entities": { "Q2": { "claims": {} } } });
-        assert!(publication_dates(&bare, "Q2").is_empty());
+        assert!(crate::origin::lifecycle_from_entity(&bare, "Q2", "Bare")
+            .moments
+            .is_empty());
     }
 
     /// LIVE — a released product grounds with a **day-precise launch date**, and the *earliest*

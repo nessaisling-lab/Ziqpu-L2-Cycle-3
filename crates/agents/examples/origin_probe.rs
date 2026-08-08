@@ -22,6 +22,7 @@
 //! It is keyless and CC0, so it is safe to run anywhere and costs nothing.
 
 use agents::origin::{resolve_origin_default, OriginGap};
+use agents::{ChartSource, EngineChartSource, Fit};
 
 /// Names picked to exercise one branch each — see the module docs.
 const PROBES: [&str; 6] = [
@@ -60,6 +61,28 @@ fn main() {
                 println!("             {}", best.property.means);
                 for m in life.moments.iter().filter(|m| *m != best) {
                     println!("    also     {}", m.describe());
+                }
+
+                // The wiring proof. A resolver that stops at a date is the ANISE backend all over
+                // again: correct, tested, and reachable by nothing. This carries the resolved name
+                // through `to_choice` into the measuring loop the app already runs, so the path
+                // from "a seeker typed a name" to "a measured fit" is demonstrated end to end
+                // rather than asserted.
+                match life.to_choice(best, chrono_tz::UTC, 0.0, 0.0) {
+                    None => println!("  !! to_choice refused a moment it called chartable"),
+                    Some(choice) => {
+                        let chart = EngineChartSource::default();
+                        let seeker = chart.chart(&agents::demo_seeker());
+                        let other = chart.chart(&choice.birth);
+                        let score = agents::synastry_score(&chart.synastry(&seeker, &other));
+                        println!(
+                            "  → MEASURED {} ({} / 100) vs the demo seeker · ticker={} · wiki={}",
+                            Fit::from_score(score).label(),
+                            score,
+                            choice.ticker,
+                            choice.wiki.as_deref().unwrap_or("(none)")
+                        );
+                    }
                 }
             }
             Err(gap) => {

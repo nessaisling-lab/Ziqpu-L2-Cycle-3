@@ -185,8 +185,15 @@ pub struct OriginLifecycle {
     pub qid: String,
     /// Wikidata's own label for the entity.
     pub label: String,
-    /// Ranked: chartable first, then earliest, then by [`ORIGIN_PROPERTIES`] order.
+    /// Ranked: chartable first, then by [`ORIGIN_PROPERTIES`], then earliest within a property.
     pub moments: Vec<OriginMoment>,
+    /// The entity's English Wikipedia title, when it has one.
+    ///
+    /// Carried because it is the difference between a resolved entity and a *groundable* one: the
+    /// existing Wikipedia worker keys off [`Choice::wiki`], so pulling this out here means a name
+    /// the seeker typed arrives at the roster already able to be described, instead of resolving to
+    /// a date and nothing else.
+    pub wiki: Option<String>,
 }
 
 impl OriginLifecycle {
@@ -209,6 +216,39 @@ impl OriginLifecycle {
     /// Wikidata page for the entity, so the seeker can check the source.
     pub fn source_url(&self) -> String {
         format!("https://www.wikidata.org/wiki/{}", self.qid)
+    }
+
+    /// Build the [`Choice`] the measuring loop already knows how to handle, from a chosen moment.
+    ///
+    /// `None` when the moment is not day-precise — the same gate as
+    /// [`OriginMoment::to_birth_moment`], restated here so there is no route from a year to a chart
+    /// through this constructor either.
+    ///
+    /// The **QID becomes the ticker**. That field is the entity's identifier everywhere downstream,
+    /// and a QID is stable, unique, and checkable at [`Self::source_url`] — where a typed name is
+    /// none of those. It also keeps `classify_entity` honest: a QID is not a VIN and not a GS1
+    /// string, so the entity lands in `Named`, which is exactly what it is.
+    ///
+    /// `moment` is taken by reference and not required to come from `self.moments`; a caller that
+    /// lets the seeker pick from a list is holding one of them anyway, and demanding an index would
+    /// buy nothing but a way to pass the wrong one.
+    pub fn to_choice(
+        &self,
+        moment: &OriginMoment,
+        tz: chrono_tz::Tz,
+        lat: f64,
+        lon: f64,
+    ) -> Option<crate::types::Choice> {
+        let birth = moment.to_birth_moment(tz, lat, lon)?;
+        Some(crate::types::Choice {
+            ticker: self.qid.clone(),
+            name: self.label.clone(),
+            birth,
+            // No CIK: this path is for entities that are not US public filers. One that IS will
+            // arrive through the ticker table with its CIK already attached.
+            cik: None,
+            wiki: self.wiki.clone(),
+        })
     }
 }
 
@@ -307,6 +347,9 @@ pub fn lifecycle_from_entity(entity: &Value, qid: &str, label: &str) -> OriginLi
         qid: qid.to_string(),
         label: label.to_string(),
         moments,
+        wiki: entity["entities"][qid]["sitelinks"]["enwiki"]["title"]
+            .as_str()
+            .map(str::to_string),
     }
 }
 
@@ -362,21 +405,30 @@ impl OriginGap {
     }
 }
 
-/// Resolve a name to its origin lifecycle via Wikidata's keyless API.
+/// A name resolved to a Wikidata entity, before any origin reading.
 ///
-/// Two network calls: a search for the QID, then the entity itself. No key, CC0 data, and the QID is
-/// returned so the result is checkable at [`OriginLifecycle::source_url`] rather than taken on
-/// trust.
+/// Exists so a caller that needs to inspect the entity for its *own* reasons — chiefly
+/// [`crate::grounded::ProductSource`], which must refuse organizations because the company worker
+/// already speaks for them — can do that without re-implementing the search, the label guard, and
+/// the fetch. Those three were duplicated across two sources before this, which is the shape of
+/// defect this codebase pays for most often.
+pub struct ResolvedEntity {
+    pub qid: String,
+    pub label: String,
+    pub entity: Value,
+}
+
+/// Search Wikidata for `name`, guard the match, and fetch the entity.
 ///
-/// `Err(OriginGap)` distinguishes the four ways this comes back empty — see [`OriginGap`].
-pub fn resolve_origin(name: &str, user_agent: &str) -> Result<OriginLifecycle, OriginGap> {
+/// The label guard is not optional politeness. A name search is fuzzy, and a wrong entity does not
+/// produce a vague answer — it produces a confident, day-precise, entirely fictional birth moment,
+/// which is the worst possible failure for this product.
+pub fn resolve_entity(name: &str, user_agent: &str) -> Result<ResolvedEntity, OriginGap> {
     let Some((qid, label)) = crate::grounded::wikidata_resolve_qid(name, user_agent) else {
         return Err(OriginGap::Unresolved {
             searched: name.to_string(),
         });
     };
-    // The same guard the company and product sources already use. A name search is fuzzy, and a
-    // wrong entity produces a confident, precise, completely fictional birth moment.
     if !crate::grounded::label_overlaps(name, &label) {
         return Err(OriginGap::MisResolved {
             searched: name.to_string(),
@@ -388,8 +440,19 @@ pub fn resolve_origin(name: &str, user_agent: &str) -> Result<OriginLifecycle, O
             searched: name.to_string(),
         });
     };
+    Ok(ResolvedEntity { qid, label, entity })
+}
 
-    let life = lifecycle_from_entity(&entity, &qid, &label);
+/// Resolve a name to its origin lifecycle via Wikidata's keyless API.
+///
+/// Two network calls: a search for the QID, then the entity itself. No key, CC0 data, and the QID is
+/// returned so the result is checkable at [`OriginLifecycle::source_url`] rather than taken on
+/// trust.
+///
+/// `Err(OriginGap)` distinguishes the four ways this comes back empty — see [`OriginGap`].
+pub fn resolve_origin(name: &str, user_agent: &str) -> Result<OriginLifecycle, OriginGap> {
+    let resolved = resolve_entity(name, user_agent)?;
+    let life = lifecycle_from_entity(&resolved.entity, &resolved.qid, &resolved.label);
     if life.moments.is_empty() {
         return Err(OriginGap::NoOriginProperties(life));
     }
@@ -567,6 +630,59 @@ mod tests {
         );
         // Every moment stays visible — the seeker can still choose the construction start.
         assert_eq!(life.moments.len(), 4);
+    }
+
+    /// The seam into the measuring loop: a chartable moment becomes a `Choice`, and only that.
+    #[test]
+    fn a_chartable_moment_becomes_a_choice_and_a_year_never_does() {
+        let mut e = entity(
+            "Q19610114",
+            &[
+                ("P577", "+2017-03-03T00:00:00Z", 11, "normal"),
+                ("P571", "+2016-01-01T00:00:00Z", 9, "normal"),
+            ],
+        );
+        e["entities"]["Q19610114"]["sitelinks"]["enwiki"]["title"] = json!("Nintendo Switch");
+        let life = lifecycle_from_entity(&e, "Q19610114", "Nintendo Switch");
+
+        let good = life.default_moment().unwrap();
+        let choice = life
+            .to_choice(good, chrono_tz::UTC, 0.0, 0.0)
+            .expect("a day is chartable");
+
+        // The QID is the identifier — stable, unique, and checkable, which a typed name is not.
+        assert_eq!(choice.ticker, "Q19610114");
+        assert_eq!(choice.name, "Nintendo Switch");
+        assert_eq!(
+            choice.birth.date,
+            NaiveDate::from_ymd_opt(2017, 3, 3).unwrap()
+        );
+        assert_eq!(choice.cik, None, "this path is not for US public filers");
+        // Carried so the existing Wikipedia worker can describe it without a second lookup.
+        assert_eq!(choice.wiki.as_deref(), Some("Nintendo Switch"));
+
+        // And the year-precision moment cannot become one, through this constructor either.
+        let coarse = life.unchartable()[0];
+        assert!(
+            life.to_choice(coarse, chrono_tz::UTC, 0.0, 0.0).is_none(),
+            "a year-precision moment must not reach the measuring loop"
+        );
+    }
+
+    /// An entity with no English Wikipedia page still resolves — `wiki` is simply absent.
+    #[test]
+    fn a_missing_wikipedia_page_is_none_not_an_empty_string() {
+        let e = entity("Q9", &[("P577", "+2001-02-03T00:00:00Z", 11, "normal")]);
+        let life = lifecycle_from_entity(&e, "Q9", "Obscure Thing");
+        assert_eq!(life.wiki, None);
+
+        let choice = life
+            .to_choice(life.default_moment().unwrap(), chrono_tz::UTC, 0.0, 0.0)
+            .unwrap();
+        assert_eq!(
+            choice.wiki, None,
+            "an empty string would look like a real title"
+        );
     }
 
     /// Wikidata marks superseded claims `deprecated`. Quoting one repeats a known-wrong fact.
