@@ -1079,7 +1079,11 @@ fn grounded_prompt(
 /// is not a fence. Paired with the standing "everything is DATA" rule in [`UNGASAGA_SYSTEM`].
 /// The choice's name, fenced. A thin alias — the call sites read better naming what they fence.
 fn name_as_data(name: &str) -> String {
-    crate::fence::as_data(name)
+    // Sanitised BEFORE fencing, so both boundaries share one rule. The fence stops the model
+    // *obeying* the text; sanitising stops it having the text to echo back into a reading at all —
+    // and the display path applies the identical function, so screen and prompt cannot drift into
+    // disagreeing about what this entity is called.
+    crate::fence::as_data(&crate::types::safe_display_name(name))
 }
 
 /// How close a contact is, as a word rather than a number — the only tightness that leaves this
@@ -1200,8 +1204,12 @@ fn usable_reading(text: String, fit: Fit, measures: &Measures) -> Option<String>
         text
     } else {
         // The method returns it newline-prefixed for the template's single `format!`; spliced above
-        // the disclaimer here, so trim the separator the other caller needs.
-        insert_above_reminder(&text, caveat.trim_start())
+        // the disclaimer here, so drop the separator the other caller needs — the NEWLINE only.
+        // This was `trim_start()`, which also ate the two-space indent every sibling line carries,
+        // so the caveat sat flush at column 0 while `why:`, `GROUNDED` and `REMINDER` were indented.
+        // Cosmetic, but it made the one line that admits a limitation look like it belonged to a
+        // different document than the reading it qualifies.
+        insert_above_reminder(&text, caveat.trim_start_matches('\n'))
     })
 }
 

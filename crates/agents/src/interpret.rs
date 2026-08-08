@@ -364,6 +364,10 @@ impl Interpreter for TemplateInterpreter {
     fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         // Warm, plain prose a normal person gets — a staked verdict on the fit, plus one plain
         // "why:" line. The raw aspects/orbs/degrees stay out of the reading (they live in Backstage).
+        //
+        // The name is sanitised on the way to the SCREEN, not only on the way to the model. Since
+        // the N3 resolver it can come from a world-editable Wikidata label.
+        let name = crate::types::safe_display_name(name);
         format!(
             "FIT: {} ({} / 100) — {name}\n{}\n  {}{}\n  {REMINDER}",
             fit.label(),
@@ -394,6 +398,9 @@ impl Interpreter for TemplateInterpreter {
         } else {
             facts.join("; ")
         };
+        // The signals were vetted above; the NAME was not, and since the N3 resolver it can come
+        // from a world-editable Wikidata label. See [`crate::types::safe_display_name`].
+        let name = crate::types::safe_display_name(name);
         format!(
             "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}{}\n  {REMINDER}",
             fit.label(),
