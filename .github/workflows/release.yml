@@ -118,6 +118,38 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
 
+      # ---- the JPL DE440 kernel: the difference between "can use DE440" and "does" ----
+      # Without this file the app falls back to the analytic engine, which cannot compute Pluto at
+      # all — so every chart in the release would silently come out one planet short. The digest is
+      # read from the source pin rather than repeated here: two copies of a checksum is two things
+      # that can disagree, and the one in the workflow is the copy nobody reads.
+      #
+      # DE440/DE441 are U.S. Government works, public-domain-equivalent and freely redistributable,
+      # which is the whole reason this ships bundled and the AGPL Swiss Ephemeris does not.
+      # Cached because a release should not depend on NAIF being reachable at tag time, and the
+      # same key CI already uses means the file is usually warm. The digest check below is what
+      # makes trusting a cache safe: a poisoned or truncated entry fails the build, it does not ship.
+      - name: Cache DE440s kernel
+        uses: actions/cache@v4
+        with:
+          path: ./data/ephemeris/de440s.bsp
+          key: de440s-v1
+
+      - name: Fetch and verify the JPL DE440 kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/fetch-ephemeris.sh
+          kernel=data/ephemeris/de440s.bsp
+          expected=$(grep -oE '"[0-9a-f]{64}"' crates/ephemeris/src/resolve.rs | head -1 | tr -d '"')
+          if [ -z "$expected" ]; then echo "::error::could not read DE440S_SHA256 from resolve.rs"; exit 1; fi
+          actual=$(shasum -a 256 "$kernel" | cut -d' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::DE440 kernel digest mismatch — got $actual, pinned $expected"
+            exit 1
+          fi
+          echo "DE440 kernel verified against the source pin ($expected)"
+
       # `--features camera` ships the barcode/QR scanner. It was compiled out of releases while four
       # findings were open: the webcam opened with no consent prompt, a 20-second hold had no Stop,
       # the preview pushed ~26 base64 PNG frames a second into the WebView, and a diagnostic wrote a
@@ -161,6 +193,9 @@ jobs:
           rm -rf "$APP"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
           cp target/universal/release/ziqpu-ui "$APP/Contents/MacOS/ziqpu-ui"
+          # Resources/, not MacOS/ — a data file under MacOS/ sits inside the signed code directory.
+          mkdir -p "$APP/Contents/Resources"
+          cp data/ephemeris/de440s.bsp "$APP/Contents/Resources/"
           chmod +x "$APP/Contents/MacOS/ziqpu-ui"
           # Licences travel INSIDE the bundle — PolyForm Noncommercial plus the embedded OFL fonts
           # and permissive crates carry obligations that only bind if they ship with the binary.
@@ -210,11 +245,14 @@ jobs:
           $stage = "pkg/Ziqpu"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item target/release/ziqpu-ui.exe $stage
+          # Beside the exe, in the layout `ephemeris::candidate_paths` looks for first.
+          New-Item -ItemType Directory -Force -Path "$stage/data/ephemeris" | Out-Null
+          Copy-Item data/ephemeris/de440s.bsp "$stage/data/ephemeris/"
           Copy-Item LICENSE, NOTICE $stage
           Copy-Item -Recurse LICENSES $stage
           Copy-Item .github/INSTALL_NOTES.md "$stage/README.txt"
           Compress-Archive -Path "$stage/*" -DestinationPath "Ziqpu-$tag-windows-x64.zip" -Force
-          Write-Host "built Ziqpu-$tag-windows-x64.zip (exe + LICENSE + NOTICE + LICENSES/ + README.txt)"
+          Write-Host "built Ziqpu-$tag-windows-x64.zip (exe + DE440 kernel + LICENSE + NOTICE + LICENSES/ + README.txt)"
 
       # ---- Linux: tar.gz the binary + the licences + the first-run note ----
       - name: Package Linux .tar.gz
@@ -225,11 +263,13 @@ jobs:
           STAGE="pkg/Ziqpu"
           mkdir -p "$STAGE"
           cp target/release/ziqpu-ui "$STAGE/"
+          mkdir -p "$STAGE/data/ephemeris"
+          cp data/ephemeris/de440s.bsp "$STAGE/data/ephemeris/"
           cp LICENSE NOTICE "$STAGE/"
           cp -r LICENSES "$STAGE/"
           cp .github/INSTALL_NOTES.md "$STAGE/README.txt"
           tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C pkg Ziqpu
-          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (binary + LICENSE + NOTICE + LICENSES/ + README.txt)"
+          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (binary + DE440 kernel + LICENSE + NOTICE + LICENSES/ + README.txt)"
           echo "built Ziqpu-${TAG}-linux-x64.tar.gz"
 
       # ---- attach the packaged artifact to the Release for the tag ----

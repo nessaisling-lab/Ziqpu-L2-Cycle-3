@@ -1918,6 +1918,7 @@ name = "ephemeris"
 version = "0.0.0"
 dependencies = [
  "anise",
+ "sha2",
  "vsop87",
 ]
 

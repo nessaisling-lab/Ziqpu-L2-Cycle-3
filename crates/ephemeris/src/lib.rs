@@ -2,17 +2,25 @@
 //!
 //! The [`Ephemeris`] trait is the seam that keeps the public tree free of copyleft.
 //!
-//! - **`analytic`** — the **default**, and what every shipped build uses: pure-Rust VSOP87 planets
-//!   with a Meeus Moon. **No data files**, no download, no I/O — a chart is arithmetic. This is why
-//!   the desktop app works offline the moment it is installed.
-//! - **`anise-backend`** — opt-in. ANISE over a JPL DE440 kernel; adds Pluto and higher accuracy,
-//!   but needs `de440s.bsp` (~32 MB) at runtime, which is gitignored and never shipped.
-//!   `scripts/fetch-ephemeris.sh` gets it. The two agree to <1°, enforced by a CI cross-check.
+//! - **`anise-backend`** — the **authoritative** engine, on by default and bundled with every
+//!   release: ANISE over the JPL DE440 kernel (`de440s.bsp`, ~32 MB, verified against a pinned
+//!   SHA-256). DE440/DE441 are U.S. Government works, public-domain-equivalent and freely
+//!   redistributable, which is exactly why they can ship where the AGPL Swiss Ephemeris cannot.
+//! - **`analytic`** — the **floor**, not the choice: pure-Rust VSOP87 planets with a Meeus Moon, no
+//!   data files, no I/O. It runs when the kernel is absent or fails verification, so the app still
+//!   works — but it **cannot compute Pluto at all**, and [`EngineSource::caveat`] says so rather
+//!   than letting a chart come out one planet short in silence.
 //! - **`swisseph`** — a private/commercial backend stub; never ships in the public repository.
 //!
-//! (This paragraph used to say the default was `anise-backend`, which stopped being true when the
-//! feature list settled on `default = ["analytic"]`. It mattered: a reader would conclude the app
-//! needs a 32 MB kernel it has never shipped.)
+//! [`resolve`] picks between them at runtime and reports which one ran. Nothing constructs a
+//! backend directly any more: `crates/agents/src/measure.rs` named `AnalyticBackend` in both of its
+//! chart calls, which meant DE440 could be compiled in and the kernel could be sitting on disk and
+//! every chart still came from the series.
+//!
+//! (This header has now been wrong in both directions — it once claimed `anise-backend` was the
+//! default when it was not, and was corrected to claim `analytic` was what every shipped build
+//! used, which was true only because nothing could reach the other one. Both times the fix was to
+//! make the code match the sentence, not to soften the sentence.)
 
 /// A geocentric ecliptic position of a body at an instant.
 ///
@@ -163,6 +171,15 @@ pub use chiron::chiron_longitude;
 pub mod analytic;
 #[cfg(feature = "analytic")]
 pub use analytic::AnalyticBackend;
+
+// Gated on `analytic` because the resolver's whole contract is "DE440, or the floor" — without a
+// floor to fall back to there is nothing for it to resolve to.
+#[cfg(feature = "analytic")]
+mod resolve;
+#[cfg(feature = "analytic")]
+pub use resolve::{
+    candidate_paths, load, shared, AnalyticReason, EngineSource, Loaded, DE440S_SHA256, KERNEL_FILE,
+};
 
 #[cfg(feature = "anise-backend")]
 mod anise_backend;

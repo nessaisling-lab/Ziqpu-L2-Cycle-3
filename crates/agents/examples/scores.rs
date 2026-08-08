@@ -23,6 +23,16 @@ fn main() {
     let chart = EngineChartSource::default();
     let a = chart.chart(&seeker);
 
+    // Which engine produced these numbers. Without this line a printout is unattributable, and two
+    // runs on different machines look like a scoring change when they are an ephemeris difference:
+    // swapping the analytic floor for DE440 moved Apple 33 → 28 and added a Pluto contact to four
+    // of the five choices. A baseline you cannot attribute is not a baseline.
+    println!("engine: {}", chart.engine().badge());
+    if let Some(caveat) = chart.engine().caveat() {
+        println!("        {caveat}");
+    }
+    println!();
+
     println!(
         "{:<20} {:>5}  {:<17} NODE CONTACTS",
         "CHOICE", "SCORE", "BAND"
