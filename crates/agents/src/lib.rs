@@ -27,6 +27,7 @@ pub mod measure;
 pub mod measure_llm;
 pub mod models;
 pub mod orchestrator;
+pub mod prefs;
 pub mod profile;
 pub mod research;
 pub mod score;

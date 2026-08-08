@@ -173,15 +173,9 @@ pub fn save_settings(settings: &SettingsFile) {
 /// reassuring one. Setting a real DACL needs `SetNamedSecurityInfo` and therefore a new dependency;
 /// until then the mitigation that actually landed is [`crate::profile::data_dir`] moving off
 /// roaming `%APPDATA%`, which stopped birth data replicating to a domain file server.
-#[cfg(unix)]
 pub(crate) fn set_owner_only(path: &std::path::Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    agents::prefs::set_owner_only(path)
 }
-
-/// See the Unix variant — a no-op on non-Unix targets.
-#[cfg(not(unix))]
-pub(crate) fn set_owner_only(_path: &std::path::Path) {}
 
 /// Load the persisted settings into the process environment **without clobbering** any var that is
 /// already set — so an exported `OPENROUTER_API_KEY` / `ZIQPU_MODEL` / `ZIQPU_LLM_URL` (power users,
@@ -199,15 +193,19 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     // for a file written before the vault migration ran; normally it's `None` (see
     // [`migrate_plaintext_keys_to_vault`]).
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
-    set_if_absent("ZIQPU_MODEL", &settings.model);
-    set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
-    // Per-provider model picks. Scoped, so an id chosen for one provider can never be sent to the
-    // other (see `agents::interpret_llm::anthropic_model`).
-    set_if_absent("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
-    set_if_absent("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
-    // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
-    // attempts so the seeker's pick wins over a merely-present key.
-    set_if_absent("ZIQPU_PROVIDER", &settings.provider);
+
+    // Every other non-secret preference — model, per-provider model, provider choice, local URL,
+    // parallel grounding — is applied by `agents::prefs`, which reads the same file.
+    //
+    // It used to be applied here, and only here, so the GUI honoured the seeker's model pick and no
+    // other binary did. The measured symptom: after the vault moved into `agents` and the CLI could
+    // finally read a vaulted key, a comparison run still called `claude-opus-4-8` while the app's
+    // banner said `claude-sonnet-5` — the credential crossed the boundary and the preference did
+    // not. Worse on the MCP surface, where a seeker's chosen model was silently the default.
+    //
+    // One implementation now, read by every surface. The one line above stays because it is a
+    // *secret*, kept only as a back-compat path for a file written before the vault migration.
+    agents::prefs::fill_env_from_settings();
     // The grounded fan's execution mode. Only written when the seeker actually chose one, and never
     // over an explicit export — same "an exported var wins" rule as every setting above.
     if let Some(on) = settings.parallel_grounding {

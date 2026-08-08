@@ -4,10 +4,11 @@
 use std::io::{self, BufRead, Write};
 
 fn main() {
-    // A key the seeker saved in Settings lives in the OS keystore, not the environment. Load it
-    // before anything reads it, or the MCP server silently serves the deterministic template while
-    // the key sits right there. An exported variable still wins.
-    agents::vault::fill_env_from_vault();
+    // The key AND the saved preferences. Both live outside the environment — the key in the OS
+    // keystore, the model and provider choice in settings.json — and the MCP server honoured
+    // neither until they were loaded here. A key without its preferences meant the right
+    // credential calling the wrong model. An exported variable still wins over both.
+    agents::prefs::load_saved_configuration();
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();

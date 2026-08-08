@@ -96,73 +96,11 @@ impl SavedProfile {
 /// is created if missing (best-effort — a failure still returns the intended path, and the later
 /// read/write simply fails softly). Never panics.
 pub fn data_dir() -> Option<PathBuf> {
-    let dir = if cfg!(target_os = "windows") {
-        // LOCALAPPDATA, not APPDATA. Roaming `%APPDATA%` replicates to a domain file server at
-        // logoff, so on a managed machine every saved birth moment — date, time and coordinates to
-        // roughly eleven metres — left the device by design and landed somewhere the seeker cannot
-        // see or delete. None of this state is worth roaming: a birth draft, a market basket, a
-        // local server's PID. `migrate_out_of_roaming` carries an existing profile across so nobody
-        // loses their saved chart to the move.
-        let local = PathBuf::from(std::env::var("LOCALAPPDATA").ok()?).join("Ziqpu");
-        let _ = std::fs::create_dir_all(&local);
-        migrate_out_of_roaming(&local);
-        local
-    } else if cfg!(target_os = "macos") {
-        PathBuf::from(std::env::var("HOME").ok()?)
-            .join("Library")
-            .join("Application Support")
-            .join("Ziqpu")
-    } else {
-        // Linux/other: prefer $XDG_DATA_HOME (when non-empty), else ~/.local/share.
-        match std::env::var("XDG_DATA_HOME") {
-            Ok(x) if !x.is_empty() => PathBuf::from(x).join("ziqpu"),
-            _ => PathBuf::from(std::env::var("HOME").ok()?)
-                .join(".local")
-                .join("share")
-                .join("ziqpu"),
-        }
-    };
-    let _ = std::fs::create_dir_all(&dir);
-    Some(dir)
+    // One answer to "where does this app keep its state", and it lives in `agents` because the CLI
+    // surfaces need it too. A second implementation here is exactly the duplicated decision that has
+    // drifted three times in this codebase.
+    agents::prefs::data_dir()
 }
-
-/// Move an existing install's state out of roaming `%APPDATA%` and into `%LOCALAPPDATA%`.
-///
-/// Best-effort and idempotent: a file is only moved when it is absent at the destination, so a
-/// second call does nothing and a partial move resumes. The roaming copy is **removed** after a
-/// successful move — leaving it would defeat the point, since the stale birth data would go on
-/// replicating to the file server forever.
-#[cfg(windows)]
-fn migrate_out_of_roaming(local: &std::path::Path) {
-    let Some(roaming) = std::env::var("APPDATA")
-        .ok()
-        .map(|a| PathBuf::from(a).join("Ziqpu"))
-    else {
-        return;
-    };
-    if !roaming.is_dir() {
-        return;
-    }
-    for name in [
-        "profile.json",
-        "settings.json",
-        "active_local.json",
-        "llama-server.pid",
-    ] {
-        let (from, to) = (roaming.join(name), local.join(name));
-        if from.is_file() && !to.exists() {
-            // Copy-then-remove rather than rename: the two directories can sit on different volumes
-            // on a machine with a redirected profile, where rename fails outright.
-            if std::fs::copy(&from, &to).is_ok() {
-                crate::settings::set_owner_only(&to);
-                let _ = std::fs::remove_file(&from);
-            }
-        }
-    }
-}
-
-#[cfg(not(windows))]
-fn migrate_out_of_roaming(_local: &std::path::Path) {}
 
 /// `<data_dir>/profile.json` — the birth-input draft file, on every OS. Returns `None` when
 /// [`data_dir`] can't resolve a base directory. See [`data_dir`] for the per-OS paths.

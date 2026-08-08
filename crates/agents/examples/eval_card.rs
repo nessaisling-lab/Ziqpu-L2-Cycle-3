@@ -22,7 +22,7 @@ fn main() {
     // The harness reads whatever the app would. Without this every measurement silently went to
     // whichever provider happened to be exported in the shell, which is exactly how a week of
     // tracing got done against one provider without anyone noticing.
-    agents::vault::fill_env_from_vault();
+    agents::prefs::load_saved_configuration();
 
     let live = std::env::var("ZIQPU_LIVE").is_ok();
     println!(
