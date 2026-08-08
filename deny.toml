@@ -54,19 +54,10 @@ yanked = "deny"
 #   * proc-macro-error / proc-macro-error2 / instant / fxhash — small transitive build-time
 #     macro + hashing helpers with no maintained drop-in we control.
 #
-# NOTE on RUSTSEC-2023-0071 (rsa, "Marvin" timing side-channel), removed from this list 2026-08-08:
-# cargo-deny no longer sees it and reported the entry as unmatched. cargo-audit still does, and
-# BOTH tools are right — they read different things:
-#
-#   * cargo-deny evaluates the FEATURE-RESOLVED graph. `crates/sidecar` takes sqlx with
-#     `default-features = false, features = ["runtime-tokio", "postgres", "chrono"]`, so
-#     `sqlx-mysql` — the crate that actually pulls `rsa` — is never selected. No rsa, no advisory.
-#   * cargo-audit reads Cargo.lock, where `rsa 0.9.10` is still listed as a resolvable package.
-#
-# So the ignore stays in `.cargo/audit.toml` (and SECURITY.md) and is gone from here. The old
-# comment claimed "both tools share one accepted-advisory policy"; they cannot, because they do not
-# look at the same set. If sqlx's MySQL feature is ever enabled, deny will fail on this again — and
-# it should, because that is the first moment rsa is genuinely reachable.
+# RUSTSEC-2023-0071 (`rsa`, "Marvin") used to be listed here and then only in `.cargo/audit.toml`,
+# because the two tools read different things — cargo-deny the feature-resolved graph, cargo-audit
+# Cargo.lock. That divergence is gone: `sqlx` left the workspace with the Postgres sidecar, so `rsa`
+# is in neither view. Both exception lists are now empty of it.
 ignore = [
     # Build-time proc-macro, via `nokhwa` (the `camera` feature). Unmaintained, NOT a vulnerability
     # — RUSTSEC-2024-0436 is an informational flag with no known exploit. `paste` is a proc-macro:

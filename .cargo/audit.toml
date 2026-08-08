@@ -1,8 +1,11 @@
 # cargo-audit configuration.
+#
+# The accepted-advisory list is EMPTY, and that is the state to keep it in. It held exactly one
+# entry — RUSTSEC-2023-0071, the `rsa` "Marvin" timing side-channel, reachable only through
+# `sqlx-postgres` — and that entry retired itself when the `db/` scaffolding and the Postgres
+# sidecar were deleted. `rsa` and `sqlx` are no longer in Cargo.lock at all.
+#
+# Deleting an exception is better than keeping one that no longer matches: an ignore-list nobody
+# prunes becomes a list nobody reads, and the next real advisory hides in it.
 [advisories]
-# RUSTSEC-2023-0071 — the `rsa` crate's "Marvin" timing side-channel. Pulled transitively by
-# sqlx-postgres; no fixed release of `rsa` exists yet. Not exploitable in Ziqpu: the sidecar
-# authenticates to a local/private Postgres via SCRAM/md5 and never performs RSA key operations.
-# This is a narrow, deliberate exception — every other advisory still fails the security gate.
-# Revisit and remove when a patched `rsa` is published.
-ignore = ["RUSTSEC-2023-0071"]
+ignore = []

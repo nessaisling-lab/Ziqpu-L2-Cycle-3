@@ -38,7 +38,6 @@ Everything below is for **building from source**.
 | **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
 | **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
 | **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
-| **Sidecar** — read-only HTTP API over Postgres | 🧪 dev/CI only · **the app does not use it** (see [Architecture](#architecture)) |
 
 Stable **v1.4.1** on `main`; build-ahead **v1.5.0** on `nightfall`. Full history in
 [CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
@@ -108,12 +107,15 @@ Dioxus desktop UI  (ziqpu-ui)                    ← the whole product; one bina
 The desktop app depends on `agents`, `model`, `geo`, `tickers` — and on no database and no HTTP
 service of ours. A chart is arithmetic over data already inside the executable.
 
-> **About `crates/sidecar`.** It is a Phase-0 artifact: an axum read-only HTTP API that serves chart
-> math from a Postgres copy of the ticker table. **Nothing depends on it** — it has no `agents`
-> dependency, so it cannot produce a Ziqpu reading, and the desktop app never contacts it. Its
-> single query reads data that `crates/tickers` already compiles into the binary. It is kept as the
-> seed of the future hosted web app and is exercised only by one CI job. **`docker compose` exists
-> for that job, not for the app.**
+> **There used to be a `crates/sidecar` here**, a Phase-0 axum API serving chart math from a
+> Postgres copy of the ticker table, plus a `db/` schema and seed and a `docker compose`. It was
+> removed, and not merely because nothing depended on it.
+>
+> It had become a **second source of truth for a birth moment**. Its seed still held the pre-purge
+> dates — AAPL as its 1980-12-12 listing — while the compiled table charts the moment that survived
+> re-derivation, AAPL's 1976-04-01 founding. Same ticker, different chart, and a CI job asserting
+> the one the app had stopped producing. The assertions it made worth keeping now live in
+> `crates/tickers/tests/chart_contract.rs`, which needs no database and no HTTP server to make them.
 
 The **`ephemeris` trait** is the seam that keeps the public tree free of copyleft:
 
@@ -139,7 +141,6 @@ the numbers it shows.
 | `crates/ephemeris` | `Ephemeris` trait, runtime engine resolver (DE440 default, analytic floor), Chiron table, Asc/MC | ✅ |
 | `crates/engine` | chart assembly (`compute_chart`) + `find_aspect` keystone | ✅ |
 | `crates/astro` | astrotopography — relocation charts (additive; soaking on `nightfall`) | 🔄 nightfall |
-| `crates/sidecar` | axum read-only API (`/chart/:t`, `/synastry/:a/:b`, `/transits/:date`) | ✅ |
 | `crates/geo` | offline geocoder over a committed GeoNames gazetteer | ✅ |
 | `crates/tickers` | choice universes — Stocks · Airlines · Insurance | ✅ |
 | `crates/agents` | observe→decide→act loop + checkpoint + grounded tool + template/local/live interpreters + layered grounding + portable profile + tool-calling loop + free-tier health + VIN resolver + Wikidata origin resolver (N3) | ✅ |
@@ -158,26 +159,6 @@ cargo run -p ui
 # Optional — which local model fits this machine (then `serve` it on :1234)
 cargo run -p model -- benchmark
 ```
-
-<details>
-<summary>Optional: the sidecar + Postgres (dev/CI only — the app does not use them)</summary>
-
-The sidecar is a standalone read-only HTTP API over a Postgres copy of the ticker table. You do
-**not** need it to run, develop, or test Ziqpu — see [Architecture](#architecture). It is here for
-one CI job and as the seed of the future hosted web app.
-
-```bash
-docker compose up -d --wait db           # contained Postgres, seeded with the ticker dataset
-cargo run -p sidecar                     # analytic backend, no data files
-curl localhost:8787/chart/AAPL           # 11–12 body natal chart (12 with Pluto, i.e. DE440)
-curl localhost:8787/synastry/AAPL/MSFT   # cross-aspects between two charts
-
-# …or with the DE440 backend the desktop app ships (adds Pluto):
-bash scripts/fetch-ephemeris.sh          # downloads + verifies the kernel (~32 MB, gitignored)
-cargo run -p sidecar --features anise
-```
-
-</details>
 
 ## Develop
 
@@ -206,14 +187,17 @@ verbatim). It never touches disk. Reading it is how the provider-substitution bu
 
 ## Data
 
-- **Stocks** — `db/` (schema + generated seed). Provenance and enrichment in [db/README.md](db/README.md).
+- **Stocks** — compiled into the binary by `crates/tickers`. Dates are derived by
+  [scripts/derive-dates.py](scripts/derive-dates.py): conception from Wikidata `P571` (CC0), birth
+  from SEC EDGAR 424B4/424B1 (public domain). Rows whose moment could not be established stay
+  honestly date-unknown rather than acquiring a plausible one.
 - **New domains** — partners collect "birth moment" datasets under [datasets/](datasets/) using a
   shared schema, so any dated entity plugs into the same synastry engine.
 
 ## Building in phases
 
 Every change must be **all-green on GitHub Actions** —
-`test`, `stability`, `smoke`, `security`, `desktop`, `integration`, `anise cross-check` (macOS/Windows/Linux) plus `DCO`.
+`test`, `stability`, `smoke`, `security`, `desktop`, `anise cross-check` (macOS/Windows/Linux) plus `DCO`.
 `main` is the protected, all-green **stable** line; day-to-day work builds ahead on **`nightfall`** and is
 promoted to `main` (via a merge commit) when green. Contributions PR into `nightfall`, owner-approved —
 see [CONTRIBUTING.md](CONTRIBUTING.md) and [RELEASING.md](RELEASING.md).

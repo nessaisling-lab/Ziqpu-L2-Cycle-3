@@ -1,7 +1,7 @@
 //! Hamun-ana's tools — where charts come from. The default source computes charts directly from the
 //! reused engine over whichever ephemeris [`ephemeris::shared`] resolved (real math, no database or
 //! network), so the loop is deterministic and testable offline. A deployment can implement
-//! [`ChartSource`] over the read-only sidecar instead, unchanged above it.
+//! [`ChartSource`] over a remote service instead, unchanged above it — the seam is the point.
 //!
 //! This file used to name `AnalyticBackend` in both `chart` and `transits`, which is what made the
 //! DE440 backend unreachable: it could be compiled in, the kernel could be on disk, and every chart
@@ -13,19 +13,18 @@ use chrono::{Datelike, NaiveDate};
 use engine::{compute_chart, find_aspect, score_synastry_aspect, NatalChart};
 use ephemeris::julian_day;
 
-/// Orb (degrees) for counting a cross-aspect — matches the sidecar's synastry orb.
+/// Orb (degrees) for counting a cross-aspect.
 pub const SYNASTRY_ORB: f64 = 6.0;
 
 /// The seam Hamun-ana measures through. Three operations: build a chart, cross-aspect two charts,
-/// and build the transiting sky for a day — the same three tools the sidecar exposes
-/// (`/chart`, `/synastry`, `/transits`).
+/// and build the transiting sky for a day.
 pub trait ChartSource {
     fn chart(&self, birth: &BirthMoment) -> NatalChart;
     fn synastry(&self, a: &NatalChart, b: &NatalChart) -> Vec<AspectHit>;
 
     /// The transiting sky for a calendar day — bodies only (no angles), at noon UT. Transit
     /// longitudes are geocentric and location-independent, so a planet-to-natal-planet read needs
-    /// no birth place or time. Same recipe as the sidecar's `/transits/:date`.
+    /// no birth place or time.
     fn transits(&self, date: NaiveDate) -> NatalChart;
 }
 

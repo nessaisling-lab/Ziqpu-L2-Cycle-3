@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub use engine::Pattern;
 
 /// A birth moment — a local date/time at a place. The time is optional: an unknown birth
-/// time is honestly flagged (never invented), mirroring the sidecar and the PRD's honesty rule.
+/// time is honestly flagged (never invented) — the PRD's honesty rule, enforced by the type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BirthMoment {
     pub date: NaiveDate,
@@ -21,7 +21,7 @@ pub struct BirthMoment {
 }
 
 impl BirthMoment {
-    /// `(Julian day UT, time_known)`. DST-aware, matching the sidecar's `birth_jd`. An unknown
+    /// `(Julian day UT, time_known)`. DST-aware. An unknown
     /// time uses local noon and reports `time_known = false` so angles are withheld downstream.
     pub fn julian_day_ut(&self) -> (f64, bool) {
         let (t, known) = match self.time {
@@ -40,7 +40,13 @@ impl BirthMoment {
     }
 }
 
-/// A choice the seeker is weighing — a datable entity. In v1 these are companies dated by IPO.
+/// A choice the seeker is weighing — a datable entity.
+///
+/// Dated by whichever **lifecycle moment** was actually established for it, not by IPO. That
+/// distinction is not pedantry: after Polygon was purged and dates were re-derived, AAPL's
+/// chartable moment became its 1976-04-01 founding rather than its 1980-12-12 listing, because no
+/// day-precise listing survived. `crates/tickers` names which moment it read (`Moment::Listing` /
+/// `Moment::Founding`); the N3 origin resolver models the same idea for entities that never listed.
 #[derive(Debug, Clone)]
 pub struct Choice {
     pub ticker: String,
