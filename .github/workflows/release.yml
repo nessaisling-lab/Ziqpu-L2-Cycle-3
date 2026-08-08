@@ -118,9 +118,13 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
 
+      # `--features camera` ships the barcode/QR scanner. It was compiled out of releases while four
+      # findings were open: the webcam opened with no consent prompt, a 20-second hold had no Stop,
+      # the preview pushed ~26 base64 PNG frames a second into the WebView, and a diagnostic wrote a
+      # real frame to disk. All four are closed, so the feature ships.
       - name: Build desktop UI (release, LTO off)
         if: runner.os != 'macOS'
-        run: cargo build --release -p ui --locked
+        run: cargo build --release -p ui --locked --features camera
 
       # macOS builds BOTH architectures and fuses them with `lipo`: the people downloading this run
       # Apple Silicon AND Intel Macs, and one universal .app means nobody has to know which chip
@@ -132,8 +136,8 @@ jobs:
         run: |
           set -euo pipefail
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
-          cargo build --release -p ui --locked --target aarch64-apple-darwin
-          cargo build --release -p ui --locked --target x86_64-apple-darwin
+          cargo build --release -p ui --locked --features camera --target aarch64-apple-darwin
+          cargo build --release -p ui --locked --features camera --target x86_64-apple-darwin
           mkdir -p target/universal/release
           lipo -create \
             target/aarch64-apple-darwin/release/ziqpu-ui \

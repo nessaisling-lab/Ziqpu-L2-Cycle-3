@@ -47,6 +47,13 @@ pub enum ScanMsg {
 #[derive(Clone, PartialEq)]
 pub enum ScanState {
     Idle,
+    /// The seeker pressed Scan and is being told what that does, **before** any camera opens.
+    ///
+    /// Opening a webcam is the most invasive thing this app can do, and it used to happen on the
+    /// first click with no warning at all. A person deserves to know the lens is about to open, and
+    /// to know the honest scope of it — the frames stay on this machine, and nothing is uploaded —
+    /// while they can still say no.
+    AskingConsent,
     /// The camera is open and frames are being read.
     Looking,
     /// A code was read. `lines` is the honest record — identity, and a date only if the code had one.
@@ -65,6 +72,10 @@ pub enum ScanState {
 pub fn ScanButton() -> Element {
     let mut state = use_signal(|| ScanState::Idle);
     let mut preview = use_signal(|| None::<String>);
+    // Shared with the capture thread. `Arc` rather than a signal because the worker is off the event
+    // loop and signals are not `Send`; `Relaxed` is right because the only thing being communicated
+    // is "somebody pressed stop", with no ordering to protect.
+    let cancel = use_hook(|| std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)));
 
     // The scan blocks for as long as its timeout, so it cannot run on the event loop — the window
     // would freeze exactly the way the grounded pull used to. The worker streams frames and the
@@ -89,25 +100,53 @@ pub fn ScanButton() -> Element {
     rsx! {
         div { class: "scan",
             div { class: "scan__actions",
-                button {
-                    class: "btn scan__btn",
-                    r#type: "button",
-                    disabled: busy,
-                    onclick: move |_| {
-                        if busy {
-                            return;
-                        }
-                        state.set(ScanState::Looking);
-                        let tx = worker.tx();
-                        std::thread::spawn(move || {
-                            let frames = tx.clone();
-                            let outcome = scan_and_read(move |png| {
-                                let _ = frames.unbounded_send(ScanMsg::Frame(png));
-                            });
-                            let _ = tx.unbounded_send(ScanMsg::Done(outcome));
-                        });
-                    },
-                    if busy { "Looking for a code…" } else { "⛶ Scan with the camera" }
+                if busy {
+                    // A twenty-second hold with no way out is not a feature. The flag is checked
+                    // every iteration of the capture loop, which releases the camera on the way out.
+                    button {
+                        class: "btn btn--danger",
+                        r#type: "button",
+                        onclick: {
+                            let cancel = cancel.clone();
+                            move |_| cancel.store(true, std::sync::atomic::Ordering::Relaxed)
+                        },
+                        "■ Stop"
+                    }
+                } else if matches!(current, ScanState::AskingConsent) {
+                    button {
+                        class: "btn scan__btn",
+                        r#type: "button",
+                        onclick: {
+                            let cancel = cancel.clone();
+                            move |_| {
+                                cancel.store(false, std::sync::atomic::Ordering::Relaxed);
+                                state.set(ScanState::Looking);
+                                let tx = worker.tx();
+                                let cancel = cancel.clone();
+                                std::thread::spawn(move || {
+                                    let frames = tx.clone();
+                                    let outcome = scan_and_read(&cancel, move |png| {
+                                        let _ = frames.unbounded_send(ScanMsg::Frame(png));
+                                    });
+                                    let _ = tx.unbounded_send(ScanMsg::Done(outcome));
+                                });
+                            }
+                        },
+                        "Open the camera"
+                    }
+                    button {
+                        class: "btn btn--ghost",
+                        r#type: "button",
+                        onclick: move |_| state.set(ScanState::Idle),
+                        "Not now"
+                    }
+                } else {
+                    button {
+                        class: "btn scan__btn",
+                        r#type: "button",
+                        onclick: move |_| state.set(ScanState::AskingConsent),
+                        "⛶ Scan with the camera"
+                    }
                 }
 
                 // No camera, no product to hand, or a code easier to screenshot than to hold up — a
@@ -149,8 +188,15 @@ pub fn ScanButton() -> Element {
                         "2D codes used for medicines and perishables."
                     }
                 },
+                ScanState::AskingConsent => rsx! {
+                    p { class: "scan__hint",
+                        "This opens your camera to look for a barcode or QR code. "
+                        "The picture never leaves this machine — frames are read here and discarded, "
+                        "nothing is uploaded, and nothing is saved. Press Stop whenever you like."
+                    }
+                },
                 ScanState::Looking => rsx! {
-                    p { class: "scan__hint", "Hold the code steady in view…" }
+                    p { class: "scan__hint", "Hold the code steady in view — or press Stop." }
                 },
                 ScanState::Failed(why) => rsx! {
                     p { class: "scan__hint scan__hint--fail", "{why}" }
@@ -170,11 +216,14 @@ pub fn ScanButton() -> Element {
 
 /// Scan with the camera, reporting frames as they arrive. Runs on the worker thread.
 #[cfg(feature = "camera")]
-fn scan_and_read(on_frame: impl FnMut(String)) -> ScanState {
+fn scan_and_read(
+    cancel: &std::sync::atomic::AtomicBool,
+    on_frame: impl FnMut(String),
+) -> ScanState {
     use agents::camera::{scan_with_preview, ScanError};
     use std::time::Duration;
 
-    match scan_with_preview(Duration::from_secs(20), on_frame) {
+    match scan_with_preview(Duration::from_secs(20), cancel, on_frame) {
         Ok(scan) => report(scan),
         Err(ScanError::NoCamera(_)) => {
             ScanState::Failed("No camera this app can open.".to_string())
@@ -188,6 +237,9 @@ fn scan_and_read(on_frame: impl FnMut(String)) -> ScanState {
             "No code came into view. Try holding it closer, flatter, or in better light."
                 .to_string(),
         ),
+        // Back to Idle, not to an error: the seeker stopped it, which is not a failure and should
+        // not be reported to them as one.
+        Err(ScanError::Cancelled) => ScanState::Idle,
     }
 }
 

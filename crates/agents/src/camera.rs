@@ -183,6 +183,12 @@ pub enum ScanError {
     /// The camera worked and nothing decodable came into view before the deadline. Not a failure of
     /// the machinery — usually the code was out of frame, too far, or glared out.
     NoCodeFound,
+    /// The seeker pressed Stop.
+    ///
+    /// Distinct from [`Self::NoCodeFound`] deliberately: one is the camera failing to find a code,
+    /// the other is a person deciding they are done. Telling somebody "no code came into view" when
+    /// they just cancelled is a small lie, and this app does not tell those.
+    Cancelled,
 }
 
 impl std::fmt::Display for ScanError {
@@ -193,6 +199,7 @@ impl std::fmt::Display for ScanError {
                 write!(f, "the camera only offers a compressed format: {why}")
             }
             ScanError::NoCodeFound => write!(f, "no code came into view"),
+            ScanError::Cancelled => write!(f, "stopped"),
         }
     }
 }
@@ -301,8 +308,20 @@ const PREVIEW_MAX: u32 = 320;
 ///
 /// Same loop as [`scan_once`], plus the preview. `on_frame` runs on the worker thread and must not
 /// block for long — it is called several times a second.
+/// How often a preview frame is pushed to the UI.
+///
+/// The decode loop runs at roughly 26 attempts a second after the frame-rate fix, and every one of
+/// those frames used to be PNG-encoded, base64'd, and pushed into the WebView. That is a lot of
+/// string allocation and a lot of DOM churn for something a person is only using to aim.
+///
+/// Ten a second is smooth to the eye — film is 24, and this is a viewfinder, not a video. Throttling
+/// by TIME rather than by frame count keeps it at ten regardless of how fast the loop happens to run
+/// on a given machine, which a modulo on the frame counter would not.
+const PREVIEW_EVERY: Duration = Duration::from_millis(100);
+
 pub fn scan_with_preview(
     timeout: Duration,
+    cancel: &std::sync::atomic::AtomicBool,
     mut on_frame: impl FnMut(PreviewFrame),
 ) -> Result<Scan, ScanError> {
     let mut camera = Camera::new(CameraIndex::Index(0), requested_format())
@@ -319,7 +338,16 @@ pub fn scan_with_preview(
     let deadline = Instant::now() + timeout;
     let mut found = None;
     let mut n = 0usize;
+    let mut cancelled = false;
+    let mut last_preview = Instant::now() - PREVIEW_EVERY;
     while Instant::now() < deadline {
+        // Checked first, and every iteration. A twenty-second hold with no way out is not a feature
+        // of a camera, it is a person stuck looking at their own webcam. `stop_stream` below runs on
+        // every exit path, so breaking here releases the device exactly as a timeout would.
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            cancelled = true;
+            break;
+        }
         let Ok(frame) = camera.frame() else {
             continue;
         };
@@ -327,11 +355,13 @@ pub fn scan_with_preview(
         let (w, h) = (res.width(), res.height());
         let luma = frame.buffer();
 
-        // Every frame is previewed. It used to be every third, while a decode cost 276 ms and made
-        // the preview crawl at under two updates a second; with fast passes the loop is an order of
-        // magnitude quicker and the preview simply keeps up.
-        if let Some(png) = preview_png(luma, w, h) {
-            on_frame(png);
+        // Throttled to `PREVIEW_EVERY`. Decoding still happens on every frame — the preview is for
+        // the person aiming, the decode is for the code, and only one of them needs 26 a second.
+        if last_preview.elapsed() >= PREVIEW_EVERY {
+            if let Some(png) = preview_png(luma, w, h) {
+                on_frame(png);
+                last_preview = Instant::now();
+            }
         }
 
         // Decode the FULL frame, never the shrunk preview — downscaling is what loses a barcode.
@@ -344,7 +374,11 @@ pub fn scan_with_preview(
         }
     }
     let _ = camera.stop_stream();
-    found.ok_or(ScanError::NoCodeFound)
+    match found {
+        Some(scan) => Ok(scan),
+        None if cancelled => Err(ScanError::Cancelled),
+        None => Err(ScanError::NoCodeFound),
+    }
 }
 
 /// Shrink a luma frame and encode it as a base64 PNG. `None` if the buffer is short or PNG encoding
@@ -665,17 +699,36 @@ mod tests {
             );
         }
 
+        // What this deliberately no longer does: save the frame.
+        //
+        // It used to write `scratch-codes/camera-sees.png` into the working directory so the picture
+        // could be inspected — and the first time it ran it left a photograph of the room the
+        // developer was sitting in, inside the repository. It was deleted immediately and only the
+        // technical fact was used, but a diagnostic whose side effect is a photo of wherever you are
+        // is the wrong shape, `#[ignore]`d or not.
+        //
+        // The question it was answering — "is the frame sharp and well exposed, or is the camera the
+        // problem?" — is answerable from statistics that describe the image without being it.
         if let Some((luma, w, h)) = last {
-            let dir = std::path::Path::new("scratch-codes");
-            let _ = std::fs::create_dir_all(dir);
-            if let Some(img) = image::GrayImage::from_raw(w, h, luma) {
-                let path = dir.join("camera-sees.png");
-                img.save(&path).expect("save frame");
-                eprintln!(
-                    "saved a real frame to {} — look at it: is the code sharp?",
-                    path.display()
-                );
-            }
+            let n = luma.len().max(1);
+            let mean = luma.iter().map(|&p| p as u64).sum::<u64>() / n as u64;
+            let (dark, bright) = (
+                luma.iter().filter(|&&p| p < 24).count() * 100 / n,
+                luma.iter().filter(|&&p| p > 232).count() * 100 / n,
+            );
+            // Neighbour-difference energy: a blurred frame has little, a sharp one has plenty. A
+            // relative number, not an absolute threshold — it separates "out of focus" from "fine".
+            let contrast: u64 = luma
+                .windows(2)
+                .map(|w| (w[0] as i32 - w[1] as i32).unsigned_abs() as u64)
+                .sum::<u64>()
+                / n as u64;
+            eprintln!(
+                "last frame : {w}x{h} · mean brightness {mean}/255 · {dark}% crushed · {bright}%                  blown · edge energy {contrast}"
+            );
+            eprintln!(
+                "             (edge energy near zero = out of focus; mean under ~40 or over ~215                  = the exposure, not the decoder, is the problem)"
+            );
         }
     }
 
