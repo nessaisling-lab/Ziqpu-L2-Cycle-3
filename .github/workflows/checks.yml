@@ -25,6 +25,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # `crates/agents` depends on `keyring`, whose Linux backend is the Secret Service and whose
+      # build needs libdbus headers. Without this, `libdbus-sys`'s build script panics and every
+      # Ubuntu job fails before a single test runs — the credential vault moved from `ui` (which CI
+      # excludes) into `agents` (which it does not), and the system dependency came with it.
+      - name: Linux dbus headers (keyring / Secret Service)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - run: cargo test --workspace --exclude ui --all-features --locked
 
   # ---- function smoke testing gate (all three OSes) ----
@@ -39,6 +46,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # `crates/agents` depends on `keyring`, whose Linux backend is the Secret Service and whose
+      # build needs libdbus headers. Without this, `libdbus-sys`'s build script panics and every
+      # Ubuntu job fails before a single test runs — the credential vault moved from `ui` (which CI
+      # excludes) into `agents` (which it does not), and the system dependency came with it.
+      - name: Linux dbus headers (keyring / Secret Service)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Function smoke tests
         run: cargo test -p engine --test smoke --all-features --locked
       - name: Agent-loop evals (tool order · checkpoint · guardrail)

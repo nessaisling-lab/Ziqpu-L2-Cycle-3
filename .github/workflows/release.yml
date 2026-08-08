@@ -114,9 +114,11 @@ jobs:
             echo "::warning title=Built-in tier::ABSENT — ZIQPU_PROXY_URL/ZIQPU_PROXY_TOKEN are not set, so this build has NO built-in free tier. A seeker with no key of their own gets the offline template (Raw) or a local model. Do not advertise the tier in the release notes for this build."
           fi
 
-      - name: Linux WebKitGTK/GTK system deps (Dioxus desktop)
+      # libdbus-1-dev is for `keyring` (the Secret Service backend), not for the webview — the
+      # credential vault lives in `crates/agents` now, so any Linux build of the app needs it.
+      - name: Linux WebKitGTK/GTK + dbus system deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev libssl-dev pkg-config build-essential
 
       # ---- the JPL DE440 kernel: the difference between "can use DE440" and "does" ----
       # Without this file the app falls back to the analytic engine, which cannot compute Pluto at

@@ -30,6 +30,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # `crates/agents` depends on `keyring`, whose Linux backend is the Secret Service and whose
+      # build needs libdbus headers. Without this, `libdbus-sys`'s build script panics and every
+      # Ubuntu job fails before a single test runs — the credential vault moved from `ui` (which CI
+      # excludes) into `agents` (which it does not), and the system dependency came with it.
+      - name: Linux dbus headers (keyring / Secret Service)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --exclude ui --all-targets --all-features -- -D warnings
 
