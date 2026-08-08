@@ -13,18 +13,45 @@ pure, so it's unit-tested without any stdio.
 |---|---|
 | `make_profile` | Build a portable birth profile (birth data only) — the thing the agent travels with |
 | `chart` | The natal chart of a seeded choice (real ephemeris) — `AAPL MSFT TSLA KO JNJ` |
-| `recommend` | OBSERVE + DECIDE: ranked synastry fit reads for a profile, then proposes grounding |
-| `pull_grounded_signals` | The **checkpoint** — without `approved:true` it returns `PENDING_APPROVAL` and fetches nothing; with it, the gated SEC EDGAR pull runs |
+| `recommend` | OBSERVE + DECIDE: ranked synastry fit reads for a profile. **Costs money** — one hosted-model call per choice, on your key. Pauses first |
+| `pull_grounded_signals` | Reaches external public sources (SEC EDGAR, SEC XBRL, Wikidata, Wikipedia, FDA, NHTSA vPIC). Keyless, but discloses the identifier. Pauses first |
 
-The approval checkpoint (PRD §18) surfaces at the MCP boundary: the host must re-call with
-`approved:true` before anything external happens. The no-advice guardrail and honesty rules carry
-through the loop unchanged.
+Both costed tools return `PENDING_APPROVAL` first, naming exactly what the call would spend, and do
+nothing until re-called with `acknowledged: true`. (`approved` is accepted as a deprecated alias so
+existing host configs keep working.) The no-advice guardrail and honesty rules carry through the
+loop unchanged.
+
+### What this server cannot do
+
+**It cannot verify that a human approved anything.** The `acknowledged` flag is set by the calling
+model — the same model that reads the `PENDING_APPROVAL` response. A one-time token would not fix
+that: the model can read the token out of the response and hand it straight back. That is the model
+shaking hands with itself, and shipping it would be worse than the gap, because it would *look* like
+verification.
+
+**On this surface, your MCP host's own approval prompt is the gate.** Ziqpu's part is to make sure
+that prompt has what a person needs to decide:
+
+- the consent sentence — naming every source a call would spend — lives in the tool **description**,
+  which is what hosts show in the approval dialog;
+- both costed tools declare `openWorldHint: true` and `readOnlyHint: false`, which hosts use to
+  decide when to ask;
+- `PENDING_APPROVAL` forces a second round trip, so there is a moment for the host to ask at all.
+
+**If your host has auto-approve enabled for this server, there is no gate.** We cannot detect that
+from here. If that matters for your use, run the desktop app instead — its checkpoint is a real
+button pressed by a real person.
+
+The protocol's `elicitation` capability *would* close this properly: it lets a server ask the host to
+put a question directly to the human, out of band from the model. We detect whether your host
+supports it. Using it needs a bidirectional transport this server does not yet have, so it is
+declared, measured, and not yet claimed. That work is tracked rather than pretended.
 
 ## Run
 
 ```bash
 cargo run -p mcp          # speaks JSON-RPC on stdin/stdout
-ZIQPU_LIVE=1 cargo run -p mcp   # real SEC EDGAR for the grounded pull (needs curl + network)
+ZIQPU_LIVE=1 cargo run -p mcp   # real sources AND the real hosted model — this one costs money
 ```
 
 Register with an MCP host (e.g. Claude Desktop `claude_desktop_config.json`):

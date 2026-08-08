@@ -19,14 +19,17 @@ pub fn handle(req: &Value) -> Option<Value> {
     let id = req.get("id").cloned();
     let method = req.get("method").and_then(|m| m.as_str()).unwrap_or("");
     match method {
-        "initialize" => Some(result(
-            id,
-            json!({
-                "protocolVersion": "2024-11-05",
-                "capabilities": { "tools": {} },
-                "serverInfo": { "name": "ziqpu-mcp", "version": env!("CARGO_PKG_VERSION") },
-            }),
-        )),
+        "initialize" => {
+            note_client_capabilities(req.get("params"));
+            Some(result(
+                id,
+                json!({
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": { "tools": {} },
+                    "serverInfo": { "name": "ziqpu-mcp", "version": env!("CARGO_PKG_VERSION") },
+                }),
+            ))
+        }
         // Notifications carry no id and expect no response.
         m if m.starts_with("notifications/") => None,
         "ping" => Some(result(id, json!({}))),
@@ -35,6 +38,58 @@ pub fn handle(req: &Value) -> Option<Value> {
         _ if id.is_some() => Some(error(id, -32601, "method not found")),
         _ => None,
     }
+}
+
+/// Whether the connected host declared support for **elicitation** — the MCP request that lets a
+/// server ask the *host* to put a question to the human and return their answer.
+///
+/// It is recorded at `initialize` and read later, which is why this is a process-global rather than
+/// a parameter: `handle` is deliberately pure (request in, response out) so it stays unit-testable
+/// without stdio plumbing, and one server process serves exactly one session.
+///
+/// Nothing uses it yet, and that is deliberate rather than forgotten. Elicitation is a
+/// **server-initiated request**: the server writes a request and waits for the host's response,
+/// interleaved with the host's own traffic. This transport is strictly request-in/response-out, so
+/// using it means rebuilding the loop and giving up the purity that makes `handle` testable. The
+/// detection lands now because it is the cheap prerequisite and because it makes the gap
+/// measurable — see `ELICITATION_NOTE`.
+static HOST_SUPPORTS_ELICITATION: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Record what the host said it can do, from the `initialize` params.
+fn note_client_capabilities(params: Option<&Value>) {
+    let supports = params
+        .and_then(|p| p.get("capabilities"))
+        .and_then(|c| c.get("elicitation"))
+        .is_some();
+    HOST_SUPPORTS_ELICITATION.store(supports, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether the host can be asked to prompt the human directly.
+pub fn host_supports_elicitation() -> bool {
+    HOST_SUPPORTS_ELICITATION.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The one sentence this server may honestly say about approval on the MCP surface.
+///
+/// **The server cannot verify that a human approved anything.** The `acknowledged` argument is set
+/// by the calling model, which also reads this response — so a token minted here and required back
+/// would be the model shaking hands with itself, not a gate. Returning `PENDING_APPROVAL` is still
+/// worth doing, because it forces a second round trip and puts the consent text where the host's own
+/// approval dialog will show it to a person. That dialog is the real gate on this surface, and
+/// saying so plainly is the difference between a limitation and a lie.
+const ELICITATION_NOTE: &str =
+    "Note: this server cannot verify that a human approved this. Your MCP host's own approval      prompt is the gate; `acknowledged` records that the text above was surfaced, not that anyone      agreed to it.";
+
+/// Read the human-acknowledgement flag, accepting the older `approved` spelling.
+///
+/// Renamed because `approved` claimed something untrue: nothing here can establish that a human
+/// approved. The old name is still accepted so existing host configurations keep working, and is
+/// documented as deprecated rather than silently honoured.
+fn acknowledged(args: &Value) -> bool {
+    ["acknowledged", "approved"]
+        .iter()
+        .any(|k| args.get(*k).and_then(|a| a.as_bool()).unwrap_or(false))
 }
 
 fn result(id: Option<Value>, result: Value) -> Value {
@@ -50,6 +105,7 @@ fn tools() -> Value {
     json!([
         {
             "name": "make_profile",
+            "annotations": { "title": "Build a birth profile", "readOnlyHint": true, "openWorldHint": false, "idempotentHint": true },
             "description": "Build a portable Ziqpu birth profile (birth data only) the agent can travel with. Returns a small JSON string to pass to `recommend`.",
             "inputSchema": {
                 "type": "object",
@@ -65,6 +121,7 @@ fn tools() -> Value {
         },
         {
             "name": "chart",
+            "annotations": { "title": "Natal chart of a seeded choice", "readOnlyHint": true, "openWorldHint": false, "idempotentHint": true },
             "description": "The natal chart of a seeded choice (real ephemeris). Tickers: AAPL, MSFT, TSLA, KO, JNJ.",
             "inputSchema": {
                 "type": "object",
@@ -74,24 +131,26 @@ fn tools() -> Value {
         },
         {
             "name": "recommend",
-            "description": "Observe + decide: ranked synastry fit reads for a profile against the seeded choices, then proposes grounding. Never advice.",
+            "annotations": { "title": "Ranked fit reads — SPENDS a live model call per choice", "readOnlyHint": false, "openWorldHint": true, "idempotentHint": false },
+            "description": "Observe + decide: ranked synastry fit reads for a profile against the seeded choices, then proposes grounding. Never advice. COSTS MONEY: calls the configured hosted model ONCE PER CHOICE, billed to the user's own API key. Without acknowledged=true it returns PENDING_APPROVAL naming the number of calls and spends nothing. This server cannot verify a human approved — the host's approval prompt is the gate.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "profile": { "type": "string", "description": "A profile string from make_profile" },
-                    "tickers": { "type": "array", "items": { "type": "string" }, "description": "Optional subset; defaults to all seeded choices" }
+                    "tickers": { "type": "array", "items": { "type": "string" }, "description": "Optional subset; defaults to all seeded choices" },
+                    "acknowledged": { "type": "boolean", "description": "Set only after the PENDING_APPROVAL text — which names how many billed model calls this runs — has been shown to a human. The server cannot verify this." }
                 },
                 "required": ["profile"]
             }
         },
         {
             "name": "pull_grounded_signals",
-            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL — naming the exact sources that call would spend — and fetches nothing; with approved=true it makes the gated, costed external pull. Which sources run depends on what the entity is: SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia for a public filer; NHTSA vPIC for a vehicle; Wikidata, Wikipedia and the FDA drug register for a bare name.",
+            "description": "The human-in-the-loop checkpoint. Without approved=true it returns PENDING_APPROVAL — naming the exact sources that call would spend — and fetches nothing; with acknowledged=true it makes the gated external pull. This server CANNOT verify that a human approved — the host's own approval prompt is the gate, and `acknowledged` only records that the consent text was surfaced. Which sources run depends on what the entity is: SEC EDGAR filings, SEC XBRL financials, Wikidata and Wikipedia for a public filer; NHTSA vPIC for a vehicle; Wikidata, Wikipedia and the FDA drug register for a bare name.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "ticker": { "type": "string" },
-                    "approved": { "type": "boolean", "description": "Must be true to run the external pull" }
+                    "acknowledged": { "type": "boolean", "description": "Set only after the PENDING_APPROVAL text has been shown to a human. The server cannot verify this; `approved` is accepted as a deprecated alias." }
                 },
                 "required": ["ticker"]
             }
@@ -196,10 +255,28 @@ fn call_recommend(args: &Value) -> (String, bool) {
         None => agents::demo_choices(),
     };
 
+    // The checkpoint this tool never had. `recommend` calls the live hosted model ONCE PER CHOICE,
+    // on the user's own API key — so on this surface it is the expensive tool, not
+    // `pull_grounded_signals`, whose sources are all keyless public endpoints. The gate was on the
+    // one that spends quota and absent from the one that spends money.
+    if !acknowledged(args) {
+        return (
+            format!(
+                "PENDING_APPROVAL — ranking {} choice(s) runs {} live model call(s) via {}, billed                  to the configured key. Nothing has been spent. Re-call with                  {{ \"acknowledged\": true }} to proceed, or call `chart` for the free,                  deterministic reads.
+
+{ELICITATION_NOTE}",
+                choices.len(),
+                choices.len(),
+                agents::active_source_label(),
+            ),
+            false,
+        );
+    }
+
     let mut session = agents::Session::new(
         agents::EngineChartSource::default(),
         grounded(),
-        agents::build_interpreter(),
+        interpreter(),
     );
     let recs = session.recommend(&seeker, &choices);
 
@@ -214,7 +291,7 @@ fn call_recommend(args: &Value) -> (String, bool) {
     }
     out.push_str(
         "\nCHECKPOINT — to ground a pick against real data, call \
-         pull_grounded_signals { ticker, approved: true }.\n\nTop read:\n",
+         pull_grounded_signals { ticker, acknowledged: true }.\n\nTop read:\n",
     );
     if let Some(top) = recs.first() {
         out.push_str(&top.reading);
@@ -233,19 +310,16 @@ fn call_pull(args: &Value) -> (String, bool) {
     else {
         return (format!("unknown ticker {ticker}"), true);
     };
-    let approved = args
-        .get("approved")
-        .and_then(|a| a.as_bool())
-        .unwrap_or(false);
-    if !approved {
+    if !acknowledged(args) {
         // The checkpoint, surfaced to the host: nothing external ran. The sentence comes from
         // `agents::grounding_consent` — the same function the desktop checkpoint uses — because a
         // second hand-written copy here is exactly how this text fell behind the roster last time.
         return (
             format!(
                 "PENDING_APPROVAL — {} Nothing was fetched. Re-call with \
-                 {{ \"approved\": true }} to proceed, or keep the symbolic read.",
-                agents::grounding_consent(&choice)
+                 {{ \"acknowledged\": true }} to proceed, or keep the symbolic read.\n\n{}",
+                agents::grounding_consent(&choice),
+                ELICITATION_NOTE
             ),
             false,
         );
@@ -272,6 +346,24 @@ fn grounded() -> Box<dyn agents::GroundedSource> {
         Box::new(agents::CompositeSource::live_default())
     } else {
         Box::new(agents::MockGroundedSource)
+    }
+}
+
+/// The interpreter this server writes readings with — **live only when explicitly asked**.
+///
+/// The same opt-in discipline [`grounded`] already had, and the reason it needed it here too was
+/// embarrassing: `build_interpreter` goes live whenever a key is present, so `cargo test -p mcp` was
+/// making real billed model calls on every run, on the developer's own key, and had been for as long
+/// as the flow test existed. Nobody noticed because it merely looked slow. A test suite that spends
+/// money is a bug regardless of how small the amount is, and a default that reaches the network
+/// unless told otherwise is the wrong default for a library the tests drive.
+///
+/// `ZIQPU_LIVE` gates both, so one variable means "this run may cost something".
+fn interpreter() -> Box<dyn agents::Interpreter> {
+    if std::env::var("ZIQPU_LIVE").is_ok() {
+        agents::build_interpreter()
+    } else {
+        Box::new(agents::TemplateInterpreter)
     }
 }
 
@@ -334,22 +426,81 @@ mod tests {
         );
         assert!(profile.contains("ziqpu.profile"));
 
-        // 2. recommend over it → ranked fit + the checkpoint proposal
-        let recs = call_tool("recommend", json!({ "profile": profile }));
+        // 2. recommend WITHOUT acknowledgement → its own checkpoint, and nothing is spent.
+        //    This tool calls the hosted model once per choice on the user's key, so on the MCP
+        //    surface it is the expensive one — the gate used to be on `pull_grounded_signals`,
+        //    whose sources are all keyless, and absent here.
+        let pending_recs = call_tool("recommend", json!({ "profile": profile }));
+        assert!(pending_recs.contains("PENDING_APPROVAL"), "{pending_recs}");
+        assert!(
+            pending_recs.contains("live model call"),
+            "the pause must name the spend: {pending_recs}"
+        );
+        assert!(
+            !pending_recs.contains("Ranked fit"),
+            "nothing may be computed before the pause is answered: {pending_recs}"
+        );
+        assert!(
+            pending_recs.contains("cannot verify"),
+            "and it must not imply the server checked with a human: {pending_recs}"
+        );
+
+        // 3. acknowledged → the ranking runs
+        let recs = call_tool(
+            "recommend",
+            json!({ "profile": profile, "acknowledged": true }),
+        );
         assert!(recs.contains("Ranked fit"));
         assert!(recs.contains("CHECKPOINT"));
 
-        // 3. the checkpoint: no approval → nothing fetched
+        // 4. the grounded checkpoint: no acknowledgement → nothing fetched
         let pending = call_tool("pull_grounded_signals", json!({ "ticker": "AAPL" }));
         assert!(pending.contains("PENDING_APPROVAL"));
 
-        // 4. approved → the (mock, in CI) grounded pull runs
+        // 5. acknowledged → the (mock, in CI) grounded pull runs
         let grounded = call_tool(
             "pull_grounded_signals",
-            json!({ "ticker": "AAPL", "approved": true }),
+            json!({ "ticker": "AAPL", "acknowledged": true }),
         );
         assert!(grounded.contains("GROUNDED"));
         assert!(grounded.contains("not financial advice"));
+
+        // 6. the deprecated spelling still works, so an existing host config does not break on
+        //    an upgrade. It is accepted, documented as deprecated, and behaves identically.
+        let legacy = call_tool(
+            "pull_grounded_signals",
+            json!({ "ticker": "AAPL", "approved": true }),
+        );
+        assert!(legacy.contains("GROUNDED"), "{legacy}");
+    }
+
+    /// What this server may honestly claim about approval.
+    ///
+    /// The audit's proposed fix — mint a single-use nonce, return it in PENDING_APPROVAL, require it
+    /// back — does not work here, and shipping it would be worse than the gap: the calling model
+    /// reads its own tool result, so it can read the nonce and echo it. That is the model shaking
+    /// hands with itself. What IS true is that the host shows the tool description and arguments to
+    /// a person before permitting the call, so the consent text goes there and the limitation is
+    /// stated rather than papered over.
+    #[test]
+    fn the_server_never_claims_to_have_verified_a_human() {
+        let catalogue = tools().to_string();
+        let profile = call_tool(
+            "make_profile",
+            json!({ "date": "1990-05-15", "tz": "America/New_York", "lat": 40.71, "lon": -74.0 }),
+        );
+        for tool in ["recommend", "pull_grounded_signals"] {
+            let pending = call_tool(tool, json!({ "profile": profile, "ticker": "AAPL" }));
+            assert!(
+                pending.contains("cannot verify"),
+                "{tool} must say so: {pending}"
+            );
+        }
+        // The costed tools declare that they reach outside and are not read-only, which is what a
+        // host uses to decide when to prompt.
+        assert!(catalogue.contains("\"openWorldHint\":true"), "{catalogue}");
+        // And the schema no longer describes the flag as an approval the server checked.
+        assert!(!catalogue.contains("Must be true to run the external pull"));
     }
 
     /// The MCP checkpoint and the desktop checkpoint must ask for the **same** consent.
