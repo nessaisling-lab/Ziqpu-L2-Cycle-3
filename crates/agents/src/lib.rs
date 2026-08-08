@@ -32,6 +32,7 @@ pub mod research;
 pub mod score;
 pub mod tier;
 pub mod tools;
+pub mod trace;
 pub mod traction;
 pub mod types;
 pub mod vin;

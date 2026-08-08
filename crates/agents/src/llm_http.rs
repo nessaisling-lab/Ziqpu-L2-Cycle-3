@@ -166,6 +166,7 @@ pub(crate) fn openai_chat(
     .to_string();
 
     // The Bearer key rides an in-process header (post_json), never a command line.
+    let started = std::time::Instant::now();
     let text = post_json(
         &url,
         &[
@@ -173,17 +174,37 @@ pub(crate) fn openai_chat(
             ("content-type", "application/json"),
         ],
         &body,
-    )?;
+    );
+    let millis = started.elapsed().as_millis();
+    let Some(text) = text else {
+        crate::trace::turn(
+            "interpret",
+            model,
+            &url,
+            user,
+            None,
+            Some("transport"),
+            millis,
+        );
+        return None;
+    };
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let finish = value["choices"][0]["finish_reason"].as_str();
+    let raw = value["choices"][0]["message"]["content"].as_str();
+    crate::trace::turn("interpret", model, &url, user, raw, finish, millis);
+
     // A response cut off at the token cap is not a reading, it is the first part of one. Observed
     // live: a grounded read ending "total assets: $148.52B (as of 2". The API says so plainly in
     // `finish_reason` and nothing was reading it, so half-sentences reached the seeker as finished
     // prose. Treat it as a failed call and let the honesty ladder degrade instead.
-    if value["choices"][0]["finish_reason"].as_str() == Some("length") {
+    if finish == Some("length") {
+        crate::trace::note("rejected: truncated at the token cap (finish_reason=length)");
         return None;
     }
-    let content = value["choices"][0]["message"]["content"].as_str()?;
-    let content = strip_reasoning(content);
+    let content = strip_reasoning(raw?);
+    if content.is_empty() {
+        crate::trace::note("rejected: empty completion after stripping reasoning");
+    }
     (!content.is_empty()).then_some(content)
 }
 

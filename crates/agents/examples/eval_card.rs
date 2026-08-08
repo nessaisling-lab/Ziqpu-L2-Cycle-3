@@ -33,6 +33,18 @@ fn main() {
     case_2(live);
     case_3();
     case_4(live);
+
+    // Every defect this card has caught lived inside a model turn. Run with ZIQPU_TRACE=1 (shapes)
+    // or ZIQPU_TRACE=full (verbatim) and the reason a case failed is in here rather than inferred.
+    if agents::trace::on() {
+        println!(
+            "
+══════════════ trace ({:?}) ══════════════
+{}",
+            agents::trace::level(),
+            agents::trace::dump()
+        );
+    }
 }
 
 /// Case 4 — the ranked list: five choices at once, before any checkpoint.

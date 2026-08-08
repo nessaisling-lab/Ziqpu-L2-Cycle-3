@@ -184,6 +184,10 @@ pub fn forget_profile() -> bool {
     let Some(path) = profile_path() else {
         return false;
     };
+    // The trace buffer is memory-only and dies with the process, so this is belt to that brace —
+    // but a seeker who asks to be forgotten while the app is still running should not have their
+    // chart sitting in a debug buffer afterwards. A debug artifact must not outlive its subject.
+    agents::trace::clear();
     match std::fs::remove_file(&path) {
         Ok(()) => true,
         Err(e) => e.kind() == std::io::ErrorKind::NotFound,

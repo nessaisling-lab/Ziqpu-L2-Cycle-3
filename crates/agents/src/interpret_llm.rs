@@ -915,11 +915,26 @@ fn insert_above_reminder(prose: &str, line: &str) -> String {
 /// "Aligned" — the substring relationship between the band names makes the loose check silently
 /// wrong in the one direction that flatters the choice.
 fn usable_reading(text: String, fit: Fit, measures: &Measures) -> Option<String> {
-    let fit_line = text.lines().find(|l| l.trim_start().starts_with("FIT:"))?;
+    let Some(fit_line) = text.lines().find(|l| l.trim_start().starts_with("FIT:")) else {
+        crate::trace::note("rejected: no FIT: line — not a reading at all");
+        return None;
+    };
     let after = fit_line.split_once("FIT:")?.1;
     // "FIT: Strongly Aligned (85 / 100) — Tesla" → "Strongly Aligned"
     let band = after.split('(').next()?.trim();
     if band != fit.label() {
+        // The template echo lands here: "<band>" is not a band. So does a model that preferred a
+        // rosier verdict than the arithmetic gave. Both are worth telling apart in a trace, because
+        // one is a broken response and the other is a model disagreeing with the measurement.
+        crate::trace::note(&format!(
+            "rejected: FIT band {band:?} != measured {:?}{}",
+            fit.label(),
+            if band.starts_with('<') {
+                "  (placeholder — the prompt template was echoed back)"
+            } else {
+                ""
+            }
+        ));
         return None;
     }
     // The guardrail must ride with the words, not depend on the model remembering it.
@@ -1323,6 +1338,11 @@ pub fn grounded_layered(
     mode: ReadMode,
 ) -> LayeredBrief {
     let has_signals = has_real_signals(grounded);
+    crate::trace::note(&format!(
+        "grounded_layered mode={mode:?} signals={} source={}",
+        if has_signals { "real" } else { "NONE" },
+        grounded.source
+    ));
     match mode {
         ReadMode::Raw => LayeredBrief {
             reading: TemplateInterpreter.grounded_brief(measures, fit, name, grounded),

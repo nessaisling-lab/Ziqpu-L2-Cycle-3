@@ -113,6 +113,7 @@ pub fn run_tool_loop(
                 })
                 .unwrap_or_else(|| format!("error: no such tool `{name}`"));
 
+            crate::trace::tool(name, &args.to_string(), &result);
             // A tool result is fetched text: the news tool returns third-party headlines and the
             // grounded tool returns whatever the sources said. Fenced for the same reason the
             // prompt's signals are — the model reads instructions and fetched bytes as one stream,

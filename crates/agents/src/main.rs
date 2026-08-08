@@ -90,6 +90,17 @@ fn run(
     }
 
     println!("\ntool order: {:?}", s.calls());
+
+    // The tool-call log above is the decision skeleton — which tools, in what order, gate enforced.
+    // This is what happened INSIDE each step: which model ran, how long it took, why a completion
+    // was thrown away. Off unless asked for; see `agents::trace`.
+    if agents::trace::on() {
+        println!(
+            "\n─── trace ({:?}) ───\n{}",
+            agents::trace::level(),
+            agents::trace::dump()
+        );
+    }
 }
 
 fn indent(text: &str) -> String {
