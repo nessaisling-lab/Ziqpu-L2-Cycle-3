@@ -246,8 +246,23 @@ impl EdgarSource {
         Some(out)
     }
 
-    /// A short blurb from the Wikipedia summary for `title` (keyless REST API). Capped at ~200
-    /// chars on a word boundary — avoids over-eager sentence splitting on abbreviations ("Inc.").
+    /// A short blurb from the Wikipedia summary for `title` (keyless REST API), capped at ~200 chars.
+    ///
+    /// Prefers to end at a **sentence** boundary, falling back to a word boundary. The word-boundary
+    /// version produced this on the Tesla golden run:
+    ///
+    /// ```text
+    /// what it is: Tesla, Inc. is an American multinational automotive and clean energy company.
+    /// Headquartered in Austin, Texas, it designs, manufactures, and sells battery electric
+    /// vehicles (BEVs), stationary battery…
+    /// ```
+    ///
+    /// A clause abandoned mid-thought reads as a bug on the one line a reader is most likely to
+    /// scrutinise. Cutting at the last full stop costs a few words and returns a complete thought.
+    ///
+    /// The sentence search deliberately ignores a period followed by a non-space (so `Inc.` and
+    /// `U.S.` do not end a sentence), and falls back to the word cut when the first sentence is
+    /// itself longer than the cap — better a clean word break than nothing.
     fn fetch_wikipedia(&self, title: &str) -> Option<String> {
         let url = format!("https://en.wikipedia.org/api/rest_v1/page/summary/{title}");
         let bytes = self.get(&url)?;
@@ -259,11 +274,31 @@ impl EdgarSource {
         if extract.chars().count() <= 200 {
             return Some(extract.to_string());
         }
-        let mut short: String = extract.chars().take(200).collect();
-        if let Some(idx) = short.rfind(' ') {
-            short.truncate(idx);
+        let short: String = extract.chars().take(200).collect();
+
+        // A sentence end: '.', '!' or '?' followed by a space. The space requirement is what keeps
+        // "Inc." and "U.S." from being read as the end of a thought.
+        let sentence_end = short
+            .char_indices()
+            .filter(|(i, c)| {
+                matches!(c, '.' | '!' | '?')
+                    && short[i + c.len_utf8()..]
+                        .chars()
+                        .next()
+                        .is_some_and(char::is_whitespace)
+            })
+            .map(|(i, c)| i + c.len_utf8())
+            .next_back();
+
+        if let Some(end) = sentence_end {
+            // A complete thought, so no ellipsis — nothing was left dangling.
+            return Some(short[..end].trim_end().to_string());
         }
-        Some(format!("{short}…"))
+        let mut word = short;
+        if let Some(idx) = word.rfind(' ') {
+            word.truncate(idx);
+        }
+        Some(format!("{word}…"))
     }
 }
 
@@ -591,7 +626,10 @@ impl GroundedSource for WikidataSource {
                             items.push(format!("founded: {year}"));
                         }
                         if let Some(n) = employees(&entity, &qid) {
-                            items.push(format!("employees: {n}"));
+                            // Grouped, because the line it shares already reads "$28.24B" and
+                            // "140473" beside that looks like an unformatted field rather than a
+                            // fact someone chose to show.
+                            items.push(format!("employees: {}", group_thousands(&n)));
                         }
                     }
                 }
@@ -680,6 +718,24 @@ fn employees(entity: &serde_json::Value, qid: &str) -> Option<String> {
         .trim_start_matches('+');
     let n: f64 = amount.parse().ok()?;
     Some(format!("{}", n as i64))
+}
+
+/// Insert thousands separators into a run of digits: `140473` → `140,473`.
+///
+/// Only touches a pure-digit string, so it cannot mangle a value that arrived in some other shape.
+fn group_thousands(n: &str) -> String {
+    if !n.chars().all(|c| c.is_ascii_digit()) || n.len() <= 3 {
+        return n.to_string();
+    }
+    let digits: Vec<char> = n.chars().collect();
+    let mut out = String::with_capacity(n.len() + n.len() / 3);
+    for (i, c) in digits.iter().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(*c);
+    }
+    out
 }
 
 /// Does the resolved Wikidata label share a significant word with the company name? A cheap guard
@@ -1500,6 +1556,19 @@ mod tests {
     /// second implementation of what `origin::lifecycle_from_entity` does, and a precision rule in
     /// two places is a precision rule that eventually disagrees with itself. The extractor is gone;
     /// the property it guarded is not, so the test follows the behaviour rather than the function.
+    /// The two rough edges the Anthropic golden run surfaced, both on the GROUNDED line.
+    #[test]
+    fn the_grounded_line_does_not_look_unfinished() {
+        // A headcount reads as a number someone chose to show, not a raw field.
+        assert_eq!(super::group_thousands("140473"), "140,473");
+        assert_eq!(super::group_thousands("999"), "999");
+        assert_eq!(super::group_thousands("1000"), "1,000");
+        assert_eq!(super::group_thousands("1234567"), "1,234,567");
+        // Anything that is not a plain digit run is returned untouched rather than mangled.
+        assert_eq!(super::group_thousands("~2600"), "~2600");
+        assert_eq!(super::group_thousands(""), "");
+    }
+
     #[test]
     fn a_year_precision_release_is_never_treated_as_a_launch_day() {
         let entity = serde_json::json!({
