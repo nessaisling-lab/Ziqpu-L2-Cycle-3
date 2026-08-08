@@ -33,7 +33,7 @@ Everything below is for **building from source**.
 | Layer | State |
 |---|---|
 | **Data** — 5,271 US-market tickers, compiled into the binary | ✅ built · **4,507 chartable** (Polygon + SEC 8-A), 764 honestly date-unknown |
-| **Ephemeris** — pluggable trait, 13 bodies | ✅ built · analytic (default, no data files) + ANISE backends, Chiron table, all JPL-validated |
+| **Ephemeris** — pluggable trait, 12 bodies | ✅ built · **JPL DE440 (default, bundled + digest-pinned)**, analytic VSOP87 fallback, Chiron table, all JPL-validated |
 | **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
 | **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
 | **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
@@ -61,9 +61,9 @@ The separation *is* the product's integrity guarantee: measurement and meaning a
 Dioxus desktop UI  (ziqpu-ui)                    ← the whole product; one binary
   └── agents        observe → decide → CHECKPOINT → act
         ├── Hamun-ana  measures   (temp 0, JSON only)   → engine ── over ── ephemeris
-        │                                                   aspects,          VSOP87 + Meeus
-        │                                                   dignities,        (no data files)
-        │                                                   synastry
+        │                                                   aspects,          JPL DE440
+        │                                                   dignities,        (bundled, pinned;
+        │                                                   synastry          VSOP87 fallback)
         ├── Ungasaga   interprets (template · local model · live model)
         ├── tickers    5,271 dated companies — compiled in via `include_str!`
         └── grounded   SEC EDGAR + Wikipedia — only after you approve at the checkpoint
@@ -81,12 +81,20 @@ service of ours. A chart is arithmetic over data already inside the executable.
 
 The **`ephemeris` trait** is the seam that keeps the public tree free of copyleft:
 
-- **`analytic`** (default) — pure-Rust VSOP87 planets + Meeus Moon, **no data files**.
-- **`anise`** (opt-in `--features anise`) — ANISE + JPL DE440 kernel; adds **Pluto**, higher accuracy.
+- **`anise-backend`** (default, **bundled with every release**) — ANISE over the JPL DE440 kernel
+  (`de440s.bsp`, ~32 MB, verified against a pinned SHA-256). DE440 is a U.S. Government work and
+  freely redistributable, which is exactly why it can ship where the AGPL Swiss Ephemeris cannot.
+- **`analytic`** (the **floor**, not the choice) — pure-Rust VSOP87 planets + Meeus Moon, no data
+  files. It runs when the kernel is absent or fails verification, and **cannot compute Pluto at
+  all** — so the app says which engine drew a chart rather than quietly handing back one fewer
+  planet. See `crates/ephemeris/src/resolve.rs`.
 - **Chiron** — a committed table of JPL Horizons longitudes, interpolated (works on both backends).
 - **`swisseph`** — a private/commercial backend stub; never shipped in this repository.
 
-Analytic and ANISE agree to **<1°** (a CI cross-check enforces it).
+Analytic and ANISE agree to **<1°** on the bodies they share (a CI cross-check enforces it) — the
+disagreement that matters is Pluto, which only DE440 has. Swapping the floor for DE440 moved the
+demo scores by up to 5 points; `cargo run -p agents --example scores` prints which engine produced
+the numbers it shows.
 
 ## Workspace
 
@@ -125,11 +133,11 @@ one CI job and as the seed of the future hosted web app.
 ```bash
 docker compose up -d --wait db           # contained Postgres, seeded with the ticker dataset
 cargo run -p sidecar                     # analytic backend, no data files
-curl localhost:8787/chart/AAPL           # 12–13 body natal chart
+curl localhost:8787/chart/AAPL           # 11–12 body natal chart (12 with Pluto, i.e. DE440)
 curl localhost:8787/synastry/AAPL/MSFT   # cross-aspects between two charts
 
-# …or with the high-accuracy ANISE backend (adds Pluto):
-bash scripts/fetch-ephemeris.sh          # downloads the DE440 kernel (~32 MB, gitignored)
+# …or with the DE440 backend the desktop app ships (adds Pluto):
+bash scripts/fetch-ephemeris.sh          # downloads + verifies the kernel (~32 MB, gitignored)
 cargo run -p sidecar --features anise
 ```
 

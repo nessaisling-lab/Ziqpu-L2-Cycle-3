@@ -6,10 +6,10 @@ License 1.0.0 — see the LICENSE file.
 
 Third-party code components (MIT/Apache-2.0/MPL-2.0/BlueOak/CDLA — all permissive):
 
-- vsop87 (default analytic ephemeris backend) — MIT OR Apache-2.0
+- ANISE (the default high-accuracy ephemeris backend — SHIPS IN EVERY RELEASE BINARY)
+  — Mozilla Public License 2.0. Unmodified; source at https://github.com/nyx-space/anise
+- vsop87 (the analytic fallback ephemeris backend) — MIT OR Apache-2.0
   https://crates.io/crates/vsop87
-- ANISE (optional high-accuracy ephemeris backend, `--features anise`) — Mozilla Public License 2.0
-  https://github.com/nyx-space/anise
 - axum, tokio, sqlx, serde, serde_json, chrono, chrono-tz — MIT OR Apache-2.0
 - Dioxus 0.6 (desktop UI, crates/ui) — MIT OR Apache-2.0
 - futures-util (async stream helpers, crates/ui) — MIT OR Apache-2.0
@@ -20,8 +20,13 @@ Third-party code components (MIT/Apache-2.0/MPL-2.0/BlueOak/CDLA — all permiss
 
 Third-party data (public-domain / freely redistributable U.S. Government works):
 
-- NASA JPL Development Ephemerides (DE440) — used by the ANISE backend (kernel fetched at build,
-  not committed). https://ssd.jpl.nasa.gov/planets/eph_export.html
+- NASA JPL Development Ephemerides (DE440) — the authoritative ephemeris. The kernel `de440s.bsp`
+  (~32 MB) is NOT committed to this repository, but IS REDISTRIBUTED inside every release artifact
+  (Windows .zip, Linux .tar.gz, and macOS .app under Contents/Resources). DE440/DE441 are works of
+  the U.S. Government, not subject to copyright in the United States and freely redistributable,
+  which is what makes bundling them possible. The shipped file is verified against a pinned SHA-256
+  (crates/ephemeris/src/resolve.rs) before packaging, so what ships is what was reviewed.
+  https://ssd.jpl.nasa.gov/planets/eph_export.html
 - JPL Horizons Chiron ephemeris — sampled into the committed table crates/ephemeris/data/chiron.bin.
   https://ssd.jpl.nasa.gov/horizons/
 - SEC EDGAR (Form 8-A listing dates) — used to enrich the stock seed. https://www.sec.gov/edgar
