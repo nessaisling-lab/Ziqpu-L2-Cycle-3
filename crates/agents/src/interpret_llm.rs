@@ -241,6 +241,7 @@ impl AnthropicInterpreter {
         // of it silently collapsing to "no reading". Only the built-in proxy path touches the latch —
         // a user's own key or OpenRouter is not the free tier (see `is_built_in`).
         use crate::llm_http::PostOutcome;
+        let started = std::time::Instant::now();
         let text = match crate::llm_http::post_json_outcome(&self.endpoint, &headers, &body) {
             PostOutcome::Ok(t) => {
                 if self.is_built_in {
@@ -254,8 +255,30 @@ impl AnthropicInterpreter {
                 }
                 // Same classification the OpenAI-compatible path makes: a 429 or 5xx is the
                 // provider unable to serve, which is the only failure another provider can answer.
-                crate::llm_http::note_provider_fault(crate::llm_http::is_provider_fault(code));
-                crate::trace::note(&format!("provider fault: http {code} from {}", self.model));
+                let faulted = crate::llm_http::is_provider_fault(code);
+                crate::llm_http::note_provider_fault(faulted);
+                // Say which it was. The first version of this line called EVERY status a "provider
+                // fault", including a 401 — the code correctly declined to fail over, and the trace
+                // said the opposite. A log that misreports the decision it is recording is worse
+                // than no log, because it is believed.
+                crate::trace::note(&format!(
+                    "http {code} from {} — {}",
+                    self.model,
+                    if faulted {
+                        "provider fault, failover may retry"
+                    } else {
+                        "NOT a provider fault (bad key / bad request); no failover, degrading"
+                    }
+                ));
+                crate::trace::turn(
+                    "interpret",
+                    &self.model,
+                    &self.endpoint,
+                    user_prompt,
+                    None,
+                    Some(&format!("http {code}")),
+                    started.elapsed().as_millis(),
+                );
                 return None;
             }
             // A transport failure (offline / timeout) is NOT a tier verdict — leave the latch as-is
@@ -280,6 +303,17 @@ impl AnthropicInterpreter {
             .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
             .collect();
         let text = text.trim();
+        // The Anthropic path had no `turn` at all: the trace covered one of the two model paths, so
+        // a whole provider was invisible to the instrument built to make providers visible.
+        crate::trace::turn(
+            "interpret",
+            &self.model,
+            &self.endpoint,
+            user_prompt,
+            Some(text),
+            value.get("stop_reason").and_then(|s| s.as_str()),
+            started.elapsed().as_millis(),
+        );
         (!text.is_empty()).then(|| text.to_string())
     }
 
