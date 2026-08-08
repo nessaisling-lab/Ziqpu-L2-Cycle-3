@@ -1403,15 +1403,7 @@ fn frontier_grounded(
 /// Does this signal set carry a **real** external item, or only an empty/placeholder marker? Drives
 /// the sourced-vs-unsourced fork: mock fixtures and "no signals" notes count as unsourced.
 fn has_real_signals(grounded: &GroundedSignals) -> bool {
-    grounded.items.iter().any(|i| {
-        let i = i.trim().to_lowercase();
-        !i.is_empty()
-            && !i.contains("no public signals available")
-            && !i.contains("no recent signals")
-            && !i.contains("grounded-source mock")
-            && !i.contains("no live network")
-            && !i.contains("would appear here")
-    })
+    grounded.has_real_signals()
 }
 
 /// Does this line look like a **grounded / reality / source** beat? An unsourced read must carry

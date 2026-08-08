@@ -296,6 +296,27 @@ impl GroundedSignals {
     /// general solution to prompt injection, and a payload written to avoid these shapes still gets
     /// through. The structural fix — a delimiter around fetched text, and only known-shaped signals
     /// admitted — is the follow-up; this is the part that closes the demonstrated hole.
+    /// Whether these signals carry a **real** external item, or only an empty/placeholder marker.
+    ///
+    /// Mock fixtures and "no signals" notes are non-empty strings, so `items.is_empty()` is not the
+    /// question — and asking the wrong one is how the deterministic template came to announce that a
+    /// CI fixture reading "recent filings for TSLA would appear here" was "the actual record".
+    ///
+    /// It lives on the type because two callers need the same answer: the honesty ladder, deciding
+    /// sourced versus unsourced, and the template's reality sentence. It was previously private to
+    /// the ladder, which is why the template could not consult it and asserted instead.
+    pub fn has_real_signals(&self) -> bool {
+        self.items.iter().any(|i| {
+            let i = i.trim().to_lowercase();
+            !i.is_empty()
+                && !i.contains("no public signals available")
+                && !i.contains("no recent signals")
+                && !i.contains("grounded-source mock")
+                && !i.contains("no live network")
+                && !i.contains("would appear here")
+        })
+    }
+
     pub fn fact_shaped_items(&self) -> (Vec<&str>, usize) {
         let kept: Vec<&str> = self
             .items
