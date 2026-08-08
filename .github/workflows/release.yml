@@ -263,13 +263,20 @@ jobs:
           STAGE="pkg/Ziqpu"
           mkdir -p "$STAGE"
           cp target/release/ziqpu-ui "$STAGE/"
+          # The entry point people are told to run. It checks the loader's own answer for missing
+          # system libraries FIRST and prints the exact install command for the distribution in
+          # front of them — WebKitGTK is a system dependency on Linux and cannot be bundled, so the
+          # alternative is a raw linker error and an app that "doesn't work". Same reasoning as the
+          # Windows build detecting WebView2 instead of showing a blank window.
+          cp scripts/linux-launcher.sh "$STAGE/ziqpu"
+          chmod +x "$STAGE/ziqpu" "$STAGE/ziqpu-ui"
           mkdir -p "$STAGE/data/ephemeris"
           cp data/ephemeris/de440s.bsp "$STAGE/data/ephemeris/"
           cp LICENSE NOTICE "$STAGE/"
           cp -r LICENSES "$STAGE/"
           cp .github/INSTALL_NOTES.md "$STAGE/README.txt"
           tar -czf "Ziqpu-${TAG}-linux-x64.tar.gz" -C pkg Ziqpu
-          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (binary + DE440 kernel + LICENSE + NOTICE + LICENSES/ + README.txt)"
+          echo "built Ziqpu-${TAG}-linux-x64.tar.gz (launcher + binary + DE440 kernel + LICENSE + NOTICE + LICENSES/ + README.txt)"
           echo "built Ziqpu-${TAG}-linux-x64.tar.gz"
 
       # ---- attach the packaged artifact to the Release for the tag ----
