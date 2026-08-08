@@ -218,6 +218,130 @@ pub fn fill_env_from_vault() {
     }
 }
 
+/// The **shape** of a stored key — never its value.
+///
+/// A 401 is hard to diagnose on this project by design: the standing rule is that a key is never
+/// shown, so "present" and "correct" look identical from every surface. That is exactly what let a
+/// rejected key sit in the vault for over a month while the app reported "live" on every screen.
+///
+/// Shape is the honest middle ground. It separates a truncated paste, a trailing newline, or a value
+/// from the wrong provider — all repairable — from a well-formed key the server still refuses, which
+/// means revoked or rotated and needs replacing rather than fixing. None of it discloses the secret:
+/// a length is not a key, and the prefix is printed on the provider's own dashboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyShape {
+    /// Character count. Reported only against the expected length, never as a bare fingerprint.
+    len: usize,
+    /// Whether the value carries the provider's documented prefix.
+    prefix_ok: bool,
+    /// Whether leading or trailing whitespace survived the paste — the classic silent breaker,
+    /// because a trailing newline is invisible in every UI that would show it.
+    has_edge_whitespace: bool,
+    /// Whether whitespace appears *inside* the value, which means a wrapped or partial paste.
+    has_inner_whitespace: bool,
+}
+
+impl std::fmt::Display for KeyShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} chars · prefix {} · edge whitespace {} · inner whitespace {}",
+            self.len,
+            if self.prefix_ok { "ok" } else { "WRONG" },
+            if self.has_edge_whitespace {
+                "YES"
+            } else {
+                "none"
+            },
+            if self.has_inner_whitespace {
+                "YES"
+            } else {
+                "none"
+            },
+        )
+    }
+}
+
+impl KeyShape {
+    /// Plain-language findings, most actionable first. Empty when the shape looks right — in which
+    /// case a 401 is the provider's verdict on a well-formed key, not a formatting problem.
+    pub fn diagnosis(&self, provider: Provider) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.has_edge_whitespace {
+            out.push(
+                "leading/trailing whitespace — a trailing newline survives most paste fields and                  is invisible in all of them. Re-paste without it."
+                    .to_string(),
+            );
+        }
+        if self.has_inner_whitespace {
+            out.push(
+                "whitespace INSIDE the value — the paste wrapped or was partial. Copy the key as                  one unbroken string."
+                    .to_string(),
+            );
+        }
+        if !self.prefix_ok {
+            out.push(format!(
+                "does not start with {:?} — this looks like a key for a different provider, or the                  start of the value was lost.",
+                provider.key_prefix()
+            ));
+        }
+        // Length is only meaningful PER PROVIDER. The first version of this check used a single
+        // `< 80` threshold calibrated on Anthropic's ~108 and applied it to both — and promptly told
+        // the owner their working 73-character OpenRouter key was truncated. A diagnostic that cries
+        // wolf about a healthy key is worse than none, because the next real warning is discounted.
+        let expected = provider.key_len_hint();
+        if self.prefix_ok && self.len + 8 < expected {
+            out.push(format!(
+                "{} characters, well short of the ~{expected} a {} key runs to — the paste was                  truncated.",
+                self.len,
+                provider.label()
+            ));
+        }
+        out
+    }
+}
+
+/// The documented prefix for a provider's keys — public information, printed on their dashboards.
+impl Provider {
+    pub fn key_prefix(self) -> &'static str {
+        match self {
+            Provider::Anthropic => "sk-ant-",
+            Provider::OpenRouter => "sk-or-",
+        }
+    }
+
+    /// Roughly how long a valid key from this provider runs — for spotting a truncated paste.
+    ///
+    /// Per provider, because the lengths genuinely differ: Anthropic's `sk-ant-api03-…` is about
+    /// 108 characters, OpenRouter's `sk-or-v1-` plus 64 hex is 73. A single shared threshold
+    /// reported a healthy OpenRouter key as truncated, which is the failure mode a diagnostic can
+    /// least afford.
+    pub fn key_len_hint(self) -> usize {
+        match self {
+            Provider::Anthropic => 108,
+            Provider::OpenRouter => 73,
+        }
+    }
+}
+
+/// Describe the stored key's shape, or `None` when nothing is stored.
+///
+/// This is the **only** sanctioned caller of [`get_key`] besides [`key_source`] and the startup env
+/// fill, and it discards the value immediately — nothing derived from it can reconstruct the key.
+pub fn key_shape(provider: Provider) -> Option<KeyShape> {
+    let key = std::env::var(provider.env_var())
+        .ok()
+        .filter(|k| !k.is_empty())
+        .or_else(|| get_key(provider))?;
+    let trimmed = key.trim();
+    Some(KeyShape {
+        len: trimmed.chars().count(),
+        prefix_ok: trimmed.starts_with(provider.key_prefix()),
+        has_edge_whitespace: trimmed.len() != key.len(),
+        has_inner_whitespace: trimmed.chars().any(char::is_whitespace),
+    })
+}
+
 /// Remove `provider`'s stored key. Idempotent — `Ok(())` also when there was nothing to delete.
 pub fn delete_key(provider: Provider) -> Result<(), String> {
     let Some(entry) = entry(provider) else {
