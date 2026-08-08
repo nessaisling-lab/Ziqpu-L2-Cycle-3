@@ -73,12 +73,15 @@ made. A car has no filings; a company has no VIN.
 |---|---|
 | `PublicCompany` (has a CIK) | `sec_filings` · `sec_financials` (XBRL) · `company_facts` (Wikidata) |
 | `Vehicle` (valid VIN) | `vehicle_record` — NHTSA vPIC: make, model, year, assembly plant. **A VIN carries no build date**, so it never claims one |
-| `ScannedItem` (GS1 barcode) | `scanned_code` — offline; the object's own record, and the day *this unit* was made if the code carries it · `product_launch` |
-| `Named` (a bare name) | `company_facts` · `drug_approval` (openFDA) · `product_launch` (Wikidata `P577`) — genuinely ambiguous, so the model chooses |
+| `ScannedItem` (GS1 barcode) | `scanned_code` — offline; the object's own record, and the day *this unit* was made if the code carries it · `origin_moments` |
+| `Named` (a bare name) | `company_facts` · `drug_approval` (openFDA) · `origin_moments` (Wikidata lifecycle) — genuinely ambiguous, so the model chooses |
 
-Plus `web_news_search` behind the deep-research path, and the **N3 origin resolver**
-(`origin::resolve_origin`) which turns a typed name into the *lifecycle* of dates Wikidata holds for
-it — released, opened, entered service, founded — and marks which are day-precise enough to chart.
+`origin_moments` is the **N3 origin resolver** on the roster: it turns a name into the *lifecycle*
+of dates Wikidata holds for it — released, officially opened, entered service, founded — and marks
+which are day-precise enough to chart. A year-precision value is reported as a year and named
+unchartable, never rendered as the January 1st that Wikidata stores it as.
+
+Plus `web_news_search` behind the deep-research path.
 
 **Every grounding call is gated.** `propose_grounding` returns a consent prompt naming the exact
 sources; nothing external is fetched until a human approves. Fetched text is fenced as data, and

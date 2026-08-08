@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 
 use crate::grounded::{
     is_placeholder, sec_user_agent, urlencoding_min, DrugSource, EdgarSource, GroundedSource,
-    Gs1Source, ProductSource, SecFactsSource, WikidataSource, NO_SIGNALS,
+    Gs1Source, OriginSource, SecFactsSource, WikidataSource, NO_SIGNALS,
 };
 use crate::tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 use crate::types::{Choice, GroundedSignals};
@@ -350,7 +350,7 @@ fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Too
                 "product_launch",
                 "Look this item's model up as a released product and return the day it first \
                  launched, from Wikidata's publication dates.",
-                Box::<ProductSource>::default(),
+                Box::<OriginSource>::default(),
             ),
         ],
         EntityKind::Vehicle => vec![tool(
@@ -377,7 +377,7 @@ fn roster_for(kind: EntityKind, choice: &Choice, sink: &Sink) -> Vec<Box<dyn Too
                 "Look this name up as a released product — a console, game, film, album or device — \
                  and return the day it first launched, from Wikidata's publication dates. Only \
                  matches things that were actually released; companies are not products.",
-                Box::<ProductSource>::default(),
+                Box::<OriginSource>::default(),
             ),
         ],
     }

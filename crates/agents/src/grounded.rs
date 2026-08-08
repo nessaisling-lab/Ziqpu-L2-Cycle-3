@@ -758,30 +758,35 @@ pub(crate) fn urlencoding_min(s: &str) -> String {
     out
 }
 
-/// Real, CC0 **product launch dates** from Wikidata's publication-date property (`P577`).
+/// Real, CC0 **origin moments** from Wikidata — the worker that puts [`crate::origin`] on the roster.
 ///
-/// This is the worker that gives a consumer product a genuine, day-precise origin moment — a games
-/// console, a video game, a film, an album, a device. It completes the honest ladder: a vehicle can
-/// only offer identity and place, a drug offers its FDA approval, and a released product offers the
-/// day it entered the world.
+/// # Why this replaced the product-launch worker
 ///
-/// Three decisions the data forced:
+/// This used to be `OriginSource`, reading only `P577` (publication date) and refusing anything
+/// that resolved to an organization. That was a narrower question than the data answers, and it left
+/// the N3 resolver half-orphaned: `resolve_origin` could read a place's opening, a vessel's entry
+/// into service, and a company's day-precise founding, and **nothing in the agent loop called it**.
+/// The parser was reachable through this worker; the resolver was not.
 ///
-/// - **The earliest release wins.** A product often carries several `P577` values because it shipped
-///   region by region — the PlayStation 5 has 2020-11-12, 2020-11-19 and 2020-12-11. The birth is the
-///   *first* of those; the later ones are the same product arriving somewhere else. Later dates are
-///   counted and mentioned, never silently averaged or picked at random.
-/// - **Only day precision becomes a date.** Wikidata stamps every time value with a `precision`
-///   (11 = day, 10 = month, 9 = year), and a year-precision value is stored as January 1st. Reading
-///   that as a launch *day* would reinvent the exact fabrication this project deleted 904 charts to
-///   get rid of. A year-only `P577` is reported as a year and named as unchartable.
-/// - **An organization is not a product.** The company worker already speaks for companies, so a name
-///   that resolves to one contributes nothing here rather than competing with it.
-pub struct ProductSource {
+/// That is the fourth time in this codebase a correct, tested component has sat with no caller — the
+/// ANISE backend, `origin::to_choice`, this. So rather than add a fifth partial surface beside the
+/// existing one, the worker asks the whole question: *what origin moments does this entity have?*
+///
+/// The organization guard went with it. It existed because a worker calling itself "product launch"
+/// had no business answering for a company — but an origin worker legitimately does, and it says
+/// something `company_facts` cannot: that founding's exact **day**, where `P571`'s year is all the
+/// facts worker reports.
+///
+/// # What it reports
+///
+/// Every moment [`crate::origin`] found, ranked, with the unchartable ones labelled as such. A
+/// year-precision value is surfaced and named year-precision, never rendered as a day — the January
+/// 1st placeholder is the exact fabrication this project deleted 904 charts to remove.
+pub struct OriginSource {
     pub user_agent: String,
 }
 
-impl Default for ProductSource {
+impl Default for OriginSource {
     fn default() -> Self {
         Self {
             user_agent: sec_user_agent(),
@@ -789,76 +794,52 @@ impl Default for ProductSource {
     }
 }
 
-impl GroundedSource for ProductSource {
+impl GroundedSource for OriginSource {
     fn fetch(&self, choice: &Choice) -> GroundedSignals {
         GroundedSignals {
             choice: choice.ticker.clone(),
-            source: "Wikidata (product launch)".to_string(),
-            items: self.fetch_launch(&choice.name).unwrap_or_default(),
+            source: "Wikidata (origin moments)".to_string(),
+            items: self.fetch_origin(&choice.name),
         }
     }
 }
 
-impl ProductSource {
-    /// Signal lines for a released product, read out of [`crate::origin`].
-    ///
-    /// This used to carry its own copy of the whole chain: the Wikidata search, the label guard, the
-    /// entity fetch, a `publication_dates` extractor, and its own reading of Wikidata's `precision`
-    /// field. `crates/agents/src/origin.rs` then implemented the same chain again, correctly, for
-    /// the N3 resolver — and a precision rule living in two places is a precision rule that will
-    /// disagree with itself. It is now one implementation with two presentations: the resolver
-    /// returns structured moments, this turns them into the fact lines a reading quotes.
-    ///
-    /// The one thing that stays here is the organization guard, because it is this source's own
-    /// policy rather than a fact about the data: the company worker already speaks for companies,
-    /// and two workers answering for one entity is how a reading ends up citing itself twice.
-    fn fetch_launch(&self, name: &str) -> Option<Vec<String>> {
-        let resolved = crate::origin::resolve_entity(name, &self.user_agent).ok()?;
-        if is_organization(&resolved.entity, &resolved.qid) {
-            return None;
+impl OriginSource {
+    fn fetch_origin(&self, name: &str) -> Vec<String> {
+        use crate::origin::{resolve_origin, OriginGap};
+
+        // Both arms carry signal. A `NothingChartable` entity is real and dated — just not to the
+        // day — and saying so is a different, more useful message than saying nothing.
+        let life = match resolve_origin(name, &self.user_agent) {
+            Ok(life) => life,
+            Err(OriginGap::NothingChartable(life)) | Err(OriginGap::NoOriginProperties(life)) => {
+                life
+            }
+            // Unresolved and MisResolved contribute nothing: a name that matched nothing, or matched
+            // something else, has no facts to offer and a guess would be worse than silence.
+            Err(_) => return Vec::new(),
+        };
+        if life.moments.is_empty() {
+            return Vec::new();
         }
 
-        let life =
-            crate::origin::lifecycle_from_entity(&resolved.entity, &resolved.qid, &resolved.label);
-        // Only P577 speaks for a *product launch*. The lifecycle may also carry an inception or a
-        // start date, which belong to the N3 chart chooser rather than to this fact line.
-        let releases: Vec<&crate::origin::OriginMoment> = life
+        let mut items = vec![format!("entity: {} ({})", life.label, life.qid)];
+        // The chartable default first, named as such, then the rest of the lifecycle.
+        if let Some(best) = life.default_moment() {
+            items.push(format!("{} — the chartable moment", best.describe()));
+        }
+        for m in life
             .moments
             .iter()
-            .filter(|m| m.property.id == "P577")
-            .collect();
-        if releases.is_empty() {
-            return None;
+            .filter(|m| Some(*m) != life.default_moment())
+        {
+            items.push(m.describe());
         }
-
-        let mut items = vec![format!("product: {}", resolved.label)];
-
-        // Day-precise values are the only ones that can name a day. The lifecycle is already sorted
-        // chartable-first then earliest, so the first day-precise release IS first existence.
-        let days: Vec<&&crate::origin::OriginMoment> =
-            releases.iter().filter(|m| m.is_chartable()).collect();
-        if let Some(first) = days.first() {
-            items.push(format!("released: {}", first.date.format("%Y-%m-%d")));
-            if days.len() > 1 {
-                items.push(format!(
-                    "later releases: {} more (regional or re-release)",
-                    days.len() - 1
-                ));
-            }
-            return Some(items);
-        }
-
-        // No day anywhere — report the coarsest truth rather than a January 1st.
-        let coarsest = releases.iter().min_by_key(|m| m.date)?;
-        items.push(format!(
-            "released: {} (year precision only — not a chartable moment)",
-            coarsest.date.format("%Y")
-        ));
-        Some(items)
+        items
     }
 }
 
-/// The **scanned-item** worker — reads a GS1 code's own record, offline.
+/// The **scanned-item** worker/// The **scanned-item** worker — reads a GS1 code's own record, offline.
 ///
 /// Every other worker here asks the internet what an *archetype* is. This one reads what the object
 /// in your hand says about **itself**, so it is the only source that can date an individual unit —
@@ -1010,7 +991,7 @@ impl CompositeSource {
             // The code carries its own record; Wikidata dates the product line behind it.
             EntityKind::ScannedItem => vec![
                 Box::<Gs1Source>::default(),
-                Box::<ProductSource>::default(),
+                Box::<OriginSource>::default(),
                 Box::<WikidataSource>::default(),
             ],
             // Only vPIC can speak about one specific vehicle. Nothing else is even asked, which is
@@ -1019,7 +1000,7 @@ impl CompositeSource {
             EntityKind::Named => vec![
                 Box::<WikidataSource>::default(),
                 Box::<DrugSource>::default(),
-                Box::<ProductSource>::default(),
+                Box::<OriginSource>::default(),
             ],
         };
         Self {
@@ -1553,56 +1534,84 @@ mod tests {
             .is_empty());
     }
 
-    /// LIVE — a released product grounds with a **day-precise launch date**, and the *earliest*
-    /// release wins when a product shipped region by region.
+    /// LIVE — the origin worker reports an entity's whole lifecycle, with the chartable one named.
     ///
     /// The PlayStation 5 carries three `P577` values (2020-11-12, 11-19, 12-11). Its birth is the
-    /// first: the later ones are the same console arriving somewhere else, not a different thing
-    /// being born. Also pins the negative guard — a company name must not be answered here, because
-    /// the company worker already speaks for it.
-    /// Run: `cargo test -p agents grounded -- --ignored --nocapture live_product`
+    /// first; the later ones are the same console arriving somewhere else, not a different thing
+    /// being born — so they are kept and listed, never averaged or silently dropped.
+    ///
+    /// The second half is the capability this worker gained by replacing `ProductSource`. That one
+    /// refused any name resolving to an organization, because a worker called "product launch" had
+    /// no business answering for a company. An **origin** worker does, and it says something
+    /// `company_facts` cannot: the founding's exact DAY, where `P571`'s year is all the facts worker
+    /// reports.
+    ///
+    /// Run: `cargo test -p agents grounded -- --ignored --nocapture live_origin`
     #[test]
     #[ignore = "hits live Wikidata"]
-    fn live_product_grounds_with_its_launch_day() {
+    fn live_origin_reports_the_lifecycle_for_products_and_companies_alike() {
+        let show = |label: &str, sig: &GroundedSignals| {
+            eprintln!(
+                "
+{label} — source: {}",
+                sig.source
+            );
+            for item in &sig.items {
+                eprintln!("  - {item}");
+            }
+        };
+
         let console = Choice {
             ticker: "PS5".to_string(),
             name: "PlayStation 5".to_string(),
             ..demo_choice()
         };
-        let sig = ProductSource::default().fetch(&console);
-        eprintln!("\nsource: {}", sig.source);
-        for item in &sig.items {
-            eprintln!("  - {item}");
-        }
-        let released = sig
+        let sig = OriginSource::default().fetch(&console);
+        show("PlayStation 5", &sig);
+
+        assert!(
+            sig.items
+                .iter()
+                .any(|i| i.starts_with("entity: PlayStation 5 (Q")),
+            "the entity and its QID are named so the resolution is checkable: {:?}",
+            sig.items
+        );
+        let chartable = sig
             .items
             .iter()
-            .find(|i| i.starts_with("released:"))
+            .find(|i| i.contains("the chartable moment"))
             .unwrap_or_else(|| {
-                panic!(
-                    "a released product must carry a launch date: {:?}",
-                    sig.items
-                )
+                panic!("a released product has a chartable moment: {:?}", sig.items)
             });
         assert!(
-            released.contains("2020-11-12"),
-            "the EARLIEST release is the birth, not a later regional one: {released}"
+            chartable.contains("2020-11-12"),
+            "the EARLIEST release is the birth, not a later regional one: {chartable}"
         );
         assert!(
-            !released.contains("year precision"),
-            "this one is day-precise: {released}"
+            !chartable.contains("not chartable"),
+            "this one is day-precise: {chartable}"
+        );
+        assert!(
+            sig.items
+                .iter()
+                .filter(|i| i.contains("2020-11-19") || i.contains("2020-12-11"))
+                .count()
+                == 2,
+            "later regional releases are kept, not discarded: {:?}",
+            sig.items
         );
 
-        // A company is not a product — the company worker owns that, so this must stay silent.
+        // A company now gets an answer here, where the product worker was silent by design.
         let company = Choice {
-            name: "Manhattan Associates Inc".to_string(),
+            name: "Ford Motor Company".to_string(),
             ..demo_choice()
         };
-        let miss = ProductSource::default().fetch(&company);
+        let sig = OriginSource::default().fetch(&company);
+        show("Ford Motor Company", &sig);
         assert!(
-            miss.items.is_empty(),
-            "an organization must contribute nothing here, got {:?}",
-            miss.items
+            sig.items.iter().any(|i| i.contains("1903-06-16")),
+            "an origin worker speaks for companies too — day-precise, unlike company_facts' year: {:?}",
+            sig.items
         );
     }
 
