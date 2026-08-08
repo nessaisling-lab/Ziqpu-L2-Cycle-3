@@ -1271,8 +1271,21 @@ pub enum GroundedRung {
     /// No external signals were available; the local model (or the template) read the charts
     /// **alone** — backed by nothing external, and marked so.
     LocalUnsourced,
-    /// The deterministic template wrote it (Raw mode, or every model down with signals present).
+    /// The deterministic template wrote it because the seeker **asked for it** — Raw mode. Not a
+    /// degradation, and not apologised for.
     Template,
+    /// The deterministic template wrote it because **the chosen writer did not answer**.
+    ///
+    /// The same words as [`Self::Template`] and the opposite meaning, which is exactly why they were
+    /// one variant and needed to stop being: a reading badged `GROUNDED` is indistinguishable from
+    /// one a live model produced. That indistinguishability is how a rejected API key served
+    /// template readings for over a month while every surface reported "live" — no function was
+    /// wrong, the vault stored and `key_source` reported and `build_interpreter` selected and
+    /// `try_fit_read` failed and the template wrote, all correctly, composing into a false claim.
+    ///
+    /// The signals themselves may still be real, so this rung is still *sourced*; what changed is
+    /// who wrote the prose around them.
+    Degraded,
 }
 
 impl GroundedRung {
@@ -1293,6 +1306,7 @@ impl GroundedRung {
             GroundedRung::LocalUnsourced if offmachine => "REMOTE · UNSOURCED",
             GroundedRung::LocalUnsourced => "LOCAL · UNSOURCED",
             GroundedRung::Template => "GROUNDED",
+            GroundedRung::Degraded => "OFFLINE READING",
         }
     }
     /// Whether real external signals back this reading — `false` for every unsourced rung, whoever
@@ -1541,9 +1555,20 @@ fn local_fallback(
                 source: local.as_ref().map(|l| format!("local · {}", l.model())),
             };
         }
+        // Every live writer was tried and none answered. Say so where the seeker is reading, not
+        // only in a badge they may not look at — the same treatment `FailoverInterpreter` gives a
+        // provider swap, which degradation never got.
+        let note = format!(
+            "  note: {} did not answer, so the offline reading wrote this one. The measurements              below are unchanged — only the words around them are.",
+            active_source_label()
+        );
+        crate::trace::note("degraded: no live writer answered, template wrote the reading");
         return LayeredBrief {
-            reading: TemplateInterpreter.grounded_brief(measures, fit, name, grounded),
-            rung: GroundedRung::Template,
+            reading: insert_above_reminder(
+                &TemplateInterpreter.grounded_brief(measures, fit, name, grounded),
+                &note,
+            ),
+            rung: GroundedRung::Degraded,
             source: None,
         };
     }
@@ -2286,6 +2311,53 @@ A read.
         assert!(n < r, "disclosure belongs above the disclaimer: {placed}");
     }
 
+    /// A reading the seeker ASKED the template for, and one the template wrote because nothing else
+    /// would, must not look the same.
+    ///
+    /// They were one rung and one badge — `GROUNDED` — which is how a rejected API key served
+    /// template readings for over a month while every surface said "live". No function was wrong.
+    /// The vault stored, `key_source` reported, `build_interpreter` selected, `try_fit_read` failed
+    /// and the template wrote, each correctly, composing into a false claim. Only an end-to-end
+    /// question — who actually wrote the words in front of me? — can see that, which is why the
+    /// answer belongs in the reading rather than in a health check somewhere else.
+    #[test]
+    fn a_chosen_template_and_a_failed_one_do_not_look_alike() {
+        let _env = env_guard();
+        std::env::remove_var("ZIQPU_LLM_URL");
+        std::env::remove_var("ZIQPU_ALLOW_REMOTE_MODEL");
+
+        assert_eq!(GroundedRung::Template.badge(), "GROUNDED");
+        assert_eq!(GroundedRung::Degraded.badge(), "OFFLINE READING");
+        assert_ne!(
+            GroundedRung::Template.badge(),
+            GroundedRung::Degraded.badge(),
+            "a choice and a failure must be distinguishable"
+        );
+
+        // Sourced-ness follows the SIGNALS, not the writer: a degraded reading of real filings is
+        // still backed by real filings. Only the prose changed hands.
+        assert!(
+            GroundedRung::Degraded.is_sourced(),
+            "degrading the writer does not un-source the data"
+        );
+
+        // The note lands above the disclaimer, like every other app-authored line.
+        let note = "  note: Live · X did not answer, so the offline reading wrote this one.";
+        let out = insert_above_reminder(
+            "FIT: Mixed (50 / 100) — X
+A read.
+  REMINDER: measured, not fate.",
+            note,
+        );
+        let lines: Vec<&str> = out.lines().collect();
+        let n = lines
+            .iter()
+            .position(|l| l.contains("did not answer"))
+            .unwrap();
+        let r = lines.iter().position(|l| l.contains("REMINDER")).unwrap();
+        assert!(n < r, "the explanation belongs above the disclaimer: {out}");
+    }
+
     /// The doubled lunar node — found by reading a trace, invisible from the output.
     ///
     /// Microsoft's real four-contact block, verbatim from a live run, was two facts written twice.
@@ -2792,6 +2864,16 @@ A read.
             .to_lowercase()
             .contains("not financial advice"));
 
+        // Raw is a CHOICE, not a degradation: same words, no apology, no "did not answer" note.
+        let raw = grounded_layered(&m, Fit::Aligned, "Apple", &g, None, ReadMode::Raw);
+        assert_eq!(raw.rung, GroundedRung::Template);
+        assert_eq!(raw.rung.badge(), "GROUNDED");
+        assert!(
+            !raw.reading.contains("did not answer"),
+            "the seeker asked for this one: {}",
+            raw.reading
+        );
+
         restore_local_env();
     }
 
@@ -2802,9 +2884,20 @@ A read.
         let m = measures();
         let g = grounded(vec!["recent filing: 10-K on 2025-11-01"]);
 
-        // Frontier down + local down, but real signals present → the sourced template grounded read.
+        // Frontier down + local down, but real signals present → the template writes it, and now
+        // SAYS so. This used to land on `Template`, the same rung Raw mode produces when the seeker
+        // deliberately asks for the template — so a failure and a choice were indistinguishable, in
+        // the badge and in the reading. That is how a rejected key served template readings for over
+        // a month while every surface reported "live".
         let brief = grounded_layered(&m, Fit::Aligned, "Apple", &g, None, ReadMode::Live);
-        assert_eq!(brief.rung, GroundedRung::Template);
+        assert_eq!(brief.rung, GroundedRung::Degraded);
+        assert_eq!(brief.rung.badge(), "OFFLINE READING");
+        assert!(
+            brief.reading.contains("did not answer"),
+            "the reader is told WHY, not just badged: {}",
+            brief.reading
+        );
+        // The signals are real, so the reading is still sourced — only the writer changed.
         assert!(brief.rung.is_sourced());
         assert!(
             brief.reading.contains("GROUNDED (SEC EDGAR)"),
