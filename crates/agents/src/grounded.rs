@@ -613,7 +613,7 @@ impl GroundedSource for WikidataSource {
 ///
 /// Free rather than a method because both the company worker and the product worker resolve names
 /// the same way — one search, two readings of the result.
-fn wikidata_resolve_qid(name: &str, user_agent: &str) -> Option<(String, String)> {
+pub(crate) fn wikidata_resolve_qid(name: &str, user_agent: &str) -> Option<(String, String)> {
     let q = urlencoding_min(&search_name(name));
     let url = format!(
         "https://www.wikidata.org/w/api.php?action=wbsearchentities&search={q}&language=en&format=json&limit=1"
@@ -627,7 +627,7 @@ fn wikidata_resolve_qid(name: &str, user_agent: &str) -> Option<(String, String)
 }
 
 /// The full entity JSON (`Special:EntityData/{qid}.json`) — one call carries every claim we read.
-fn wikidata_entity(qid: &str, user_agent: &str) -> Option<serde_json::Value> {
+pub(crate) fn wikidata_entity(qid: &str, user_agent: &str) -> Option<serde_json::Value> {
     let url = format!("https://www.wikidata.org/wiki/Special:EntityData/{qid}.json");
     let bytes = http_get(&url, user_agent)?;
     serde_json::from_slice(&bytes).ok()
@@ -685,7 +685,7 @@ fn employees(entity: &serde_json::Value, qid: &str) -> Option<String> {
 /// Does the resolved Wikidata label share a significant word with the company name? A cheap guard
 /// (no extra request) against a search landing on an unrelated entity. Ignores the corporate-suffix
 /// noise words so "Manhattan Associates Inc" still matches the label "Manhattan Associates".
-fn label_overlaps(name: &str, label: &str) -> bool {
+pub(crate) fn label_overlaps(name: &str, label: &str) -> bool {
     let stop = [
         "inc", "corp", "co", "ltd", "llc", "the", "company", "plc", "group", "holdings",
     ];

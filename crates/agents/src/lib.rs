@@ -27,6 +27,7 @@ pub mod measure;
 pub mod measure_llm;
 pub mod models;
 pub mod orchestrator;
+pub mod origin;
 pub mod prefs;
 pub mod profile;
 pub mod research;
@@ -106,6 +107,10 @@ pub use measure_llm::LocalMeasurer;
 pub use orchestrator::{
     grounding_consent, is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken,
     Session,
+};
+pub use origin::{
+    lifecycle_from_entity, parse_wikidata_time, resolve_origin, resolve_origin_default,
+    DatePrecision, OriginGap, OriginLifecycle, OriginMoment, OriginProperty, ORIGIN_PROPERTIES,
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
 pub use research::{classify_entity, research_grounded, EntityKind, ResearchConfig};
