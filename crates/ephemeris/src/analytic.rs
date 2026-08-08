@@ -118,7 +118,7 @@ fn analytic_longitude(body: Body, jde: f64) -> Option<f64> {
         | Body::Saturn
         | Body::Uranus
         | Body::Neptune => geocentric(body, jde).0,
-        Body::MeanNode | Body::TrueNode => mean_node(jd_to_t(jde)),
+        Body::MeanNode => mean_node(jd_to_t(jde)),
         Body::Chiron => return crate::chiron_longitude(jde),
         _ => return None,
     })
@@ -161,7 +161,7 @@ impl Ephemeris for AnalyticBackend {
                     "Pluto is not in the VSOP87 analytic backend; use the anise backend".into(),
                 ))
             }
-            Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jde)), 0.0, 0.0),
+            Body::MeanNode => (mean_node(jd_to_t(jde)), 0.0, 0.0),
             Body::Chiron => match crate::chiron_longitude(jde) {
                 Some(l) => (l, 0.0, 0.0),
                 None => {

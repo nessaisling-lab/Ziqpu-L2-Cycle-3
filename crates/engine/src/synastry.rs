@@ -57,7 +57,7 @@ pub fn body_weight(body: Body) -> f64 {
         Body::Mercury | Body::Venus | Body::Mars => 0.9,
         Body::Jupiter | Body::Saturn => 0.7,
         Body::Uranus | Body::Neptune | Body::Pluto => 0.4,
-        Body::MeanNode | Body::TrueNode | Body::Chiron => 0.3,
+        Body::MeanNode | Body::Chiron => 0.3,
     }
 }
 

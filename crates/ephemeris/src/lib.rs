@@ -43,8 +43,23 @@ pub enum Body {
     Uranus,
     Neptune,
     Pluto,
+    /// The **mean** lunar node — the classical smoothed formula.
+    ///
+    /// There used to be a `TrueNode` variant beside this one. It was never implemented: both
+    /// backends matched `MeanNode | TrueNode` to the same `mean_node()` call, so the two returned
+    /// bit-identical longitudes under different names. That is not a near-duplicate, it is a false
+    /// label — and on a project that deleted a data source over provenance and refuses to invent a
+    /// birth time, shipping a body called True Node that is the mean node is the same error in the
+    /// engine.
+    ///
+    /// It also corrupted every score. Two identical bodies in each chart meant node-to-other
+    /// contacts counted twice and node-to-node contacts counted **four times**, since the synastry
+    /// cross-product squares the duplication. Apple's chart listed sixteen node contacts that were
+    /// seven facts.
+    ///
+    /// The true (osculating) node is real work — it needs the Moon's actual orbital elements, not a
+    /// rename — and is tracked for the DE440 ephemeris work.
     MeanNode,
-    TrueNode,
     Chiron,
 }
 
@@ -63,7 +78,6 @@ impl Body {
             Body::Neptune => "Neptune",
             Body::Pluto => "Pluto",
             Body::MeanNode => "MeanNode",
-            Body::TrueNode => "TrueNode",
             Body::Chiron => "Chiron",
         }
     }
@@ -162,13 +176,7 @@ mod tests {
 
     #[test]
     fn bodies_are_distinct_hash_keys() {
-        let all = [
-            Body::Sun,
-            Body::Moon,
-            Body::Chiron,
-            Body::TrueNode,
-            Body::MeanNode,
-        ];
+        let all = [Body::Sun, Body::Moon, Body::Chiron, Body::MeanNode];
         let set: HashSet<Body> = all.iter().copied().collect();
         assert_eq!(set.len(), all.len());
     }

@@ -1183,6 +1183,10 @@ fn aspects_block(measures: &Measures) -> String {
 /// score that has a node in orb, so it is the owner's call, not this function's.
 fn same_point(body: &str) -> &str {
     match body {
+        // `TrueNode` no longer exists — the variant was removed once it turned out both backends
+        // returned the mean node under both names. The root cause is fixed upstream, so this is now
+        // defence in depth rather than the fix: it stays because a future convention (a real
+        // osculating node, a sidereal variant) would reintroduce exactly this shape.
         "MeanNode" | "TrueNode" => "Node",
         other => other,
     }
@@ -1195,6 +1199,8 @@ fn same_point(body: &str) -> &str {
 /// humanise a word it was never given a human form of is an instruction it cannot follow.
 fn human_body(body: &str) -> &str {
     match body {
+        // Still needed after the de-duplication: `MeanNode` is an internal identifier, and a system
+        // prompt that demands human terms had never given the model a human word for it.
         "MeanNode" | "TrueNode" => "the lunar node",
         other => other,
     }

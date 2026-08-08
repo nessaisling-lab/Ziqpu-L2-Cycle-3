@@ -97,7 +97,7 @@ impl Ephemeris for AniseBackend {
 
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError> {
         let (longitude, latitude, distance_au) = match body {
-            Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
+            Body::MeanNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
             // Chiron comes from the bundled Horizons table (ANISE cannot read its Type-21 SPK).
             Body::Chiron => match crate::chiron_longitude(jd_ut) {
                 Some(l) => (l, 0.0, 0.0),
@@ -110,7 +110,7 @@ impl Ephemeris for AniseBackend {
             _ => self.ecliptic(body, jd_ut)?,
         };
         let speed_lon = match body {
-            Body::MeanNode | Body::TrueNode => signed_daily_motion(
+            Body::MeanNode => signed_daily_motion(
                 mean_node(jd_to_t(jd_ut + 0.5)),
                 mean_node(jd_to_t(jd_ut - 0.5)),
             ),

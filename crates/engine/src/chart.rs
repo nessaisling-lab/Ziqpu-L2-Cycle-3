@@ -23,7 +23,7 @@ pub const ZODIAC: [&str; 12] = [
 ];
 
 /// The bodies Ziqpu charts, in canonical order.
-pub const CHART_BODIES: [Body; 13] = [
+pub const CHART_BODIES: [Body; 12] = [
     Body::Sun,
     Body::Moon,
     Body::Mercury,
@@ -35,7 +35,6 @@ pub const CHART_BODIES: [Body; 13] = [
     Body::Neptune,
     Body::Pluto,
     Body::MeanNode,
-    Body::TrueNode,
     Body::Chiron,
 ];
 
@@ -127,11 +126,24 @@ mod tests {
     fn aapl_chart_has_expected_bodies_and_angles() {
         let jd = julian_day(1980, 12, 12, 14.5);
         let chart = compute_chart(&AnalyticBackend, jd, 40.7589, -73.9851, true);
-        // Analytic backend supplies all but Pluto → 12 of 13 (Chiron via the bundled table).
-        assert_eq!(chart.bodies.len(), 12);
+        // Analytic backend supplies all but Pluto → 11 of 12 (Chiron via the bundled table).
+        //
+        // It was 12 of 13 while a phantom `TrueNode` sat in `CHART_BODIES` returning the mean node's
+        // own longitude. This assertion is what caught its removal, which is the point of counting
+        // bodies at all: a chart that quietly gains or loses one is a chart whose scores moved.
+        assert_eq!(chart.bodies.len(), 11);
         assert!(chart.ascendant.is_some() && chart.midheaven.is_some());
         let sun = chart.bodies.iter().find(|b| b.body == Body::Sun).unwrap();
         assert_eq!(sun.sign, "Sagittarius");
+
+        // Exactly one lunar node. Two identical ones double-counted every node contact and
+        // quadrupled node-to-node contacts, because the synastry cross-product squares a duplicate.
+        let nodes = chart
+            .bodies
+            .iter()
+            .filter(|b| b.body.name().contains("Node"))
+            .count();
+        assert_eq!(nodes, 1, "one node body, or every score is inflated");
     }
 
     #[test]
