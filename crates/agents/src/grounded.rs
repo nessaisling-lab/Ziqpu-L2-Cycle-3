@@ -986,6 +986,68 @@ impl CompositeSource {
         }
     }
 
+    /// The workers that can actually say something about **this** entity.
+    ///
+    /// # The bug this fixes
+    ///
+    /// [`Self::live_default`] is SEC-shaped: EDGAR, XBRL, Wikidata. That is the right roster for a
+    /// public filer and the wrong one for everything else, and it was the **default** path — the one
+    /// used whenever the agentic research loop is off, which is whenever a seeker has no served
+    /// tool-capable local model, which is most seekers.
+    ///
+    /// So the entity-kind orchestration existed twice and only one copy was reachable. `roster_for`
+    /// in `research.rs` picks per kind, but it only runs on the tool-loop path. On the default path,
+    /// a car, a scanned barcode and a medicine were each asked SEC-shaped questions and answered
+    /// nothing — while `VehicleSource`, `Gs1Source` and `DrugSource` sat written, tested and never
+    /// dispatched.
+    ///
+    /// Found by tracing entity kinds other than the stock one. The five demo tickers are all public
+    /// filers, so every trace ever read had been down the one path where the default roster happens
+    /// to be correct.
+    ///
+    /// # Why it also made the consent untrue
+    ///
+    /// [`crate::grounding_consent`] describes `roster_for` — it promises a `Named` entity that
+    /// "Wikidata, Wikipedia and the FDA's public drug register" will be spent. On the default path
+    /// the FDA was never called. Consent that names a source it does not reach is the same failure
+    /// as consent that omits one, and this project has now been bitten three times by one decision
+    /// having two implementations. There is one roster now, and both paths read it.
+    pub fn for_entity(choice: &Choice) -> Self {
+        use crate::research::{classify_entity, EntityKind};
+
+        let sources: Vec<Box<dyn GroundedSource + Send + Sync>> = match classify_entity(choice) {
+            EntityKind::PublicCompany => vec![
+                Box::<EdgarSource>::default(),
+                Box::<SecFactsSource>::default(),
+                Box::<WikidataSource>::default(),
+            ],
+            // The code carries its own record; Wikidata dates the product line behind it.
+            EntityKind::ScannedItem => vec![
+                Box::<Gs1Source>::default(),
+                Box::<ProductSource>::default(),
+                Box::<WikidataSource>::default(),
+            ],
+            // Only vPIC can speak about one specific vehicle. Nothing else is even asked, which is
+            // also what keeps the VIN from being sent anywhere it has no business going.
+            EntityKind::Vehicle => vec![Box::new(crate::vin::VehicleSource)],
+            EntityKind::Named => vec![
+                Box::<WikidataSource>::default(),
+                Box::<DrugSource>::default(),
+                Box::<ProductSource>::default(),
+            ],
+        };
+        Self {
+            sources,
+            parallel: parallel_default(),
+        }
+    }
+
+    /// How many workers this composite will fan — for asserting a roster without running it.
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.sources.len()
+    }
+
     /// Build a composite from an explicit source list — used by tests to fan deterministic in-memory
     /// sources and assert the merge behavior without touching the network.
     pub fn from_sources(sources: Vec<Box<dyn GroundedSource + Send + Sync>>) -> Self {
@@ -1157,6 +1219,42 @@ mod tests {
     /// The whole point of the parallel fan: three 200 ms sources take ~600 ms serially and ~200 ms
     /// concurrently. Deterministic (sleeps, no network) and generously bounded so a loaded CI box
     /// can't flake it — it only has to prove the calls overlap at all.
+    /// A car, a barcode and a medicine must reach the workers that can answer them.
+    ///
+    /// Found by tracing entity kinds other than the stock one. `live_default` is SEC-shaped, and it
+    /// was the DEFAULT path — used whenever the agentic research loop is off, which is whenever the
+    /// seeker has no served tool-capable local model. So `VehicleSource`, `Gs1Source` and
+    /// `DrugSource` were written, tested, and never dispatched in the shipping configuration. Every
+    /// trace ever read had been down the stock path, where the wrong roster happens to be right.
+    #[test]
+    fn every_entity_kind_gets_a_roster_that_can_answer_it() {
+        let of = |ticker: &str, cik: Option<u32>| Choice {
+            ticker: ticker.into(),
+            name: "x".into(),
+            birth: crate::demo_seeker(),
+            cik,
+            wiki: None,
+        };
+
+        // A public filer keeps the SEC roster it always had.
+        assert_eq!(
+            CompositeSource::for_entity(&of("AAPL", Some(320193))).len(),
+            3
+        );
+        // A vehicle gets vPIC and NOTHING else — the VIN identifies one specific car, so it goes to
+        // exactly one place and no further.
+        assert_eq!(
+            CompositeSource::for_entity(&of("1HGCM82633A004352", None)).len(),
+            1
+        );
+        // A scanned code and a bare name each get their own roster rather than the SEC one.
+        assert_eq!(
+            CompositeSource::for_entity(&of("(01)00012345678905(11)240315", None)).len(),
+            3
+        );
+        assert_eq!(CompositeSource::for_entity(&of("Ibuprofen", None)).len(), 3);
+    }
+
     #[test]
     fn the_parallel_fan_overlaps_its_sources() {
         let seq = CompositeSource::from_sources(slow_trio()).with_parallel(false);

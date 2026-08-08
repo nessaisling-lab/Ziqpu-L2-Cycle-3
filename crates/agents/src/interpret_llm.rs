@@ -967,25 +967,87 @@ fn usable_reading(text: String, fit: Fit, measures: &Measures) -> Option<String>
 
 /// The tightest few contacts, one per line, for the model to read.
 fn aspects_block(measures: &Measures) -> String {
-    if measures.top.is_empty() {
-        return "- (no close contacts between the charts)".to_string();
-    }
-    measures
-        .top
+    // The tightest four **distinct** contacts, drawn from the full list rather than the pre-cut
+    // `top`, so removing a duplicate promotes a real contact instead of leaving a short list.
+    let mut seen: Vec<(String, String, String)> = Vec::new();
+    let lines: Vec<String> = measures
+        .aspects
         .iter()
+        .filter(|a| {
+            let key = (
+                same_point(&a.body_a).to_string(),
+                a.aspect.to_lowercase(),
+                same_point(&a.body_b).to_string(),
+            );
+            let fresh = !seen.contains(&key);
+            if fresh {
+                seen.push(key);
+            }
+            fresh
+        })
         .take(4)
         .map(|a| {
             format!(
                 "- {} {} {} ({}, {})",
-                a.body_a,
+                human_body(&a.body_a),
                 a.aspect.to_lowercase(),
-                a.body_b,
+                human_body(&a.body_b),
                 orb_band(a.orb),
                 if a.harmonious { "flowing" } else { "friction" }
             )
         })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .collect();
+
+    if lines.is_empty() {
+        return "- (no close contacts between the charts)".to_string();
+    }
+    lines.join("\n")
+}
+
+/// The identity of a body for deduplication — the two lunar-node variants collapse to one point.
+///
+/// # Why this exists
+///
+/// The engine computes **both** the Mean Node and the True Node (`chart.rs`), which are the same
+/// point measured two ways: mean is the smoothed average, true is the osculating position, and they
+/// never sit more than about a degree and a half apart. Every contact one makes, the other makes
+/// too.
+///
+/// Read out of a live trace, Microsoft's entire four-contact block was two facts written twice:
+///
+/// ```text
+/// - Moon square MeanNode (tight, friction)
+/// - Moon square TrueNode (tight, friction)
+/// - MeanNode sextile Saturn (tight, flowing)
+/// - TrueNode sextile Saturn (tight, flowing)
+/// ```
+///
+/// The model has no way to know those are duplicates, and the doubling *reinforces*: two friction
+/// lines and two flowing lines read as a strong balanced pattern where the truth is one of each. The
+/// reading that came out was fluent and plausible, which is exactly why nothing caught it from the
+/// output side.
+///
+/// **This fixes what the model is told. It does not fix the score.** `synastry_score` weights both
+/// variants at 0.3, so the node contributes 0.6 where one point should contribute 0.3 — an
+/// arithmetic artifact in the half of the product that claims to be objective. That fix moves every
+/// score that has a node in orb, so it is the owner's call, not this function's.
+fn same_point(body: &str) -> &str {
+    match body {
+        "MeanNode" | "TrueNode" => "Node",
+        other => other,
+    }
+}
+
+/// A body's name as a person would say it.
+///
+/// `UNGASAGA_SYSTEM` instructs the model to translate every contact into human terms — and then the
+/// prompt handed it `MeanNode`, an internal identifier with no human spelling. Asking a model to
+/// humanise a word it was never given a human form of is an instruction it cannot follow.
+fn human_body(body: &str) -> &str {
+    match body {
+        "MeanNode" | "TrueNode" => "the lunar node",
+        other => other,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -1980,6 +2042,62 @@ mod tests {
             fixed.matches("GROUNDED (").count(),
             1,
             "exactly one citation: {fixed}"
+        );
+    }
+
+    /// The doubled lunar node — found by reading a trace, invisible from the output.
+    ///
+    /// Microsoft's real four-contact block, verbatim from a live run, was two facts written twice.
+    /// The reading it produced was fluent and balanced, because two friction lines and two flowing
+    /// lines are exactly what a balanced reading looks like.
+    #[test]
+    fn the_two_lunar_node_variants_count_as_one_contact() {
+        let hit = |a: &str, aspect: &str, b: &str, orb: f64, flowing: bool| AspectHit {
+            body_a: a.into(),
+            body_b: b.into(),
+            aspect: aspect.into(),
+            orb,
+            harmonious: flowing,
+            weight: 0.0,
+        };
+        // The real list, tightest first, with a genuine fifth contact behind the duplicates.
+        let aspects = vec![
+            hit("Moon", "Square", "MeanNode", 1.1, false),
+            hit("Moon", "Square", "TrueNode", 1.3, false),
+            hit("MeanNode", "Sextile", "Saturn", 2.0, true),
+            hit("TrueNode", "Sextile", "Saturn", 2.2, true),
+            hit("Venus", "Trine", "Jupiter", 2.9, true),
+            hit("Sun", "Conjunction", "Mars", 3.4, false),
+        ];
+        let m = Measures {
+            choice: "MSFT".into(),
+            top: aspects.iter().take(4).cloned().collect(),
+            aspects,
+            score: 55,
+            theme: None,
+            patterns: vec![],
+            confidence: Confidence::Moderate,
+            time_known: true,
+        };
+
+        let block = aspects_block(&m);
+        let lines: Vec<&str> = block.lines().collect();
+        assert_eq!(lines.len(), 4, "still four contacts: {block}");
+
+        // One node line, not two — and the duplicate's slot goes to a real contact rather than
+        // leaving the list short.
+        assert_eq!(
+            block.matches("the lunar node").count(),
+            2,
+            "one Moon-node and one node-Saturn line: {block}"
+        );
+        assert!(block.contains("Venus trine Jupiter"), "promoted: {block}");
+        assert!(block.contains("Sun conjunction Mars"), "promoted: {block}");
+
+        // The internal identifiers never reach a model told to speak in human terms.
+        assert!(
+            !block.contains("MeanNode") && !block.contains("TrueNode"),
+            "{block}"
         );
     }
 

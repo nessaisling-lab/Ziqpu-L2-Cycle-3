@@ -63,6 +63,7 @@ dependencies = [
  "rxing",
  "serde",
  "serde_json",
+ "tickers",
  "ureq 2.12.1",
 ]
 

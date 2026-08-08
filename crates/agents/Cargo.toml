@@ -63,3 +63,10 @@ nokhwa = { version = "0.10", optional = true, default-features = false, features
 default = []
 # Read a GS1 code from a webcam. See `agents::camera`.
 camera = ["dep:rxing", "dep:nokhwa", "dep:image"]
+
+[dev-dependencies]
+# Examples only. `tickers` depends on `agents`, so this is a deliberate dev-cycle — Cargo permits
+# one, and it keeps the production graph one-directional: the data layer knows about the loop, the
+# loop does not know about the data layer. The trace sweep needs real non-demo entities (a real
+# airline, a real mutual insurer) and inventing them would defeat the point of tracing.
+tickers = { path = "../tickers" }

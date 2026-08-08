@@ -473,7 +473,11 @@ pub fn fetch_grounded(
             return researched;
         }
     }
-    agents::fetch_approved(&CompositeSource::live_default(), choice, approval)
+    // `for_entity`, not `live_default`: the default roster is SEC-shaped, so a car, a scanned
+    // barcode or a medicine used to be asked SEC-shaped questions and answer nothing, while the
+    // workers that could have spoken sat written, tested and never dispatched. It also makes the
+    // checkpoint's consent true — that sentence describes this roster.
+    agents::fetch_approved(&CompositeSource::for_entity(choice), choice, approval)
         .unwrap_or_else(|_| unreachable!("authorization checked above"))
 }
 

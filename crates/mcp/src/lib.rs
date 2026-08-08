@@ -275,7 +275,7 @@ fn call_recommend(args: &Value) -> (String, bool) {
 
     let mut session = agents::Session::new(
         agents::EngineChartSource::default(),
-        grounded(),
+        grounded(&agents::demo_choices()[0]),
         interpreter(),
     );
     let recs = session.recommend(&seeker, &choices);
@@ -325,7 +325,7 @@ fn call_pull(args: &Value) -> (String, bool) {
         );
     }
     use agents::GroundedSource;
-    let signals = grounded().fetch(&choice);
+    let signals = grounded(&choice).fetch(&choice);
     let mut out = format!("GROUNDED ({}) for {}:\n", signals.source, ticker);
     for item in &signals.items {
         out.push_str(&format!("  - {item}\n"));
@@ -341,9 +341,14 @@ fn call_pull(args: &Value) -> (String, bool) {
 /// a host driving Ziqpu got one source while the desktop app got five, and the difference was
 /// invisible from the outside. Same [`CompositeSource`](agents::CompositeSource) now, so a grounded
 /// briefing is the same briefing wherever the loop is driven from.
-fn grounded() -> Box<dyn agents::GroundedSource> {
+/// The sources for one choice — **live only when explicitly asked**, and picked by entity kind.
+///
+/// `for_entity` rather than `live_default`, so the roster matches what `grounding_consent` told the
+/// human this call would spend. The default roster is SEC-shaped and would ask a vehicle or a
+/// medicine questions only a public filer can answer.
+fn grounded(choice: &agents::Choice) -> Box<dyn agents::GroundedSource> {
     if std::env::var("ZIQPU_LIVE").is_ok() {
-        Box::new(agents::CompositeSource::live_default())
+        Box::new(agents::CompositeSource::for_entity(choice))
     } else {
         Box::new(agents::MockGroundedSource)
     }
