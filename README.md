@@ -13,35 +13,6 @@ anything with a **date of origin** (a founding, a launch, a policy's effective d
 symbolic — not statements of fact, not predictions, not guarantees. Nothing here is financial,
 medical, legal, or psychological advice.
 
-## Install
-
-**[Download the latest release →](https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases)**
-(Windows `.zip` · macOS `.dmg` · Linux `.tar.gz`)
-
-One application. No account, no database, no Docker. It runs **offline out of the box** — the chart
-math and the company data are compiled into the binary — and your chart and keys never leave your
-machine. First-launch notes (WebView2 on Windows, Gatekeeper on macOS, WebKitGTK on Linux) are in
-each release's notes and in the `README.txt` inside the download.
-
-To get readings written by a model rather than by templates, paste your own API key (Anthropic or
-OpenRouter — kept in your OS keychain, never shown back to you) or run a model locally.
-
-Everything below is for **building from source**.
-
-## Status
-
-| Layer | State |
-|---|---|
-| **Data** — 5,271 US-market tickers, compiled into the binary | ✅ built · **4,507 chartable** — conception from Wikidata `P571` (CC0), birth from SEC EDGAR 424B4/424B1 (public domain); 764 honestly date-unknown |
-| **Ephemeris** — pluggable trait, 12 bodies | ✅ built · **JPL DE440 (default, bundled + digest-pinned)**, analytic VSOP87 fallback, Chiron table, all JPL-validated |
-| **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
-| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
-| **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
-| **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
-
-Stable **v1.4.1** on `main`; build-ahead **v1.5.0** on `nightfall`. Full history in
-[CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
-
 ## The two-agent design (the graded artifact)
 
 Every reading is produced by **two visible agents**:
@@ -90,6 +61,35 @@ before they reach the screen.
 
 **From an MCP host** (Claude Desktop, IDEs): `make_profile` · `chart` · `recommend` ·
 `pull_grounded_signals`.
+
+## Install
+
+**[Download the latest release →](https://github.com/nessaisling-lab/Ziqpu-L2-Cycle-3/releases)**
+(Windows `.zip` · macOS `.dmg` · Linux `.tar.gz`)
+
+One application. No account, no database, no Docker. It runs **offline out of the box** — the chart
+math and the company data are compiled into the binary — and your chart and keys never leave your
+machine. First-launch notes (WebView2 on Windows, Gatekeeper on macOS, WebKitGTK on Linux) are in
+each release's notes and in the `README.txt` inside the download.
+
+To get readings written by a model rather than by templates, paste your own API key (Anthropic or
+OpenRouter — kept in your OS keychain, never shown back to you) or run a model locally.
+
+Everything below is for **building from source**.
+
+## Status
+
+| Layer | State |
+|---|---|
+| **Data** — 5,271 US-market tickers, compiled into the binary | ✅ built · **4,507 chartable** — conception from Wikidata `P571` (CC0), birth from SEC EDGAR 424B4/424B1 (public domain); 764 honestly date-unknown |
+| **Ephemeris** — pluggable trait, 12 bodies | ✅ built · **JPL DE440 (default, bundled + digest-pinned)**, analytic VSOP87 fallback, Chiron table, all JPL-validated |
+| **Engine** — chart assembly + aspects | ✅ built · `compute_chart`, direction-agnostic `find_aspect` |
+| **Agents** — Hamun-ana + Ungasaga loop + checkpoint | ✅ observe→decide→act, approval gate, grounded tool, evals; interpreter = template / local / live (OpenRouter → Anthropic) |
+| **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
+| **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
+
+Stable **v1.4.1** on `main`; build-ahead **v1.5.0** on `nightfall`. Full history in
+[CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
 
 ## Architecture
 
