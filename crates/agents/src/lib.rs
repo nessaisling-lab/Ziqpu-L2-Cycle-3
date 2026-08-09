@@ -39,6 +39,7 @@ pub mod traction;
 pub mod types;
 pub mod vault;
 pub mod vin;
+pub mod web;
 
 // This crate spawns **no subprocesses at all** any more, so the helpers that made spawning safe are
 // gone with them: `child_cmd`, `strip_credentials`, `looks_like_credential`, `no_console_window`.
@@ -93,6 +94,7 @@ pub use types::{
 };
 pub use vault::{KeySource, Provider};
 pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId, VehicleSource};
+pub use web::{fetch_page, readable_text, Page, WebError};
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can
 // build placements and score contacts without depending on `engine` directly.

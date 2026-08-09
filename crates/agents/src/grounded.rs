@@ -369,7 +369,7 @@ pub(crate) fn is_placeholder(item: &str) -> bool {
 /// The default SEC contact User-Agent, honoring `ZIQPU_EDGAR_UA` — shared by every SEC-hitting
 /// source so the whole fleet identifies one way. See [`DEFAULT_EDGAR_UA`] for why it is a role
 /// address by necessity.
-pub(crate) fn sec_user_agent() -> String {
+pub fn sec_user_agent() -> String {
     std::env::var("ZIQPU_EDGAR_UA")
         .map(|s| s.trim().to_string())
         .ok()
