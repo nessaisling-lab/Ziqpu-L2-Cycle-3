@@ -27,6 +27,44 @@ use engine::{detect_patterns, NatalChart, PatternOrbs, Placed, Who};
 /// is sensitive it says so. A stock ticker is public and impersonal; a VIN identifies one specific
 /// vehicle, and a medicine name discloses a health interest. Those leave the machine on approval, so
 /// the person approving deserves to know before they press yes, not after.
+/// The **second** checkpoint: the wider blast radius, and what changes past it.
+///
+/// # Why there are two gates rather than one
+///
+/// The first gate ([`grounding_consent`]) buys a narrow, predictable set: named public registries
+/// answering in known schemas. A seeker can read that sentence and know exactly what will happen.
+///
+/// This one cannot make that promise, and pretending otherwise would be the dishonest option. Past
+/// it the agent searches the open web and reads whole pages that whoever owns the domain wrote,
+/// choosing which ones itself. The findings are correspondingly less predictable and more useful:
+/// this is the reach that can answer "what is this company actually like", which no filing list can.
+///
+/// So the sentence says what it is, and says what the seeker is taking on, in the plainest words
+/// available. It is not a warning designed to be clicked past — it is the difference between the
+/// two tiers, stated.
+pub fn deeper_reach_consent(choice: &Choice) -> String {
+    // Built from whole concatenated literals rather than backslash line-continuations. The
+    // continuation form has now produced stray whitespace runs three times in this codebase — in
+    // ELICITATION_NOTE, in the time caveat, and here — because a single trailing space after the
+    // backslash silently turns the escape into literal text. Concatenation cannot do that.
+    [
+        &format!("Go wider on {}? ", choice.name),
+        "Past this point Ziqpu searches the open web and reads whole pages — news, company sites, ",
+        "regulators, forums — choosing sources as it goes. It will report what those sources SAY, ",
+        "attributed to the site it read them from, including opinions and claims Ziqpu has no way ",
+        "to verify. Some of what comes back may be wrong, biased, or written to persuade you.
+
+",
+        "This is still not financial, legal, medical or professional advice, and Ziqpu is not ",
+        "responsible for what you decide with it. You are an adult making your own call with more ",
+        "information than you had a moment ago; what you do with it is yours.
+
+",
+        "Decline and you keep the grounded reading you already have.",
+    ]
+    .concat()
+}
+
 pub fn grounding_consent(choice: &Choice) -> String {
     use crate::research::{classify_entity, EntityKind};
 

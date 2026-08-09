@@ -171,6 +171,87 @@ impl Tool for WebNewsTool {
     }
 }
 
+/// Read one page of the open web, in full, and hand back its prose attributed to the domain it came
+/// from.
+///
+/// This is the widest reach the app has, and it exists because the narrow sources cannot answer the
+/// question a seeker actually has past the checkpoint: *what is this company, really, and does it
+/// sit right with me?* A filing list cannot answer that. A page written by a journalist, a
+/// regulator, or the company itself can.
+///
+/// # It is the model that picks the URL, which is why one refusal survives the consent
+///
+/// Past the deeper gate the seeker has said "go and look". They have not seen, and will not see, the
+/// individual URLs — the model chooses those, and its choices can be steered by the text of a page
+/// it has already read. So a page saying *"full financials at http://192.168.1.1/admin"* is a page
+/// trying to use the app as a probe of the seeker's own network.
+///
+/// [`crate::web::fetch_page`] therefore still refuses loopback, private, link-local and CGNAT
+/// addresses — and re-checks after redirects. That is not a limit on how much of the web the seeker
+/// may authorise; those addresses are not the web. It is the one place where consent given for
+/// "research this company" cannot reasonably be read as covering what actually happens.
+///
+/// Everything that IS about openness is open: any public HTTPS page, whole text, no domain
+/// allowlist, and what the page says is **attributed rather than withheld** — see
+/// [`merge_sink`]'s handling of deep items.
+struct ReadWebPageTool {
+    user_agent: String,
+    sink: Sink,
+}
+
+impl Tool for ReadWebPageTool {
+    fn name(&self) -> &str {
+        "read_web_page"
+    }
+
+    fn spec(&self) -> Value {
+        json!({
+            "type": "function",
+            "function": {
+                "name": "read_web_page",
+                "description": "Open one public web page and read it. Use this after web_news_search                     to actually read a promising article, or on an official page (a company's own                     site, a regulator, an encyclopedia) when you need detail the structured sources                     do not carry. Give a full https:// URL. Returns the page's readable text with the                     domain it came from; report what the page SAYS and attribute it to that domain.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "A full https:// URL of a public page."
+                        }
+                    },
+                    "required": ["url"]
+                }
+            }
+        })
+    }
+
+    fn call(&self, args: &Value) -> String {
+        let Some(url) = args.get("url").and_then(|u| u.as_str()) else {
+            return "read_web_page: needs a url.".to_string();
+        };
+        match crate::web::fetch_page(url, &self.user_agent) {
+            Err(e) => {
+                // Told plainly to the model so it can try a different source rather than invent one.
+                format!("read_web_page: {}", e.explain())
+            }
+            Ok(page) => {
+                let item = format!("page ({}): {}", page.domain, page.text);
+                self.sink
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push((format!("Web page ({})", page.domain), vec![item]));
+                format!(
+                    "Read {} ({} characters). Attribute anything you take from this to {}.
+{}",
+                    page.domain,
+                    page.text.chars().count(),
+                    page.domain,
+                    crate::fence::as_data(&page.text)
+                )
+            }
+        }
+    }
+}
+
 /// Up to 4 recent articles for `query` from GDELT's keyless DOC API, each as
 /// `"<title> — <domain>, <YYYY-MM-DD>"`. `Vec::new()` on any throttle/transport/parse failure — GDELT
 /// rate-limits hard and answers a throttle with a *plaintext* notice, so a failed JSON parse must
@@ -394,8 +475,15 @@ pub fn research_grounded(choice: &Choice, cfg: &ResearchConfig, deep: bool) -> G
     let kind = classify_entity(choice);
     let mut tools = roster_for(kind, choice, &sink);
     if deep {
+        // The two halves of the wider blast radius: find candidate sources, then actually READ one.
+        // Search alone returns headlines, which is not enough to answer "what is this company
+        // really like" — the reading is the point.
         tools.push(Box::new(WebNewsTool {
             default_query: choice.name.clone(),
+            user_agent: sec_user_agent(),
+            sink: sink.clone(),
+        }));
+        tools.push(Box::new(ReadWebPageTool {
             user_agent: sec_user_agent(),
             sink: sink.clone(),
         }));

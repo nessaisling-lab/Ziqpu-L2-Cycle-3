@@ -76,8 +76,8 @@ pub use measure::{
 };
 pub use measure_llm::LocalMeasurer;
 pub use orchestrator::{
-    grounding_consent, is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken,
-    Session,
+    deeper_reach_consent, grounding_consent, is_advice_seeking, merge_placed, Answer,
+    ApprovalRequest, ApprovalToken, Session,
 };
 pub use origin::{
     lifecycle_from_entity, parse_wikidata_time, resolve_origin, resolve_origin_default,
@@ -89,7 +89,7 @@ pub use score::{assess_confidence, dominant_theme, synastry_score};
 pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
     reads_like_advice, reads_like_instruction, safe_display_name, AspectHit, BirthMoment, Briefing,
-    Choice, Confidence, DailyReading, DayBeat, Fit, GateError, GroundedSignals, Measures,
+    Choice, Confidence, DailyReading, DayBeat, Fit, GateError, GroundedSignals, Measures, Reach,
     Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat, Verdict, WeeklyReading,
 };
 pub use vault::{KeySource, Provider};
