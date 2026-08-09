@@ -17,8 +17,6 @@
 
 use crate::measure::{expected_sequence, DeterministicMeasurer, Measurer};
 use crate::types::ToolCall;
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 const HAMUN_ANA_SYSTEM: &str = "\
 You are Hamun-ana, the measurer. To measure how a seeker fits a choice you must call three tools in \
@@ -129,7 +127,7 @@ impl LocalMeasurer {
                 }),
             ),
         };
-        let out = curl_post(&url, &body.to_string())?;
+        let out = post_json(&url, &body.to_string())?;
         let value: serde_json::Value = serde_json::from_slice(&out).ok()?;
         // The final answer lives in `content` for both dialects (a reasoning model's thinking goes
         // to a separate `reasoning_content` we deliberately ignore).
@@ -144,37 +142,41 @@ impl LocalMeasurer {
     }
 }
 
-/// POST a JSON body to a local model via `curl` and return the raw response bytes.
+/// POST a JSON body to a local model and return the raw response bytes.
 ///
-/// `--max-time` is required even though this is a loopback call. The measurer runs once per choice
-/// on the UI's event-loop thread (`state::measures_for` holds a `!Send` session in a `RefCell`), so
-/// five serial unbounded POSTs would freeze the window rather than merely stalling a worker. An
+/// The timeout is required even though this is a loopback call. The measurer runs once per choice on
+/// the UI's event-loop thread (`state::measures_for` holds a `!Send` session in a `RefCell`), so five
+/// serial unbounded POSTs would freeze the window rather than merely stalling a worker. An
 /// accepting-but-silent listener on the configured port is the realistic trigger: LM Studio holds a
 /// POST open while it JIT-loads a large quant, and a wedged server or an unrelated process squatting
 /// :1234 does the same. Timing out is cheap — `None` degrades to the deterministic measurer below.
-fn curl_post(url: &str, body: &str) -> Option<Vec<u8>> {
-    let mut child = crate::child_cmd(Command::new("curl"))
-        .args([
-            "-sS",
-            "--max-time",
-            "20",
-            url,
-            "-H",
-            "content-type: application/json",
-            "--data-binary",
-            "@-",
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+///
+/// This spawned a bare `Command::new("curl")` until this change. Even for a loopback call that is the
+/// CWE-427 vector the model crate documents: Rust resolves a bare program name through the
+/// **application directory** before the system one, so a planted `curl.exe` beside our executable
+/// wins. In-process removes the binary rather than pinning its path, and matches every other request
+/// this workspace makes.
+fn post_json(url: &str, body: &str) -> Option<Vec<u8>> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(20))
+        .build();
+    let resp = agent
+        .post(url)
+        .set("content-type", "application/json")
+        .send_string(body)
         .ok()?;
-    child.stdin.take()?.write_all(body.as_bytes()).ok()?;
-    let output = child.wait_with_output().ok()?;
-    if !output.status.success() {
-        return None;
+
+    let mut buf = Vec::new();
+    {
+        use std::io::Read as _;
+        // A local model's reply is small; the cap is a guard against a wedged server streaming
+        // forever into the UI thread, not a real expectation.
+        resp.into_reader()
+            .take(2_000_000)
+            .read_to_end(&mut buf)
+            .ok()?;
     }
-    Some(output.stdout)
+    Some(buf)
 }
 
 impl Measurer for LocalMeasurer {

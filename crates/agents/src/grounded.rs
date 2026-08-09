@@ -310,24 +310,46 @@ pub const NO_SIGNALS: &str = "no public signals available";
 ///
 /// The timeouts are load-bearing, not hygiene — see [`EdgarSource::get`]'s history: this runs on a
 /// worker thread whose only exit is a result, behind a checkpoint view with no cancel path, so a
-/// stalled socket is a permanent silent spinner. `--max-time` bounds a connection that is accepted
-/// then blackholed; `--max-filesize` bounds a multi-MB payload we only skim the head of.
+/// stalled socket is a permanent silent spinner. The whole-request timeout bounds a connection that
+/// is accepted then blackholed; the byte cap bounds a multi-MB payload we only skim the head of.
+///
+/// # Why this stopped being `curl`
+///
+/// It spawned `curl` until this change, and — worse than the model crate ever did — it spawned a
+/// **bare** `Command::new("curl")` rather than a System32-pinned path. Rust's `Command` resolves in
+/// the order child-PATH → **application directory** → System32 → Windows → PATH, so a `curl.exe`
+/// dropped beside our own executable is preferred over the system one (CWE-427). The model crate
+/// documented and defended against exactly that vector; this crate had the same subprocess and none
+/// of the defence, on the path that fetches every grounded signal.
+///
+/// Making it in-process removes the vector rather than pinning around it: there is no longer a
+/// binary to resolve. It also matches `crates/model`'s HTTP, so the workspace has one answer to
+/// "how does this app make a request" instead of two.
+///
+/// `None` on any failure — offline, DNS, non-2xx, oversized — so every caller keeps its existing
+/// "degrade quietly rather than invent" behaviour.
 pub(crate) fn http_get(url: &str, user_agent: &str) -> Option<Vec<u8>> {
-    let output = crate::child_cmd(std::process::Command::new("curl"))
-        .args([
-            "-sS",
-            "--compressed",
-            "--max-time",
-            "8",
-            "--max-filesize",
-            "5000000",
-            "-H",
-            &format!("User-Agent: {user_agent}"),
-            url,
-        ])
-        .output()
-        .ok()?;
-    output.status.success().then_some(output.stdout)
+    /// Bounds a payload we only ever skim the head of.
+    const MAX_BYTES: usize = 5_000_000;
+
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(8))
+        .user_agent(user_agent)
+        .build();
+    let resp = agent.get(url).call().ok()?;
+
+    let mut buf = Vec::new();
+    // `MAX_BYTES + 1`: if the extra byte arrives the body exceeded the cap, and that is a failure
+    // rather than a shortened success — a truncated JSON parses to "no signals", which reads as
+    // "this source had nothing" instead of "this source was too big to read".
+    {
+        use std::io::Read as _;
+        resp.into_reader()
+            .take(MAX_BYTES as u64 + 1)
+            .read_to_end(&mut buf)
+            .ok()?;
+    }
+    (buf.len() <= MAX_BYTES).then_some(buf)
 }
 
 /// Is this item an empty/placeholder marker rather than a real fetched fact? The composite strips
