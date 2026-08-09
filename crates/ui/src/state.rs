@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use agents::{
     draft_grounding_prompt, grounded_layered, ApprovalRequest, BirthMoment, Briefing, Choice,
-    EdgarSource, EngineChartSource, Fit, GroundedRung, GroundedSignals, GroundedSource,
+    CompositeSource, EngineChartSource, Fit, GroundedRung, GroundedSignals, GroundedSource,
     Interpreter, LocalMeasurer, Measures, MockGroundedSource, ReadMode, Recommendation, Session,
     TemplateInterpreter, ToolCall,
 };
@@ -63,15 +63,16 @@ pub enum AnswerView {
     Nudge(String),
 }
 
-/// Build a session. The grounded briefing shows **real reality by default**: [`EdgarSource`] does a
-/// live keyless SEC EDGAR pull when online and transparently falls back to the bundled recorded
-/// filing fixture when the network is blocked (never a bare mock) — both non-panicking. Set
-/// `ZIQPU_MOCK=1` to force the offline [`MockGroundedSource`] (used by deterministic CI/tests).
+/// Build a session. The grounded briefing shows **real reality by default** via a
+/// [`CompositeSource`]: SEC EDGAR filings + Wikipedia (with the recorded-fixture fallback when the
+/// network is blocked), plus the provenance-clean dimensions SEC financials (XBRL) and Wikidata
+/// structured facts — every one keyless, public-domain/CC0, and non-panicking. Set `ZIQPU_MOCK=1` to
+/// force the offline [`MockGroundedSource`] (used by deterministic CI/tests).
 pub fn build_session() -> SessionT {
     let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
         Box::new(MockGroundedSource)
     } else {
-        Box::new(EdgarSource::default())
+        Box::new(CompositeSource::live_default())
     };
 
     // Interpreter precedence (OpenAI-compat / OpenRouter → Anthropic → deterministic template).
@@ -187,6 +188,12 @@ pub struct AppCtx {
     /// badge (`GROUNDED · LIVE` / `GROUNDED · LOCAL` / `LOCAL · UNSOURCED` / `GROUNDED`). Set by
     /// [`Self::grounder`] alongside `briefing`.
     pub rung: Signal<Option<GroundedRung>>,
+    /// Whether the human approved the **deeper open-web reach** at the checkpoint (the "also search
+    /// the open web" opt-in). Off by default; when on, [`run_grounding`] routes through the agentic
+    /// research path with the gated news tool. A second, explicit consent because the open web is
+    /// broader and noisier than the provenance-clean sources — the same reason the grounded pull is
+    /// gated at all. Reset after each grounding attempt.
+    pub deep_reach: Signal<bool>,
 }
 
 impl AppCtx {
@@ -289,6 +296,12 @@ pub fn run_recommend(mut ctx: AppCtx) {
     if *ctx.mode.read() == ReadMode::Local {
         ensure_local_readings(ctx.clone());
     }
+
+    // Clear the built-in free-tier health latch so the "over budget / paused" banner reflects only
+    // THIS ranking's built-in attempts — and stays hidden when the active source is the seeker's own
+    // key (that path never records). The reader coroutine reads `agents::tier::notice()` as each
+    // reading lands.
+    agents::tier::reset();
 
     // Fill readings off the event-loop thread: the only place the blocking `curl` runs. The closure
     // moves only owned, `Send` values (the measures map, the work list, and the channel sender).
@@ -423,15 +436,49 @@ pub fn run_draft(mut ctx: AppCtx, choice: Choice) {
 }
 
 /// Fetch the real grounded signals for a choice on a **throwaway**, `Send`-safe source — the same
-/// mock/EDGAR selection [`build_session`] makes. Called only from a worker thread (the SEC EDGAR
-/// `curl` blocks), never on the event loop.
-pub fn fetch_grounded(choice: &Choice) -> GroundedSignals {
-    let source: Box<dyn GroundedSource> = if std::env::var("ZIQPU_MOCK").is_ok() {
-        Box::new(MockGroundedSource)
-    } else {
-        Box::new(EdgarSource::default())
-    };
-    source.fetch(choice)
+/// mock/composite selection [`build_session`] makes. Called only from a worker thread (the source's
+/// `curl` calls block), never on the event loop.
+pub fn fetch_grounded(
+    choice: &Choice,
+    deep_web: bool,
+    approval: &agents::ApprovalToken,
+) -> GroundedSignals {
+    // The approval travels all the way to the call that spends it. The gate used to be enforced on
+    // the event loop and then *remembered* here; now the pull cannot be issued without the token the
+    // session minted for this exact choice. A mismatch degrades to no-signals rather than fetching.
+    if !approval.authorizes(choice) {
+        return GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "(no public signals)".to_string(),
+            items: vec![agents::NO_SIGNALS.to_string()],
+        };
+    }
+    if std::env::var("ZIQPU_MOCK").is_ok() {
+        return agents::fetch_approved(&MockGroundedSource, choice, approval)
+            .unwrap_or_else(|_| unreachable!("authorization checked above"));
+    }
+    // The **agentic research** path — the model drives which real sources to query via the tool loop
+    // (needs a served tool-capable local model). It runs when the human approved the deeper open-web
+    // reach at the checkpoint (`deep_web`), or when `ZIQPU_RESEARCH` opts in globally. `deep_web` (or
+    // `ZIQPU_RESEARCH_DEEP`) also adds the gated open-web news tool. It **falls back to the
+    // deterministic multi-source composite** whenever the loop collects nothing (no served model /
+    // offline), so approving the deeper reach can only ADD reach, never lose the reliable grounding.
+    let research = deep_web || std::env::var("ZIQPU_RESEARCH").is_ok();
+    if research {
+        let deep = deep_web || std::env::var("ZIQPU_RESEARCH_DEEP").is_ok();
+        let researched =
+            agents::research_grounded(choice, &agents::ResearchConfig::local_from_env(), deep);
+        // `merge_sink` labels an all-empty result "(no public signals)"; anything else is real.
+        if researched.source != "(no public signals)" {
+            return researched;
+        }
+    }
+    // `for_entity`, not `live_default`: the default roster is SEC-shaped, so a car, a scanned
+    // barcode or a medicine used to be asked SEC-shaped questions and answer nothing, while the
+    // workers that could have spoken sat written, tested and never dispatched. It also makes the
+    // checkpoint's consent true — that sentence describes this roster.
+    agents::fetch_approved(&CompositeSource::for_entity(choice), choice, approval)
+        .unwrap_or_else(|_| unreachable!("authorization checked above"))
 }
 
 /// ACT (gated), **without freezing the window**. The analog of [`run_recommend`] for the grounded
@@ -449,7 +496,7 @@ pub fn run_grounding(mut ctx: AppCtx) {
     // Move the non-Copy request out of the signal (mirrors the old inline handler).
     let request = ctx.request.write().take();
     let Some(request) = request else { return };
-    let ticker = request.choice.clone();
+    let ticker = request.choice().to_string();
     let choice = ctx
         .choices
         .read()
@@ -474,6 +521,10 @@ pub fn run_grounding(mut ctx: AppCtx) {
 
     let seeker = ctx.seeker.read().clone();
     let mode = *ctx.mode.read();
+    // Whether the human approved the deeper open-web reach at the checkpoint. Read here on the event
+    // loop, then reset so the next grounding starts from the safe (structured-only) default.
+    let deep = *ctx.deep_reach.read();
+    ctx.deep_reach.set(false);
     // The framing brief the local model drafted during the pause (or the developer's edit of it).
     // `None` when no local server answered or the human approved before it landed — the frontier then
     // simply gets its standard prompt. Read on the event loop here; the worker only holds the owned copy.
@@ -492,7 +543,19 @@ pub fn run_grounding(mut ctx: AppCtx) {
     // lands on rides back so the Briefing card badges the read truthfully.
     let tx = ctx.grounder.tx();
     std::thread::spawn(move || {
-        let signals = fetch_grounded(&choice);
+        // The fetch reaches several third-party sources. If one of them panics, the panic must not
+        // unwind this thread: the checkpoint's "grounding…" view has no cancel and no error path, so
+        // a dead worker leaves the window spinning forever. Caught, a panicking source degrades to
+        // exactly the same honest place a source that returned nothing does — no signals, and the
+        // reading is marked unsourced rather than grounded.
+        let signals = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            fetch_grounded(&choice, deep, &token)
+        }))
+        .unwrap_or_else(|_| GroundedSignals {
+            choice: choice.ticker.clone(),
+            source: "(no public signals)".to_string(),
+            items: vec![agents::NO_SIGNALS.to_string()],
+        });
         let measures = {
             let mut throwaway = build_session();
             throwaway.measure(&seeker, &choice)

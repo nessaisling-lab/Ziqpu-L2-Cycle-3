@@ -6,7 +6,7 @@
 
 // Release builds link as a GUI app (no console window on launch). Debug keeps the console so the
 // ZIQPU_DEBUG traces + panics stay visible while developing. (Subprocess console flashes are
-// suppressed separately via CREATE_NO_WINDOW — see `no_window` in the model/agents/ui spawn sites.)
+// suppressed separately via CREATE_NO_WINDOW — see `child_cmd` in the model/agents/ui spawn sites.)
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
@@ -15,19 +15,51 @@ mod preflight;
 mod profile;
 mod settings;
 mod state;
-mod vault;
+/// The credential vault now lives in `agents`, because that is the crate that reads a key when a
+/// reading is written. It was here, which meant the MCP server and the CLI surfaces could not see a
+/// key the seeker had already saved. Re-exported under the old path so this crate's call sites read
+/// the same as they always did.
+use agents::vault;
 
-/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
-/// elsewhere. Wrap every `Command::new(...)` the GUI reaches so a windowless release build stays
-/// windowless. Two cfg'd defs keep it warning-clean on non-Windows.
+/// Prepare a subprocess the GUI is about to spawn: **strip inherited credentials**, and don't flash
+/// a console window on Windows. Wrap every `Command::new(...)` the GUI reaches.
+pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
+    no_console_window(strip_credentials(cmd))
+}
+
+/// Remove every environment variable that looks like a credential before a child inherits it.
+///
+/// This crate is where the leak began: `apply_settings_to_env` copies the vaulted provider keys into
+/// this process at startup (that is what makes a vaulted key "always available"), and every child
+/// then inherits them — most importantly `llama-server`, a third-party binary the app downloads at
+/// runtime and executes. Stripping by **shape rather than by a list of names** is deliberate: a list
+/// has to be edited whenever a provider is added, and the forgotten edit is the one that leaks.
+/// Kept in step with the identical rule in `agents` and `model`.
+fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(looks_like_credential) {
+            cmd.env_remove(&name);
+        }
+    }
+    cmd
+}
+
+/// Whether an environment variable name looks like it carries a secret.
+fn looks_like_credential(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    n.ends_with("_KEY") || n.ends_with("_TOKEN") || n.ends_with("_SECRET")
+}
+
+/// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
+/// it warning-clean on non-Windows.
 #[cfg(windows)]
-pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     cmd
 }
 #[cfg(not(windows))]
-pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(cmd: std::process::Command) -> std::process::Command {
     cmd
 }
 

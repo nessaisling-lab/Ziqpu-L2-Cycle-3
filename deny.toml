@@ -3,8 +3,11 @@
 # Purpose: keep the PUBLIC dependency tree permissive-only. A single AGPL/GPL/SSPL
 # dependency in-tree would poison the future closed-source commercial edition, so
 # copyleft licenses are denied by omission from the allow-list below. MPL-2.0 is
-# permitted (file-level copyleft only; the optional ANISE ephemeris backend is MPL-2.0 — the
-# default backend is the pure-Rust analytic/vsop87 one).
+# permitted (file-level copyleft only). This matters more than it used to: ANISE is MPL-2.0 and is
+# now the DEFAULT ephemeris backend, compiled into every release binary — it is no longer the
+# "optional" backend this comment used to call it, with analytic/vsop87 as the default. MPL-2.0
+# obliges a distributor to make the source of any MODIFIED MPL file available; ANISE is used
+# unmodified, and NOTICE says so with a source link.
 #
 # Our own workspace crates carry PolyForm Noncommercial 1.0.0 (not an SPDX/OSI id);
 # they are `publish = false`, so `private.ignore = true` exempts them from this check.
@@ -24,7 +27,10 @@ allow = [
     "MPL-2.0",
     "CC0-1.0",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
+    # "Unicode-DFS-2016" was removed 2026-08-08: nothing in the graph carries it any more (deny
+    # reported it as an unmatched allowance). An allow-list that lists licences nobody uses is a
+    # list nobody trusts. If a future `cargo update` reintroduces it, the build fails and it gets
+    # re-added deliberately — which is the allow-list doing its job.
     # Permissive, non-copyleft licenses in the ANISE ephemeris tree:
     "BlueOak-1.0.0",        # modern MIT-like permissive license
     "CDLA-Permissive-2.0",  # permissive data-sharing license (no copyleft)
@@ -47,12 +53,24 @@ yanked = "deny"
 #     these. Re-evaluate when WRY migrates to GTK4.
 #   * proc-macro-error / proc-macro-error2 / instant / fxhash — small transitive build-time
 #     macro + hashing helpers with no maintained drop-in we control.
+#
+# RUSTSEC-2023-0071 (`rsa`, "Marvin") used to be listed here and then only in `.cargo/audit.toml`,
+# because the two tools read different things — cargo-deny the feature-resolved graph, cargo-audit
+# Cargo.lock. That divergence is gone: `sqlx` left the workspace with the Postgres sidecar, so `rsa`
+# is in neither view. Both exception lists are now empty of it.
 ignore = [
-    # Vulnerability exception (not unmaintained): rsa "Marvin" timing side-channel, pulled
-    # transitively by sqlx-postgres. Not exploitable here — the sidecar authenticates via
-    # SCRAM/md5, never RSA key ops. Also ignored in cargo audit + .cargo/audit.toml + SECURITY.md,
-    # so both tools share one accepted-advisory policy now that `cargo deny check` runs advisories.
-    "RUSTSEC-2023-0071", # rsa — Marvin timing attack (transitive, sqlx-postgres; not exploitable)
+    # Build-time proc-macro, via `nokhwa` (the `camera` feature). Unmaintained, NOT a vulnerability
+    # — RUSTSEC-2024-0436 is an informational flag with no known exploit. `paste` is a proc-macro:
+    # it runs during compilation and emits code, so nothing from it is linked into the shipped
+    # binary, and its content is pinned by checksum in Cargo.lock. `nokhwa 0.10.11` is the latest
+    # release and still depends on it, so the only ways out are dropping the camera feature or
+    # forking nokhwa — neither justified by an informational advisory. Re-evaluate when nokhwa
+    # publishes past 0.10.11. Accepted 2026-08-08.
+    #
+    # Worth stating plainly: this reaches RELEASE artifacts, not just the lockfile. Releases build
+    # `--features camera` on all three platforms, so `paste` is in every shipped build's compile
+    # step. It is accepted on the build-time-only reasoning above, not on "it does not ship".
+    "RUSTSEC-2024-0436", # paste — unmaintained (transitive via nokhwa, build-time proc-macro)
     "RUSTSEC-2024-0370", # proc-macro-error — unmaintained (transitive, build-time)
     "RUSTSEC-2024-0384", # instant — unmaintained (transitive)
     "RUSTSEC-2024-0411", # gtk-rs GTK3 bindings — unmaintained (WRY desktop stack)

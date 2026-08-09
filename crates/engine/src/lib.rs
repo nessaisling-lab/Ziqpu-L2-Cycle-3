@@ -6,7 +6,9 @@
 //! a future commercial edition clean.
 
 pub mod chart;
-pub use chart::{compute_chart, sign_of, BodyPosition, NatalChart};
+pub use chart::{
+    compute_chart, compute_chart_with, sign_of, BodyPosition, ChartOptions, NatalChart, NodeMode,
+};
 
 pub mod synastry;
 pub use synastry::{body_weight, dignity_modifier, planet_nature, score_synastry_aspect, Nature};

@@ -10,15 +10,21 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
-# Default permissive backend: pure-Rust VSOP87 (planets) + Meeus (Moon), no data files.
-default = ["analytic"]
+# DE440 is the authoritative engine and ships enabled; `analytic` stays in the default set as the
+# FLOOR, not the choice — it is what runs when the kernel is absent or fails verification. Compiling
+# only `analytic` is still supported and yields a smaller binary with no Pluto.
+#
+# This was `["analytic"]` alone, which meant no shipped build could reach DE440 no matter what was on
+# disk. See `resolve.rs` for what the app was silently losing.
+default = ["analytic", "anise-backend"]
 analytic = ["dep:vsop87"]
 # High-accuracy permissive backend: ANISE + JPL DE440 (runtime kernel).
-anise-backend = ["dep:anise"]
+anise-backend = ["dep:anise", "dep:sha2"]
 # Private/commercial backend — native Chiron + houses + best accuracy.
 # Intentionally a no-op stub in the public tree; the real impl is not committed here.
 swisseph = []
 
 [dependencies]
 anise = { version = "0.10.3", optional = true }
+sha2 = { version = "0.10", optional = true }
 vsop87 = { version = "3", optional = true }

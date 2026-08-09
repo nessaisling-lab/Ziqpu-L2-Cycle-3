@@ -5,6 +5,137 @@ All notable changes to Ziqpu are recorded here. Format follows
 **major.feature-phase.fix** (see [RELEASING.md](RELEASING.md)). Two tracks: `main` = stable
 (GitHub "Latest"), `nightfall` = build-ahead pre-releases (never "Latest").
 
+## [1.6.0] — 2026-08-08 · nightfall pre-release
+
+**The measurements get authoritative, and every "approved" learns to say who approved it.** Sixty-five
+commits on top of v1.5.0. The theme running through them is one this cycle kept surfacing: a
+component can be correct, tested, and documented, and still be reached by nothing — or reached, and
+quietly answered by something other than what was asked for.
+
+### JPL DE440 is the ephemeris now, bundled and digest-pinned
+The ANISE/DE440 backend had a feature flag, a fetch script, a CI cross-check, and **no caller** —
+`measure.rs` named `AnalyticBackend` directly, so a build compiled with the feature and a verified
+kernel on disk still computed every chart from VSOP87 series. The analytic backend cannot compute
+Pluto at all, so **every chart this app has ever shown was missing a planet**, and a synastry score is
+a sum over contacts.
+
+Measured, same code, only the engine swapped: Apple 33 → 28, Tesla 87 → 85, Coca-Cola 51 → 56,
+Johnson & Johnson 52 → 53. No band changed. `de440s.bsp` (~32 MB, public-domain US Government work)
+now ships inside every release artifact, verified against a pinned SHA-256 before packaging.
+`ephemeris::resolve` picks the engine at runtime and — when it falls to the analytic floor — says
+which planet is missing and why, rather than returning a shorter chart in silence.
+
+### The true lunar node, actually computed
+A `TrueNode` body shipped once that was a **relabelled mean node**: both backends matched it to the
+same call and returned bit-identical longitudes. It was deleted rather than left. It is back now
+because it computes something different — derived from the Moon's instantaneous orbital plane, it
+librates ±1.9° around the mean node and moves **direct on 182 of 730 days**, which the mean node never
+does. The analytic floor refuses it and names the reason: its Moon is longitude-only, so it has no
+orbital plane to cross the ecliptic. `NodeMode` substitutes rather than adds — two nodes in one chart
+double-count every node contact, which is precisely what the phantom variant did.
+
+### Sidereal zodiac — the frame Vedic is expressed in
+Tropical and sidereal have drifted ~24° apart, which is nearly a whole sign: AAPL's Sun is
+Sagittarius tropically and Scorpio sidereally. `NatalChart` now carries its zodiac and can name it.
+Lahiri is verified against published tables at 1950, J2000 and 2020. Tropical remains the default and
+the pinned demo scores are unchanged.
+
+### A reading says who wrote it, and a gate says who opened it
+Three separate honesty gaps, all the same shape — two different things wearing one name:
+
+- `GroundedRung::Degraded` — a template written because every model failed no longer wears the same
+  "GROUNDED" badge as a template the seeker deliberately chose.
+- **Cross-provider substitution** is disclosed. Found by building the model-comparison harness: the
+  free model timed out at 60s and the *paid* one silently answered, badged `GROUNDED · LIVE`.
+- **MCP elicitation** works. Where the host supports it the server asks a real person and the
+  `acknowledged` flag is ignored entirely; the response distinguishes `APPROVED BY A PERSON` from
+  `APPROVED BY FLAG`.
+
+### N3 — an entity has a lifecycle of origins, not a birthday
+`origin::resolve_origin` returns every origin moment Wikidata holds — released, officially opened,
+entered service, founded — ranked, with the day-precise ones marked chartable. A year-precision value
+is surfaced and named, never rendered as the January 1st Wikidata stores it as. On the roster as
+`origin_moments`, replacing the narrower `product_launch`: Ford Motor Company now returns a
+day-precise 1903-06-16 founding, where the product worker returned nothing.
+
+### Scores are a contract
+The DE440 swap moved four of five demo scores and **the entire suite stayed green**, because nothing
+pinned a synastry number. `crates/agents/tests/scores_pinned.rs` fixes that, and asserts separately
+that no band differs between the two engines.
+
+### Distribution and hygiene
+- **Linux**: the tarball ships `./ziqpu`, which asks the loader what is missing and prints the exact
+  install command for the distribution present, instead of dying with a raw linker error.
+- **The camera scanner ships**, with all four findings closed (consent prompt, Stop control, throttled
+  preview, no frame written to disk).
+- **The last `curl` subprocess is gone** — HTTP in the model crate is in-process, which lets the host
+  allowlist survive redirects, something `curl -L` could not do.
+- **The Postgres scaffolding is deleted.** It was not merely unused: its seed still held pre-purge
+  dates, so it charted AAPL's 1980 listing while the app charts its 1976 founding — a second answer to
+  "born when?", with a CI job guarding the wrong one.
+- A hostile entity name can no longer reach the screen intact, now that N3 sources names from
+  world-editable Wikidata labels.
+- `cargo deny` is green across all four sections, and the `rsa` advisory exception retired itself with
+  the Postgres removal.
+
+351 tests; clippy, `cargo deny` and the full workspace suite clean.
+
+## [1.5.0] — 2026-07-18 · nightfall pre-release
+
+**Honest local models + the first step of "chart anything."** Five features on top of the v1.4.1
+distribution build — three that make the local-model and free-tier experience honest and durable,
+and two that lay the foundation for the origin-resolver (N3). Every user-facing claim is backed by
+code; nothing here overstates.
+
+### The built-in free tier now tells you when it's spent
+The v1.4.1 changelog promised the app "says so honestly" when the free tier is over budget — now the
+behavior exists. The proxy returns `429 monthly_budget_exhausted` / `rate_limited` (and `503
+service_disabled` for the kill switch); the HTTP layer used to collapse every non-2xx to "nothing
+came back", so a seeker silently got the offline template. New `agents::tier` classifies that
+response (keyed on the proxy's error-string contract — a generic 500 or an offline blip never
+masquerades as "over budget") and drives a one-line notice: *"the built-in free readings are over
+their budget for now… add your own API key or run a local model."* Only the built-in proxy path
+moves the latch — your own key or OpenRouter never does — and it resets each ranking, so the notice
+vanishes the moment you switch to your own key.
+
+### Your local model is remembered across restarts
+The served local model was forgotten every launch (the app reconnected only while the server stayed
+alive, and never recorded *which* model). Now the single active model persists beside the PID as the
+whole resolved plan — repo, quant, size, and crucially `fits_gpu`, so the anti-OOM CPU-side decision
+survives a restart. On launch: server still up → a "Local model ready — model on :port" chip with a
+**Stop** (frees the VRAM); server gone → a one-click **Re-serve** of the exact same model, no
+re-benchmark. Single-active is now an explicit record (one file, one model, or none). The ~150-line
+serve machinery is one shared `serve_target`, so the benchmark-serve and the re-serve behave
+identically.
+
+### Local tool-calling — the capability behind "chart anything"
+New `agents::tools`: an OpenAI-compatible agentic tool-call loop (request → the model asks to call
+tools → execute → feed results back → repeat, with a step cap so it can never hang). A `Tool` trait
+lets future resolvers drop in. The serve now passes `--jinja` so a local `llama-server` uses the
+model's chat template + tool-call grammar (additive for plain readings; every recommended model
+ships a template). This is the engine the origin-resolver runs on — works against a local model or a
+hosted one.
+
+### Capability badges — pick a model that can do the job
+`model::ModelPick` gains `Caps { tools, vision, reasoning, ctx }`, surfaced as chips under the
+selected local pick so you can tell, before serving, whether it can drive the tool-calling flow.
+Honest values: every recommended tier pick is tool-capable (the ledger only recommends models that
+can); reasoning distinguishes the Qwen3 family + GPT-OSS; vision is uniformly off (the local picks
+are text models); the forced sub-floor 3B is marked *not* a reliable tool-caller.
+
+### N3 "chart anything" — cars, step one: the VIN resolver
+New `agents::vin`: decode a car from its VIN via NHTSA vPIC (free, keyless, public domain) →
+make/model/year + assembly plant. Deliberately honest about what a VIN *is*: the resolver, **not a
+date source**. A VIN carries only the model year, never a chartable build date — so this hands back
+identity + the plant (the origin place); the chartable moment is deferred rather than fabricated (no
+year-only Jan-1). A `DecodeVinTool` lets the tool-loop decode a VIN mid-conversation. Live-verified:
+`1HGCM82633A004352 → "2003 Honda Accord EX-V6 — Marysville, Ohio, United States"`.
+
+### Under the hood
+A Windows-only CI test flake (a mock socket that RST'd on close before draining the request) was made
+robust. No new dependencies. All local picks stay off-by-default in the graded path; the demo remains
+self-contained.
+
 ## [1.4.1] — 2026-07-17 · nightfall pre-release
 
 **The distribution release.** Outside evaluators download this from the repo and run it on their

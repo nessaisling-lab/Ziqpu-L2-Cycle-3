@@ -76,11 +76,18 @@ pub fn Guardrail() -> Element {
                 return;
             }
             let mut ctx = ctx.clone();
-            // The Ask box always pulls a REAL model: if the current display mode is the deterministic
-            // Raw template, upgrade the ask to Live; Local stays Local, Live stays Live. (Product owner:
-            // "the ask should always do a live or local pull.")
+            // The Ask box always pulls a REAL model rather than answering from the deterministic
+            // template (product owner: "the ask should always do a live or local pull"). Raw is
+            // therefore upgraded — but to **Local**, not Live.
+            //
+            // Raw is the privacy mode: no network, no keys. Sending an ask straight out to a billed
+            // third party from it would silently spend the seeker's money and their disclosure on a
+            // mode whose whole promise is that neither happens. Local honours the owner's ask (it is
+            // a real model pull) without leaving the machine, and `reading_for_mode` already degrades
+            // Local to the template when no local model is serving — so the worst case is exactly the
+            // answer Raw would have given, and never an unasked-for network call.
             let mode = match *ctx.mode.read() {
-                ReadMode::Raw => ReadMode::Live,
+                ReadMode::Raw => ReadMode::Local,
                 other => other,
             };
 

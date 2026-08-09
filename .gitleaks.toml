@@ -4,12 +4,11 @@ title = "Ziqpu gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Local dev-only Postgres credential + generated public data — not secrets."
-# `ziqpu_dev` is a throwaway password for the isolated local dev container (see docker-compose.yml
-# and SECURITY.md); production credentials come from an untracked .env / CI secret.
-regexes = ['''ziqpu_dev''']
+description = "Generated public data — not secrets."
+# The `ziqpu_dev` regex was removed with the Postgres dev container it belonged to. A scanner
+# allowlist naming a credential that no longer exists is a standing permission for a string
+# nobody is checking any more.
 paths = [
-  '''db/init/02_seed\.sql''',       # generated public ticker data
   '''Cargo\.lock''',                # dependency checksums, not secrets
   '''(^|/)target/''',               # build artifacts
   '''company_metadata\.csv''',      # gitignored raw export

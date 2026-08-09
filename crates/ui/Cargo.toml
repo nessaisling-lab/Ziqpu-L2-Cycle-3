@@ -14,6 +14,13 @@ license-file.workspace = true
 name = "ziqpu-ui"
 path = "src/main.rs"
 
+[features]
+default = []
+# Read a product code with the webcam. Off by default for the same reason it is off in `agents`:
+# the capture SDK is weight the shipping build should carry only once someone chooses to ship it.
+# Build with `cargo run -p ui --features camera` to get the Scan button.
+camera = ["agents/camera"]
+
 [dependencies]
 dioxus = { version = "0.6.3", features = ["desktop"] }
 agents = { path = "../agents" }

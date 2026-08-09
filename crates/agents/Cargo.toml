@@ -25,3 +25,56 @@ serde_json = "1"
 # guaranteed cross-platform build/run (Windows/macOS/Linux). Crucially the API key is set as an
 # in-process header and never appears on a process command line (the old curl `-H` argv leak).
 ureq = { version = "2", default-features = false, features = ["tls"] }
+
+# --- optional: reading a code with the camera (`--features camera`) ---
+# Both Apache-2.0, so the permissive-only tree that protects the commercial path is unaffected.
+#
+# OFF BY DEFAULT, deliberately. `nokhwa` links the platform capture SDK (MediaFoundation /
+# AVFoundation / V4L2), which is weight the shipping build should only carry once the feature is
+# actually wired to a UI — and weight the 3-OS CI matrix should not carry by accident. Everything
+# below the camera (decoding, and the GS1 parsing it feeds) stays in the default build and is tested
+# there, so only the capture edge is gated.
+# Only the decoders and the symbologies a product code actually uses. rxing's defaults also pull
+# image loading, SVG, encoders and a URI/regex client stack, none of which a live camera frame needs.
+rxing = { version = "0.9", optional = true, default-features = false, features = [
+    "decoders",
+    # Free: rxing declares `encoders = []`, so this adds no crates. It buys a round-trip test —
+    # encode a known payload with rxing's own writer, render it, decode it back — which proves the
+    # luma path without hand-writing a symbology's module table from memory.
+    "encoders",
+    # rxing requires a character-set backend; this is the one its own defaults use, and its
+    # licences (Apache-2.0/MIT/BSD-3-Clause) are already on the allowlist.
+    "encoding_rs",
+    "qrcode",
+    "datamatrix",
+    "oned",
+] }
+# `default-features = false` is load-bearing, not tidiness. nokhwa's default `decoding` feature pulls
+# `nokhwa-core/mjpeg` → `mozjpeg-sys`, which is licensed **IJG** — not on this repo's allowlist, and
+# `cargo deny` rightly fails the build for it. Dropping it also happens to be the better engineering
+# choice here: without the JPEG path we ask the camera for an uncompressed frame and read its luma
+# plane directly, which is exactly what a barcode decoder wants and skips a decode round-trip.
+image = { version = "=0.25.8", optional = true, default-features = false, features = ["png", "jpeg"] }
+nokhwa = { version = "0.10", optional = true, default-features = false, features = [
+    "input-native",
+] }
+
+# The OS credential vault. It lives here rather than in `ui` because THIS is the crate that reads a
+# key at reading time — so "the agent knows how to obtain its credentials" is one answer in one
+# place. It used to live in `ui`, which meant the MCP server and every CLI surface could not reach a
+# key the seeker had already saved, and silently served the deterministic template instead.
+# Best-effort by design: no keystore (headless Linux) degrades to env-only, exactly as before.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
+[features]
+default = []
+# Read a GS1 code from a webcam. See `agents::camera`.
+camera = ["dep:rxing", "dep:nokhwa", "dep:image"]
+
+
+[dev-dependencies]
+# Examples only. `tickers` depends on `agents`, so this is a deliberate dev-cycle — Cargo permits
+# one, and it keeps the production graph one-directional: the data layer knows about the loop, the
+# loop does not know about the data layer. The trace sweep needs real non-demo entities (a real
+# airline, a real mutual insurer) and inventing them would defeat the point of tracing.
+tickers = { path = "../tickers" }

@@ -25,6 +25,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # `crates/agents` depends on `keyring`, whose Linux backend is the Secret Service and whose
+      # build needs libdbus headers. Without this, `libdbus-sys`'s build script panics and every
+      # Ubuntu job fails before a single test runs — the credential vault moved from `ui` (which CI
+      # excludes) into `agents` (which it does not), and the system dependency came with it.
+      - name: Linux dbus headers (keyring / Secret Service)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - run: cargo test --workspace --exclude ui --all-features --locked
 
   # ---- function smoke testing gate (all three OSes) ----
@@ -39,6 +46,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # `crates/agents` depends on `keyring`, whose Linux backend is the Secret Service and whose
+      # build needs libdbus headers. Without this, `libdbus-sys`'s build script panics and every
+      # Ubuntu job fails before a single test runs — the credential vault moved from `ui` (which CI
+      # excludes) into `agents` (which it does not), and the system dependency came with it.
+      - name: Linux dbus headers (keyring / Secret Service)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Function smoke tests
         run: cargo test -p engine --test smoke --all-features --locked
       - name: Agent-loop evals (tool order · checkpoint · guardrail)
@@ -63,8 +77,11 @@ jobs:
         # when CI ran only `licenses bans sources`).
         run: cargo deny check
       - name: Advisory audit (second layer)
-        # Belt-and-suspenders alongside `cargo deny check advisories` — same accepted advisory.
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        # No `--ignore` any more. The single exception this carried (RUSTSEC-2023-0071, `rsa`, via
+        # sqlx-postgres) went away with the Postgres sidecar — `rsa` is not in Cargo.lock at all.
+        # Both tools now enforce the same empty exception list, which is the only state in which
+        # "cargo-deny and cargo-audit agree" is a true statement rather than a comment.
+        run: cargo audit
       - name: Bundled-asset licenses (fonts + data — outside the Cargo graph)
         # cargo-deny only sees the dependency graph, so redistributed assets are checked here:
         # the OFL fonts must ship their license text + be attributed, and GeoNames its CC-BY line.
@@ -85,71 +102,3 @@ jobs:
           ver=8.24.3
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" | tar -xzf - -C /tmp gitleaks
           /tmp/gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
-
-  # ---- integration: run the sidecar against a real Postgres and probe the endpoints ----
-  integration:
-    name: integration (sidecar + Postgres)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ziqpu
-          POSTGRES_PASSWORD: ziqpu_dev
-          POSTGRES_DB: ziqpu
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U ziqpu -d ziqpu"
-          --health-interval 3s
-          --health-timeout 3s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgres://ziqpu:ziqpu_dev@localhost:5433/ziqpu
-      PGPASSWORD: ziqpu_dev
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Apply schema + seed
-        run: |
-          for f in db/init/*.sql; do
-            echo "applying $f"
-            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
-          done
-          echo -n "seeded tickers: "; psql "$DATABASE_URL" -tAc "SELECT count(*) FROM company_metadata;"
-      - name: Cache DE440s kernel
-        uses: actions/cache@v4
-        with:
-          path: ./data/ephemeris/de440s.bsp
-          key: de440s-v1
-      - name: Fetch DE440s kernel (for the ANISE backend)
-        run: bash scripts/fetch-ephemeris.sh
-      - name: Build sidecar (ANISE backend)
-        run: cargo build -p sidecar --features anise
-      - name: Run sidecar and assert endpoints
-        run: |
-          cargo run -p sidecar --features anise &
-          pid=$!
-          for _ in $(seq 1 40); do curl -sf http://localhost:8787/health >/dev/null && break || sleep 1; done
-          echo "== /chart/AAPL =="
-          chart=$(curl -sf http://localhost:8787/chart/AAPL)
-          echo "$chart" | grep -q '"backend":"ANISE/DE440"'
-          echo "  backend = ANISE/DE440: OK"
-          echo "$chart" | grep -q '"sign":"Sagittarius"'
-          echo "  AAPL Sun in Sagittarius: OK"
-          echo "$chart" | grep -q '"body":"Pluto"'
-          echo "  Pluto present: OK"
-          echo "$chart" | grep -q '"body":"Chiron"'
-          echo "  Chiron present: OK"
-          echo "== /synastry/AAPL/MSFT =="
-          curl -sf http://localhost:8787/synastry/AAPL/MSFT | grep -q '"aspect"'
-          echo "  cross-aspects present: OK"
-          echo "== edge: unknown ticker -> 404 =="
-          [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/chart/ZZZZ)" = "404" ]
-          echo "  404: OK"
-          echo "== edge: date-unknown ticker -> 422 =="
-          nd=$(psql "$DATABASE_URL" -tAc "SELECT ticker FROM company_metadata WHERE ipo_date IS NULL LIMIT 1" | tr -d '[:space:]')
-          [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8787/chart/$nd")" = "422" ]
-          echo "  422 ($nd): OK"
-          kill "$pid"

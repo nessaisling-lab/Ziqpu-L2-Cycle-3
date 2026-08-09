@@ -12,7 +12,13 @@
 //! The default wiring is deterministic (no keys, no network) so the loop is CI-testable and the
 //! live demo is reliable; real models and the live SEC EDGAR pull are drop-in via the traits.
 
+/// Reading a product code with the camera. Requires `--features camera` — see the module docs
+/// for why the capture edge is gated and the decoding is not.
+#[cfg(feature = "camera")]
+pub mod camera;
+mod fence;
 pub mod grounded;
+pub mod gs1;
 pub mod identity;
 pub mod interpret;
 pub mod interpret_llm;
@@ -21,28 +27,71 @@ pub mod measure;
 pub mod measure_llm;
 pub mod models;
 pub mod orchestrator;
+pub mod origin;
+pub mod prefs;
 pub mod profile;
+pub mod research;
 pub mod score;
+pub mod tier;
+pub mod tools;
+pub mod trace;
 pub mod traction;
 pub mod types;
+pub mod vault;
+pub mod vin;
 
-/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
-/// elsewhere. Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this
-/// crate in-process) so no console flashes. The remaining subprocesses here are `curl` health/probe
-/// calls; the live LLM HTTPS now rides in-process via `ureq` (see `llm_http`). Two cfg'd defs keep it
-/// warning-clean on non-Windows.
+/// Prepare a subprocess this crate is about to spawn: **strip inherited credentials**, and don't
+/// flash a console window on Windows.
+///
+/// Wrap every `Command::new(...)` spawned from a windowless build (the GUI links this crate
+/// in-process). The remaining subprocesses here are `curl` health/probe calls; the live LLM HTTPS
+/// rides in-process via `ureq` (see `llm_http`).
+pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
+    no_console_window(strip_credentials(cmd))
+}
+
+/// Remove every environment variable that looks like a credential before a child inherits it.
+///
+/// The seeker's vaulted provider keys are filled into this process's environment at startup, and a
+/// child inherits the whole block by default — so a `curl` health probe against a loopback model
+/// server was being handed the Anthropic key it has no use for. Stripping by **shape rather than by
+/// a list of names** is deliberate: a list must be edited whenever a provider is added, and the
+/// forgotten edit is the one that leaks. Kept in step with the identical rule in `model` and `ui`;
+/// each crate spawns its own children and the three cannot share a helper without a new dependency
+/// edge, so the rule — not a list — is what is duplicated.
+fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(looks_like_credential) {
+            cmd.env_remove(&name);
+        }
+    }
+    cmd
+}
+
+/// Whether an environment variable name looks like it carries a secret.
+fn looks_like_credential(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    n.ends_with("_KEY") || n.ends_with("_TOKEN") || n.ends_with("_SECRET")
+}
+
+/// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
+/// it warning-clean on non-Windows.
 #[cfg(windows)]
-pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     cmd
 }
 #[cfg(not(windows))]
-pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(cmd: std::process::Command) -> std::process::Command {
     cmd
 }
 
-pub use grounded::{EdgarSource, GroundedSource, MockGroundedSource};
+pub use grounded::{
+    fetch_approved, CompositeSource, DrugSource, EdgarSource, GroundedSource, Gs1Source,
+    MockGroundedSource, OriginSource, SecFactsSource, WikidataSource, NO_SIGNALS,
+};
+pub use gs1::{gtin, parse_gs1, parse_yymmdd, production_date, Gs1Element, ScannedDate};
 pub use identity::{anon_handle, anon_handle_for, anon_handle_reroll, handle_seed};
 pub use interpret::{Interpreter, TemplateInterpreter};
 pub use interpret_llm::{
@@ -56,15 +105,24 @@ pub use measure::{
 };
 pub use measure_llm::LocalMeasurer;
 pub use orchestrator::{
-    is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken, Session,
+    grounding_consent, is_advice_seeking, merge_placed, Answer, ApprovalRequest, ApprovalToken,
+    Session,
+};
+pub use origin::{
+    lifecycle_from_entity, parse_wikidata_time, resolve_origin, resolve_origin_default,
+    DatePrecision, OriginGap, OriginLifecycle, OriginMoment, OriginProperty, ORIGIN_PROPERTIES,
 };
 pub use profile::{export_profile, import_profile, make_profile, ProfileError};
+pub use research::{classify_entity, research_grounded, EntityKind, ResearchConfig};
 pub use score::{assess_confidence, dominant_theme, synastry_score};
+pub use tools::{run_tool_loop, Tool, DEFAULT_MAX_STEPS};
 pub use types::{
-    AspectHit, BirthMoment, Briefing, Choice, Confidence, DailyReading, DayBeat, Fit, GateError,
-    GroundedSignals, Measures, Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat,
-    Verdict, WeeklyReading,
+    reads_like_advice, reads_like_instruction, safe_display_name, AspectHit, BirthMoment, Briefing,
+    Choice, Confidence, DailyReading, DayBeat, Fit, GateError, GroundedSignals, Measures,
+    Recommendation, SynastryReport, Theme, Tone, ToolCall, TransitBeat, Verdict, WeeklyReading,
 };
+pub use vault::{KeySource, Provider};
+pub use vin::{is_valid_vin, parse_vpic, resolve_vin, DecodeVinTool, VehicleId, VehicleSource};
 
 // The engine's synastry + pattern surface, re-exported so callers above the agents layer can
 // build placements and score contacts without depending on `engine` directly.

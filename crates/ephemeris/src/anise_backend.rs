@@ -97,7 +97,9 @@ impl Ephemeris for AniseBackend {
 
     fn position(&self, body: Body, jd_ut: f64) -> Result<EclipticPos, EphemerisError> {
         let (longitude, latitude, distance_au) = match body {
-            Body::MeanNode | Body::TrueNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
+            Body::MeanNode => (mean_node(jd_to_t(jd_ut)), 0.0, 0.0),
+            // The real osculating node, derived from this backend's own Moon state.
+            Body::TrueNode => (crate::true_node(self, jd_ut)?, 0.0, 0.0),
             // Chiron comes from the bundled Horizons table (ANISE cannot read its Type-21 SPK).
             Body::Chiron => match crate::chiron_longitude(jd_ut) {
                 Some(l) => (l, 0.0, 0.0),
@@ -110,9 +112,17 @@ impl Ephemeris for AniseBackend {
             _ => self.ecliptic(body, jd_ut)?,
         };
         let speed_lon = match body {
-            Body::MeanNode | Body::TrueNode => signed_daily_motion(
+            Body::MeanNode => signed_daily_motion(
                 mean_node(jd_to_t(jd_ut + 0.5)),
                 mean_node(jd_to_t(jd_ut - 0.5)),
+            ),
+            // Computed the same way as every other body's motion rather than assumed negative: the
+            // true node genuinely turns DIRECT on roughly a quarter of days (182 of 730 measured
+            // over 2024–2025), which is the headline difference from the mean node. Hardcoding a
+            // regression would erase the one property that makes this body worth having.
+            Body::TrueNode => signed_daily_motion(
+                crate::true_node(self, jd_ut + 0.5)?,
+                crate::true_node(self, jd_ut - 0.5)?,
             ),
             Body::Chiron => match (
                 crate::chiron_longitude(jd_ut + 0.5),

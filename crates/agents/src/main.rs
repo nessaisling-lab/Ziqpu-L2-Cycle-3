@@ -7,19 +7,25 @@
 //! from SEC EDGAR (requires `curl` and network).
 
 use agents::{
-    Answer, BirthMoment, Choice, EdgarSource, EngineChartSource, GroundedSource, Interpreter,
+    Answer, BirthMoment, Choice, CompositeSource, EngineChartSource, GroundedSource, Interpreter,
     MockGroundedSource, Session,
 };
 
 fn main() {
+    // The key AND the saved preferences. Both live outside the environment — the key in the OS
+    // keystore, the model and provider choice in settings.json — and the demo binary honoured
+    // neither until they were loaded here. A key without its preferences meant the right
+    // credential calling the wrong model. An exported variable still wins over both.
+    agents::prefs::load_saved_configuration();
+
     let seeker = agents::demo_seeker();
     let choices = agents::demo_choices();
 
     let grounded: Box<dyn GroundedSource> = if std::env::var("ZIQPU_LIVE").is_ok() {
-        println!("[grounded source: SEC EDGAR — live]");
-        Box::new(EdgarSource::default())
+        println!("[grounded source: SEC EDGAR + SEC financials + Wikidata + Wikipedia — live]");
+        Box::new(CompositeSource::live_default())
     } else {
-        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real SEC EDGAR]");
+        println!("[grounded source: mock — set ZIQPU_LIVE=1 for real multi-source grounding]");
         Box::new(MockGroundedSource)
     };
 
@@ -68,7 +74,7 @@ fn run(
     );
 
     let request = s.propose_grounding(top);
-    println!("CHECKPOINT — {}", request.prompt);
+    println!("CHECKPOINT — {}", request.prompt());
     match s.pull_grounded(top, None) {
         Err(e) => println!("  attempt without approval → blocked: {e}"),
         Ok(_) => println!("  BUG: pulled without approval"),
@@ -90,6 +96,17 @@ fn run(
     }
 
     println!("\ntool order: {:?}", s.calls());
+
+    // The tool-call log above is the decision skeleton — which tools, in what order, gate enforced.
+    // This is what happened INSIDE each step: which model ran, how long it took, why a completion
+    // was thrown away. Off unless asked for; see `agents::trace`.
+    if agents::trace::on() {
+        println!(
+            "\n─── trace ({:?}) ───\n{}",
+            agents::trace::level(),
+            agents::trace::dump()
+        );
+    }
 }
 
 fn indent(text: &str) -> String {

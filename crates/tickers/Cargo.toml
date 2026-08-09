@@ -18,3 +18,9 @@ path = "src/lib.rs"
 agents = { path = "../agents" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 chrono-tz = "0.10"
+
+[dev-dependencies]
+# The chart-contract test asserts, without a database or an HTTP server, what the removed
+# `integration (sidecar + Postgres)` CI job asserted by curl.
+engine = { path = "../engine" }
+ephemeris = { path = "../ephemeris" }

@@ -64,6 +64,16 @@ pub struct SettingsFile {
     /// (on, since we're still building). Persisted so the chosen view survives a restart.
     #[serde(default)]
     pub dev_build: Option<bool>,
+    /// Whether the grounded pull fetches its sources **concurrently** → `ZIQPU_PARALLEL_GROUNDING`.
+    /// `None` = the default (parallel). `Some(false)` forces the old one-after-another fan, which is
+    /// strictly slower — it exists so the difference can be demonstrated and compared, not because a
+    /// seeker would want it. Measured on this machine over 4 runs of the same three-source pull
+    /// (identical reading either way): **sequential 1,255–2,326 ms, parallel 617–667 ms** — a 2.0–3.5×
+    /// win. Note the *spreads*: concurrent time is bounded by the slowest single source (~50 ms of
+    /// variance), while sequential time is the sum and so accumulates every source's variance
+    /// (~1,000 ms). Going parallel makes the wait shorter **and** far more predictable.
+    #[serde(default)]
+    pub parallel_grounding: Option<bool>,
 }
 
 /// Whether the developer build is on — premium features unlocked.
@@ -87,6 +97,21 @@ pub fn save_dev_build(on: bool) {
     let mut settings = load_settings();
     settings.dev_build = Some(on);
     save_settings(&settings);
+}
+
+/// Whether the grounded fan runs concurrently — the persisted choice, defaulting to on.
+pub fn parallel_grounding_default() -> bool {
+    load_settings().parallel_grounding.unwrap_or(true)
+}
+
+/// Persist the parallel-grounding switch **and apply it immediately** to this process's environment,
+/// so the very next grounded pull uses the new mode without a restart. Load-modify-save, so no other
+/// field (least of all a credential) is disturbed.
+pub fn save_parallel_grounding(on: bool) {
+    let mut settings = load_settings();
+    settings.parallel_grounding = Some(on);
+    save_settings(&settings);
+    std::env::set_var("ZIQPU_PARALLEL_GROUNDING", if on { "1" } else { "0" });
 }
 
 /// A **redacting** `Debug` — deliberately hand-written (not derived) so a stray `dbg!(settings)` or a
@@ -138,17 +163,19 @@ pub fn save_settings(settings: &SettingsFile) {
     }
 }
 
-/// Restrict `path` to `0o600` (owner read/write only) on Unix. A no-op on Windows, where NTFS ACLs
-/// already scope a user's `%APPDATA%` to that user.
-#[cfg(unix)]
+/// Restrict `path` to `0o600` (owner read/write only) on Unix.
+///
+/// **On Windows this does nothing, and callers should not assume otherwise.** The previous wording
+/// here ("NTFS ACLs already scope a user's `%APPDATA%` to that user") reads as a guarantee and is
+/// only true of the default ACL on a local account: any process running as the user reads the file
+/// regardless, and the inherited ACL is whatever the parent directory happens to carry. Windows is
+/// this project's primary shipping platform, so the honest statement matters more than the
+/// reassuring one. Setting a real DACL needs `SetNamedSecurityInfo` and therefore a new dependency;
+/// until then the mitigation that actually landed is [`crate::profile::data_dir`] moving off
+/// roaming `%APPDATA%`, which stopped birth data replicating to a domain file server.
 pub(crate) fn set_owner_only(path: &std::path::Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    agents::prefs::set_owner_only(path)
 }
-
-/// See the Unix variant — a no-op on non-Unix targets.
-#[cfg(not(unix))]
-pub(crate) fn set_owner_only(_path: &std::path::Path) {}
 
 /// Load the persisted settings into the process environment **without clobbering** any var that is
 /// already set — so an exported `OPENROUTER_API_KEY` / `ZIQPU_MODEL` / `ZIQPU_LLM_URL` (power users,
@@ -166,15 +193,26 @@ pub fn apply_settings_to_env(settings: &SettingsFile) {
     // for a file written before the vault migration ran; normally it's `None` (see
     // [`migrate_plaintext_keys_to_vault`]).
     set_if_absent("OPENROUTER_API_KEY", &settings.openrouter_key);
-    set_if_absent("ZIQPU_MODEL", &settings.model);
-    set_if_absent("ZIQPU_LLM_URL", &settings.local_url);
-    // Per-provider model picks. Scoped, so an id chosen for one provider can never be sent to the
-    // other (see `agents::interpret_llm::anthropic_model`).
-    set_if_absent("ZIQPU_ANTHROPIC_MODEL", &settings.anthropic_model);
-    set_if_absent("ZIQPU_OPENROUTER_MODEL", &settings.openrouter_model);
-    // The explicit provider choice → `ZIQPU_PROVIDER`, which reorders the interpreter's Live
-    // attempts so the seeker's pick wins over a merely-present key.
-    set_if_absent("ZIQPU_PROVIDER", &settings.provider);
+
+    // Every other non-secret preference — model, per-provider model, provider choice, local URL,
+    // parallel grounding — is applied by `agents::prefs`, which reads the same file.
+    //
+    // It used to be applied here, and only here, so the GUI honoured the seeker's model pick and no
+    // other binary did. The measured symptom: after the vault moved into `agents` and the CLI could
+    // finally read a vaulted key, a comparison run still called `claude-opus-4-8` while the app's
+    // banner said `claude-sonnet-5` — the credential crossed the boundary and the preference did
+    // not. Worse on the MCP surface, where a seeker's chosen model was silently the default.
+    //
+    // One implementation now, read by every surface. The one line above stays because it is a
+    // *secret*, kept only as a back-compat path for a file written before the vault migration.
+    agents::prefs::fill_env_from_settings();
+    // The grounded fan's execution mode. Only written when the seeker actually chose one, and never
+    // over an explicit export — same "an exported var wins" rule as every setting above.
+    if let Some(on) = settings.parallel_grounding {
+        if std::env::var_os("ZIQPU_PARALLEL_GROUNDING").is_none() {
+            std::env::set_var("ZIQPU_PARALLEL_GROUNDING", if on { "1" } else { "0" });
+        }
+    }
 
     // Hosted-provider keys live in the OS credential vault now. Fill each provider's env var from the
     // vault only when the environment doesn't already carry it — an exported key (shell/CI) still
@@ -316,4 +354,49 @@ pub fn built_in_available() -> bool {
 /// forget to update, so there is now one copy, in the module that makes the choice.
 pub fn active_mode_label() -> String {
     agents::active_source_label()
+}
+
+#[cfg(test)]
+mod key_visibility {
+    /// The owner's rule, enforced: *"It should only show proof of the key being present. Simply
+    /// that. You're not allowed to see it."*
+    ///
+    /// `agents::vault::get_key` is the only function that can hand a caller a key, so the invariant
+    /// reduces to one checkable fact: **no UI surface calls it.** A source-level test because that
+    /// is the shape of the invariant — Rust cannot say "this module may not call that function" —
+    /// and because the failure it guards is a quiet one: the old surface looked fine, a masked
+    /// password input, while the plaintext sat in a signal and in the DOM, one devtools peek from
+    /// being read.
+    ///
+    /// It lives here, in the crate whose sources it scans, rather than travelling with the vault to
+    /// `agents`. When the vault moved, this test moved with it and broke — because a test that
+    /// reads files by relative path is coupled to its directory, not to the function it guards.
+    #[test]
+    fn no_ui_surface_reads_a_key_back() {
+        let surfaces = [
+            (
+                "components/key_field.rs",
+                include_str!("components/key_field.rs"),
+            ),
+            (
+                "components/settings.rs",
+                include_str!("components/settings.rs"),
+            ),
+            (
+                "components/onboarding.rs",
+                include_str!("components/onboarding.rs"),
+            ),
+        ];
+        for (name, src) in surfaces {
+            for (n, line) in src.lines().enumerate() {
+                // Prose may discuss `get_key` — only executable code is in scope.
+                let code = line.split("//").next().unwrap_or("");
+                assert!(
+                    !code.contains("get_key("),
+                    "{name}:{} calls get_key — a UI surface must ask key_source() for presence,                      never the value: {line}",
+                    n + 1
+                );
+            }
+        }
+    }
 }

@@ -134,11 +134,27 @@ fn list() {
 
 /// The port for `serve` (`--port N`), defaulting to 1234 — the app's Local-mode default, so a served
 /// model works with zero config.
+///
+/// **An explicit `--port N` is honoured exactly**, even if it's busy: the caller asked for that port,
+/// so a bind failure is the honest answer rather than a silent move somewhere they aren't looking.
+///
+/// Without one, an occupied 1234 steps to the next free port instead of dying. LM Studio holds 1234
+/// by default, which is common enough that the CLI's first run would otherwise end at
+/// `couldn't bind HTTP server socket` after resolving the model — and the desktop app already routes
+/// around exactly this, so the CLI failing on it was an inconsistency, not a policy.
 fn port_arg(args: &[String]) -> u16 {
-    args.iter()
+    if let Some(explicit) = args
+        .iter()
         .position(|a| a == "--port")
         .and_then(|i| args.get(i + 1))
         .and_then(|p| p.parse().ok())
+    {
+        return explicit;
+    }
+    // Bind-test the range; dropping the listener releases it immediately. A tiny race remains (the
+    // port could be taken between the test and llama-server's bind), which llama-server then reports.
+    (1234u16..=1245)
+        .find(|p| std::net::TcpListener::bind(("127.0.0.1", *p)).is_ok())
         .unwrap_or(1234)
 }
 
@@ -395,6 +411,14 @@ fn serve(force_local: bool, port: u16) {
         );
     }
     println!("  endpoint  http://127.0.0.1:{port}/v1   (Ziqpu Local mode's default is :1234)");
+    if port != 1234 {
+        // Say so plainly: the app looks at 1234 first, so a shifted port is something the seeker
+        // has to know about rather than discover when Local mode appears to do nothing.
+        println!(
+            "            :1234 was busy (LM Studio holds it by default), so this is on :{port}.\n            \
+             Point the app at it with  ZIQPU_LLM_URL=http://127.0.0.1:{port}/v1"
+        );
+    }
     match size_gb {
         Some(gb) => {
             println!("  model     {hf}  (~{gb:.1} GB — the best quant this machine can run)")
@@ -415,6 +439,9 @@ fn serve(force_local: bool, port: u16) {
         // several GB) so weights + KV fit in VRAM — a real contributor to the earlier OOM.
         "-c".into(),
         model::SERVE_CTX_SIZE.to_string(),
+        // Enable the model's chat template + tool-call grammar (the N3 origin-resolver's engine
+        // needs `tool_calls`). Additive for plain readings; every recommended model ships a template.
+        "--jinja".into(),
         "-lv".into(),
         "1".into(),
     ];

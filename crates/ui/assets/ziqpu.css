@@ -225,6 +225,17 @@ header{
 }
 
 /* ---- stepper — a 4-beat sequence ---- */
+/* Built-in free-tier notice — informational, not an error: the reading still landed (on the offline
+   template), the seeker just deserves to know the free tier is exhausted for now. Lapis/gold accent
+   (the "live" family), not carnelian. */
+.tier-notice{
+  display:flex;align-items:flex-start;gap:10px;margin:18px 0 0;padding:11px 14px;border-radius:11px;
+  background:color-mix(in srgb,var(--lapis) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--lapis) 30%,var(--gold-line));
+  font-size:13.5px;line-height:1.5;color:var(--ink-soft);
+}
+.tier-notice__mark{color:var(--gold);font-size:14px;line-height:1.5;flex:none}
+.tier-notice__text{flex:1}
 .steps{display:flex;gap:6px;margin:22px 0 24px;flex-wrap:wrap}
 .step{
   display:flex;align-items:center;gap:9px;
@@ -703,7 +714,39 @@ td.b{color:var(--ink)}
   color:var(--ink);font-family:var(--f-body);font-size:16px;padding:11px 14px;width:100%;
 }
 .field-input:disabled{opacity:.55}
+/* The webcam scan — sits beside the universe search, because reading a code off an object and
+   typing a name are the same act. Present only in a `--features camera` build. */
+.scan{margin:14px 0 6px}
+.scan__actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.scan__btn{flex:1;min-width:200px}
+/* The native file input is unstyleable and ugly; the label is the control, the input is the plumbing. */
+.scan__file{
+  display:inline-flex;align-items:center;font:500 13px/1 var(--f-body);color:var(--ink-soft);
+  border:1px dashed var(--gold-line);border-radius:10px;padding:9px 13px;cursor:pointer;
+}
+.scan__file:hover{background:var(--parchment-2)}
+.scan__file input{display:none}
+/* The live view. Dark ground so a pale frame reads as picture rather than as a broken image. */
+.scan__preview{
+  display:block;width:100%;max-width:340px;margin:12px auto 0;border-radius:10px;
+  border:1px solid var(--gold-line);background:#111;
+}
+.scan__hint{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
+.scan__hint--fail{color:var(--carnelian)}
+.scan__result{
+  margin-top:10px;padding:12px 14px;background:var(--parchment-2);
+  border-left:3px solid var(--gold);border-radius:0 10px 10px 0;
+}
+.scan__sym{font:600 12px/1 var(--f-mono);letter-spacing:.04em;color:var(--ink-soft);margin-bottom:8px}
+.scan__lines{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:5px}
+.scan__lines li{font-size:14px;color:var(--ink)}
+
 .field-check{display:flex;align-items:center;gap:8px;font:500 13px/1 var(--f-body);color:var(--ink-soft);margin-top:4px}
+/* The deeper-reach opt-in inside the seal — centered, marked in lapis so the "reach further" consent
+   reads as distinct from grounding itself. */
+.field-check--deep{justify-content:center;gap:9px;margin:20px auto 0;width:fit-content;color:var(--lapis)}
+.field-check--deep input{accent-color:var(--lapis)}
+.gate .honesty-note{max-width:52ch;margin:12px auto 0;text-align:left}
 .honesty-note{
   font-size:14px;color:var(--ink-soft);padding:10px 14px;
   border-left:3px solid var(--gold);background:var(--parchment-2);border-radius:0 10px 10px 0;
@@ -982,6 +1025,23 @@ td.b{color:var(--ink)}
 /* "downloaded" cue — the fitted model is already in the HF cache, so serving only loads it. */
 .modelpanel-cached{display:flex;align-items:center;gap:7px;margin:2px 0 6px;font:600 12px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--malachite)}
 .modelpanel-cached-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--malachite);box-shadow:0 0 5px color-mix(in srgb,var(--malachite) 55%,transparent)}
+/* The remembered active-local chip: what we last served, persisted across restarts. Live = a
+   malachite "ready" row with a Stop; dead = a quiet row with a one-click Re-serve. */
+.modelpanel-active{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 10px;padding:9px 12px;
+  border-radius:10px;border:1px solid var(--gold-line);
+  background:color-mix(in srgb,var(--parchment) 62%,transparent);
+}
+.modelpanel-active--live{
+  border-color:color-mix(in srgb,var(--malachite) 34%,var(--gold-line));
+  background:color-mix(in srgb,var(--malachite) 8%,transparent);
+}
+.modelpanel-active-dot{
+  width:8px;height:8px;border-radius:50%;flex:none;background:var(--malachite);
+  box-shadow:0 0 6px color-mix(in srgb,var(--malachite) 60%,transparent);
+}
+.modelpanel-active-text{flex:1;min-width:0;font:600 12.5px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-soft)}
+.modelpanel-active--live .modelpanel-active-text{color:var(--malachite)}
 /* Serve progress: a phase label + a bar. Determinate (download %) sets an explicit width; the
    indeterminate bar (preparing / loading into VRAM) slides a short fill across the track. Colors:
    neutral gold, ok = malachite, fail = carnelian (no bar). */
@@ -1116,4 +1176,17 @@ td.b{color:var(--ink)}
   background:color-mix(in srgb,var(--gold) 9%,transparent);
   border:1px solid var(--gold-line);
   overflow-wrap:anywhere;
+}
+/* Capability chips for the selected local pick. tool-calling is emphasized (lapis, the N3-ready
+   signal); the rest are quiet neutral chips. */
+.modelpanel-caps{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 2px}
+.modelpanel-cap{
+  font:600 11px/1 var(--f-mono);letter-spacing:.03em;color:var(--ink-soft);
+  padding:4px 8px;border-radius:999px;border:1px solid var(--gold-line);
+  background:color-mix(in srgb,var(--parchment) 60%,transparent);
+}
+.modelpanel-cap--tools{
+  color:var(--lapis);
+  border-color:color-mix(in srgb,var(--lapis) 34%,var(--gold-line));
+  background:color-mix(in srgb,var(--lapis) 9%,transparent);
 }

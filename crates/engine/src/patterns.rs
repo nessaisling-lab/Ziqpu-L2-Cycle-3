@@ -64,7 +64,7 @@ pub enum Pattern {
     Stellium { members: Vec<Member> },
 }
 
-/// Orb tolerances (degrees) and the stellium size floor. `Default` matches the sidecar's figures.
+/// Orb tolerances (degrees) and the stellium size floor.
 #[derive(Debug, Clone, Copy)]
 pub struct PatternOrbs {
     pub conjunction: f64,

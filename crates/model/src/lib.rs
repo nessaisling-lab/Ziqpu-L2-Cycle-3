@@ -18,19 +18,286 @@
 //! / [`detect_gpu`] read the real machine; that thin I/O is kept out of the tested core. Layer 2 (the
 //! online best-GGUF check) and the fetch/serve step build on top.
 
-/// Spawn a subprocess without flashing a console window on Windows (CREATE_NO_WINDOW). No-op
-/// elsewhere. Wrap every `Command::new(...)` this crate spawns from the GUI so a windowless release
-/// build stays windowless (the CLI binary `model/src/main.rs` intentionally does NOT use it). Two
-/// cfg'd defs keep it warning-clean on non-Windows.
+/// Prepare a subprocess this crate is about to spawn: **strip inherited credentials**, and don't
+/// flash a console window on Windows.
+///
+/// Wrap every `Command::new(...)` this crate spawns from the GUI (the CLI binary
+/// `model/src/main.rs` intentionally does NOT use it).
+pub(crate) fn child_cmd(cmd: std::process::Command) -> std::process::Command {
+    no_console_window(strip_credentials(cmd))
+}
+
+/// Remove every environment variable that looks like a credential before a child inherits it.
+///
+/// A child process inherits the parent's whole environment block by default, and this app fills the
+/// seeker's vaulted provider keys into its own environment at startup so the interpreter can read
+/// them. That means the keys were being handed to every subprocess — including `llama-server`, a
+/// third-party binary the app downloads at runtime and executes. A local model server has no
+/// business holding the seeker's Anthropic key.
+///
+/// This strips by **shape rather than by a list of names**, on purpose: a list has to be edited
+/// every time a provider is added, and the edit that gets forgotten is the one that matters. None of
+/// the children spawned here — `tar`, `taskkill`, `llama-server`, the GPU probes, the WebView2
+/// bootstrapper —
+/// needs a credential of any kind, so over-stripping costs nothing and under-stripping leaks.
+fn strip_credentials(mut cmd: std::process::Command) -> std::process::Command {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(looks_like_credential) {
+            cmd.env_remove(&name);
+        }
+    }
+    cmd
+}
+
+/// Whether an environment variable name looks like it carries a secret.
+fn looks_like_credential(name: &str) -> bool {
+    let n = name.to_ascii_uppercase();
+    n.ends_with("_KEY") || n.ends_with("_TOKEN") || n.ends_with("_SECRET")
+}
+
+/// Don't flash a console window on Windows (CREATE_NO_WINDOW). No-op elsewhere; two cfg'd defs keep
+/// it warning-clean on non-Windows.
+mod http;
+
+use std::time::Duration;
+
 #[cfg(windows)]
-pub(crate) fn no_window(mut cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(mut cmd: std::process::Command) -> std::process::Command {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     cmd
 }
 #[cfg(not(windows))]
-pub(crate) fn no_window(cmd: std::process::Command) -> std::process::Command {
+fn no_console_window(cmd: std::process::Command) -> std::process::Command {
     cmd
+}
+
+#[cfg(test)]
+mod credential_scrub_tests {
+    use super::looks_like_credential;
+
+    /// Every asset the picker can land on must have a digest, on every platform we ship to.
+    ///
+    /// This is the test that makes bumping [`PINNED_RUNTIME_TAG`] safe. Update the tag without
+    /// updating a digest and some machine — likely one you do not own, running the vendor build you
+    /// do not have — silently loses the ability to install a runtime at all. Enumerating the picker
+    /// over every platform and GPU vendor catches that here rather than in someone's install.
+    #[test]
+    fn every_asset_the_picker_can_choose_has_a_digest() {
+        use super::{expected_digest, pick_runtime_asset_for, PINNED_RUNTIME_TAG};
+        use super::{GpuInfo, TargetArch, TargetOs};
+
+        // The asset list of the pinned release, as published.
+        let names: Vec<&str> = super::RUNTIME_DIGESTS.iter().map(|(n, _)| *n).collect();
+
+        let vendors = [
+            None,
+            Some("NVIDIA GeForce RTX 4070 Laptop GPU"),
+            Some("NVIDIA GeForce RTX 5080 Laptop GPU"), // the CUDA-13 branch
+            Some("AMD Radeon RX 7900 XTX"),
+            Some("Intel(R) Arc(TM) A770 Graphics"),
+            Some("Apple M3 Pro"),
+        ];
+        let platforms = [
+            (TargetOs::Windows, TargetArch::X64),
+            (TargetOs::Windows, TargetArch::Arm64),
+            (TargetOs::Mac, TargetArch::Arm64),
+            (TargetOs::Mac, TargetArch::X64),
+            (TargetOs::Linux, TargetArch::X64),
+            (TargetOs::Linux, TargetArch::Arm64),
+        ];
+
+        let mut chosen = 0;
+        for (os, arch) in platforms {
+            for vendor in vendors {
+                let gpu = vendor.map(|name| GpuInfo {
+                    name: name.to_string(),
+                    vram_gb: 12.0,
+                    unified: name.starts_with("Apple"),
+                });
+                let Some(pick) = pick_runtime_asset_for(os, arch, &names, gpu.as_ref()) else {
+                    continue;
+                };
+                chosen += 1;
+                assert!(
+                    expected_digest(&pick.asset).is_some(),
+                    "{os:?}/{arch:?} with {vendor:?} picks {} — no digest for it at {PINNED_RUNTIME_TAG}",
+                    pick.asset
+                );
+                if let Some(companion) = &pick.companion {
+                    assert!(
+                        expected_digest(companion).is_some(),
+                        "companion {companion} has no digest at {PINNED_RUNTIME_TAG}"
+                    );
+                }
+            }
+        }
+        assert!(chosen >= 6, "the sweep picked almost nothing ({chosen})");
+    }
+
+    /// An unknown asset is refused, not trusted. "We never hashed this" and "this hash is wrong"
+    /// have to reach the same answer, or the pin means nothing.
+    #[test]
+    fn an_asset_with_no_digest_entry_is_refused() {
+        use super::expected_digest;
+        assert!(expected_digest("llama-b99999-bin-win-cpu-x64.zip").is_none());
+        assert!(expected_digest("totally-made-up.zip").is_none());
+        // ...and a real pinned asset still resolves, so the check above isn't vacuous.
+        assert!(expected_digest("llama-b10321-bin-win-cpu-x64.zip").is_some());
+    }
+
+    /// The download host check must not be fooled by the same lookalikes the endpoint gate handles.
+    #[test]
+    fn the_runtime_download_host_is_checked_properly() {
+        use super::is_github_release_host;
+        for good in [
+            "https://github.com/ggml-org/llama.cpp/releases/download/b10321/llama-b10321-bin-win-cpu-x64.zip",
+            "https://objects.githubusercontent.com/some/path.zip",
+            "https://release-assets.githubusercontent.com/x.zip",
+        ] {
+            assert!(is_github_release_host(good), "must accept {good}");
+        }
+        for bad in [
+            "https://github.com.evil.com/x.zip",
+            "https://evil.com/github.com/x.zip",
+            "https://github.com@evil.com/x.zip",
+            "http://github.com/x.zip", // plaintext
+            "https://raw.githubusercontent.com/x.zip",
+        ] {
+            assert!(!is_github_release_host(bad), "must reject {bad}");
+        }
+    }
+
+    /// The hash must be a real SHA-256 of the bytes, not something that merely looks like one.
+    #[test]
+    fn sha256_file_matches_the_known_digest_of_known_bytes() {
+        let dir = std::env::temp_dir().join("ziqpu-sha-test");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("abc.txt");
+        std::fs::write(&path, b"abc").unwrap();
+        // The canonical SHA-256("abc") test vector.
+        assert_eq!(
+            super::sha256_file(&path).unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Only CUDA runtime libraries reach the executable's DLL search directory.
+    ///
+    /// The companion zip used to be bulk-extracted into `llama-server.exe`'s own directory, which is
+    /// exactly where the Windows loader resolves that executable's DLLs from — so any member of a
+    /// third-party archive landed in the search path under whatever name it carried. A zip holding
+    /// `version.dll` would have been loaded ahead of the system copy on the next serve.
+    #[test]
+    fn the_companion_archive_cannot_plant_a_dll_beside_the_executable() {
+        let base = std::env::temp_dir().join("ziqpu-cudart-staging-test");
+        let (staging, exe_dir) = (base.join("staging"), base.join("exe"));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(staging.join("nested")).unwrap();
+        std::fs::create_dir_all(&exe_dir).unwrap();
+
+        // What a real cudart zip carries…
+        std::fs::write(staging.join("cudart64_12.dll"), b"x").unwrap();
+        std::fs::write(staging.join("cublas64_12.dll"), b"x").unwrap();
+        std::fs::write(staging.join("nested").join("cublasLt64_12.dll"), b"x").unwrap();
+        // …and what a hostile or merely sloppy one might.
+        std::fs::write(staging.join("version.dll"), b"x").unwrap();
+        std::fs::write(staging.join("dbghelp.dll"), b"x").unwrap();
+        std::fs::write(staging.join("readme.txt"), b"x").unwrap();
+        std::fs::write(staging.join("setup.exe"), b"x").unwrap();
+
+        super::copy_runtime_libs(&staging, &exe_dir).expect("real libraries present");
+
+        for wanted in ["cudart64_12.dll", "cublas64_12.dll", "cublasLt64_12.dll"] {
+            assert!(exe_dir.join(wanted).is_file(), "{wanted} must be copied");
+        }
+        for forbidden in ["version.dll", "dbghelp.dll", "readme.txt", "setup.exe"] {
+            assert!(
+                !exe_dir.join(forbidden).exists(),
+                "{forbidden} must NOT reach the DLL search path"
+            );
+        }
+
+        // An archive carrying no runtime libraries fails loudly rather than leaving a CUDA build
+        // that will not start — a silent success here becomes a confusing crash much later.
+        let empty = base.join("empty");
+        std::fs::create_dir_all(&empty).unwrap();
+        std::fs::write(empty.join("readme.txt"), b"x").unwrap();
+        assert!(super::copy_runtime_libs(&empty, &exe_dir).is_err());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// What gets executed must be provably inside the tree we laid down.
+    #[test]
+    fn the_located_binary_must_be_inside_the_runtime_root() {
+        let base = std::env::temp_dir().join("ziqpu-findbin-test");
+        let (root, outside) = (base.join("root"), base.join("outside"));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(root.join("a").join("b")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+
+        // Nothing there yet.
+        assert!(super::find_bin_under(&root, "llama-server.exe", 3).is_none());
+
+        // Found at depth, and the returned path is canonical and inside the root.
+        let real = root.join("a").join("b").join("llama-server.exe");
+        std::fs::write(&real, b"x").unwrap();
+        let found = super::find_bin_under(&root, "llama-server.exe", 3).expect("found at depth 3");
+        assert!(found.starts_with(root.canonicalize().unwrap()));
+
+        // Past the depth cap it is not found at all — the search stays bounded.
+        let deep = root.join("a").join("b").join("c").join("d");
+        std::fs::create_dir_all(&deep).unwrap();
+        std::fs::write(deep.join("other.exe"), b"x").unwrap();
+        assert!(super::find_bin_under(&root, "other.exe", 3).is_none());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A remote name must not be able to steer a path — least of all the recursive delete.
+    #[test]
+    fn only_a_plain_file_name_may_become_a_path_component() {
+        use super::is_plain_file_name;
+        for good in [
+            "llama-b4321-bin-win-cuda-x64.zip",
+            "cudart-llama-bin-win-cu12-x64.zip",
+            "llama-bin-ubuntu-x64.tar.gz",
+        ] {
+            assert!(is_plain_file_name(good), "must accept {good}");
+        }
+        for bad in [
+            "../../../evil-bin-win-cpu-x64.zip",
+            "..\\..\\evil.zip",
+            "sub/dir/evil.zip",
+            "C:\\Windows\\System32\\evil.zip",
+            "/etc/evil.zip",
+            "..",
+            ".",
+            "",
+        ] {
+            assert!(!is_plain_file_name(bad), "must reject {bad:?}");
+        }
+    }
+
+    /// Every credential variable this workspace actually sets must be caught by the shape rule, and
+    /// the ordinary variables a child genuinely needs must survive it.
+    #[test]
+    fn the_shape_rule_catches_every_real_credential_and_spares_the_rest() {
+        for secret in [
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "OPENROUTER_API_KEY",
+            "ZIQPU_LLM_KEY",
+            "ZIQPU_PROXY_TOKEN",
+        ] {
+            assert!(looks_like_credential(secret), "must strip {secret}");
+        }
+        for keep in ["PATH", "SystemRoot", "HOME", "TEMP", "ZIQPU_LLM_URL"] {
+            assert!(!looks_like_credential(keep), "must not strip {keep}");
+        }
+    }
 }
 
 /// The five capability tiers, weakest→strongest. The *same* tier name maps to different models
@@ -204,6 +471,42 @@ pub struct ModelPick {
     /// hyphenated/space-free so it needs no URL encoding, and deliberately a little fuzzy — layer 2
     /// finds whatever GGUF repos actually exist for this model family today (releases drift).
     pub search_term: &'static str,
+    /// What this model can do — surfaced as badges so a seeker can tell, before serving, whether a
+    /// local pick can drive the N3 origin-resolver (`tools`) and what else it offers.
+    pub caps: Caps,
+}
+
+/// A local model's capabilities. Committed facts about each pick (like its params/quant), not probed
+/// — the `model` crate has no model to interrogate. `tools` is the load-bearing one: it says whether
+/// this model can drive [`crate::tools`]-style function-calling, which the N3 origin-resolver requires.
+/// `vision` is uniformly false for the current text-only GGUF picks; the field exists for when a
+/// vision model joins the ledger. `ctx_k` is the model's *trained* window (thousands of tokens), not
+/// the served `-c` cap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Caps {
+    pub tools: bool,
+    pub vision: bool,
+    pub reasoning: bool,
+    pub ctx_k: u32,
+}
+
+impl Caps {
+    /// Short display chips, most useful first: tool-calling (N3-readiness), then reasoning, then
+    /// vision if present, then always the context window. No emoji — the panel styles them as chips.
+    pub fn badges(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        if self.tools {
+            v.push("tool-calling".to_string());
+        }
+        if self.reasoning {
+            v.push("reasoning".to_string());
+        }
+        if self.vision {
+            v.push("vision".to_string());
+        }
+        v.push(format!("{}k ctx", self.ctx_k));
+        v
+    }
 }
 
 /// The Desktop-class model per tier (hierarchy §Class 3 recommendations).
@@ -216,6 +519,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 3.0,
         min_ram_gb: 8.0,
         search_term: "gemma-3-4b-it",
+        // Gemma 3 supports function calling; the text GGUF has no vision; no explicit thinking mode.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: false,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Weak,
@@ -225,6 +535,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 6.6,
         min_ram_gb: 16.0,
         search_term: "Qwen3.5-9B-Instruct",
+        // Qwen3 family: strong native tool-calling + a thinking mode.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     // Medium = a 16 GB dedicated-VRAM card (e.g. RTX 5080 Laptop). A DENSE 14B at Q4_K_M (~9 GB) fits
     // with real headroom for the KV cache + compute (a 20B's ~12 GB quants left almost none and OOM'd),
@@ -238,6 +555,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 9.0,
         min_ram_gb: 16.0,
         search_term: "Qwen3-14B",
+        // Strong native tool-calling template + thinking mode — the reading/resolver workhorse.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Strong,
@@ -247,6 +571,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 24.0,
         min_ram_gb: 32.0,
         search_term: "Qwen3.5-35B",
+        // Qwen3 MoE: tools + reasoning.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
     ModelPick {
         tier: Tier::Ultra,
@@ -256,6 +587,13 @@ const DESKTOP_MODELS: [ModelPick; 5] = [
         download_gb: 65.0,
         min_ram_gb: 64.0,
         search_term: "gpt-oss-120b",
+        // GPT-OSS is a reasoning model with native tool use.
+        caps: Caps {
+            tools: true,
+            vision: false,
+            reasoning: true,
+            ctx_k: 128,
+        },
     },
 ];
 
@@ -271,6 +609,14 @@ pub const SUBFLOOR_PICK: ModelPick = ModelPick {
     download_gb: 2.0,
     min_ram_gb: 4.0,
     search_term: "Llama-3.2-3B-Instruct",
+    // Llama 3.2 3B carries a tool-calling template, but at 3B it is unreliable at it and has no
+    // reasoning mode — honest caps for the forced, rough fallback (below the resolver's bar).
+    caps: Caps {
+        tools: false,
+        vision: false,
+        reasoning: false,
+        ctx_k: 128,
+    },
 };
 
 /// The whole tier→model table, weakest→strongest — for a `list` view and for callers offering the
@@ -475,7 +821,7 @@ const HF_USER_AGENT: &str =
 /// **The vector is the application directory, not the CWD.** An earlier version of this comment
 /// blamed `CreateProcess` searching the current directory — that is true of raw `CreateProcess` but
 /// *not* of Rust's `std::process::Command`, whose `resolve_exe` deliberately excludes the CWD.
-/// Measured on Windows 11 / rustc 1.96: a planted `curl.exe` in the CWD is **not** picked up, while
+/// Measured on Windows 11 / rustc 1.96: a planted `tar.exe` in the CWD is **not** picked up, while
 /// one sitting **beside our own exe** is, because Rust's order is child-PATH → application
 /// directory → System32 → Windows → PATH. Pinning the System32 path defeats it (also measured).
 ///
@@ -483,7 +829,15 @@ const HF_USER_AGENT: &str =
 /// from wherever they downloaded it — typically Downloads, which is exactly where attacker-supplied
 /// files land. The app directory is therefore a live planting surface, not a theoretical one.
 /// (Impact is code execution at the user's own privileges, not elevation.)
-fn system_cmd(win_rel: &str, unix: &str) -> String {
+/// (Known residue: the Windows branch derives its "absolute" path from the `SystemRoot` environment
+/// variable, which a parent process can move. Closing that properly needs `GetSystemDirectoryW` and
+/// therefore a new dependency; it is also a much higher bar than dropping a file in Downloads, since
+/// it requires control of our environment block already. Tracked, not fixed here.)
+///
+/// On Unix the same reasoning applies to `PATH`, so the standard system locations are preferred over
+/// whatever `PATH` happens to say; the bare name remains only as a last resort for systems that put
+/// these tools somewhere else entirely.
+pub fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(windows)]
     {
         let _ = unix;
@@ -493,8 +847,81 @@ fn system_cmd(win_rel: &str, unix: &str) -> String {
     #[cfg(not(windows))]
     {
         let _ = win_rel;
+        for dir in ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] {
+            let cand = std::path::Path::new(dir).join(unix);
+            if cand.is_file() {
+                return cand.to_string_lossy().into_owned();
+            }
+        }
         unix.to_string()
     }
+}
+
+/// Whether a remote-supplied release asset name is safe to use as a single path component.
+///
+/// The release JSON comes from `api.github.com`, and its asset names are joined straight onto the
+/// runtime root to build the archive path, the extraction directory, and — on any failure branch —
+/// the target of a recursive delete. A name is only ever meant to be a plain file name, so anything
+/// that could steer a path out of the root is **rejected rather than sanitised**: a rejection is
+/// obviously correct, whereas a sanitiser invites an argument about whether it is complete.
+///
+/// GitHub very probably forbids separators in asset names already, which is why this is
+/// defence-in-depth rather than a live hole — but the app should not be relying on a remote
+/// service's naming policy to keep its own deletes inside its own directory.
+fn is_plain_file_name(name: &str) -> bool {
+    if name.is_empty()
+        || name.len() > 128
+        || name.contains('\0')
+        || name.contains('/')
+        || name.contains('\\')
+    {
+        return false;
+    }
+    // Exactly one component, and that component is the whole string. Rejects `..`, `.`, absolute
+    // paths and Windows drive prefixes without enumerating their spellings.
+    let mut parts = std::path::Path::new(name).components();
+    let single = matches!(
+        parts.next(),
+        Some(std::path::Component::Normal(only)) if only == std::ffi::OsStr::new(name)
+    );
+    single && parts.next().is_none()
+}
+
+/// Resolve `bin` to an absolute path by searching `PATH` ourselves — deliberately **not** by handing
+/// a bare name to `Command::new`.
+///
+/// Rust's `Command` search order on Windows is child-`PATH` → **the application directory** →
+/// System32 → Windows → `PATH`. The application directory sits ahead of every real install location,
+/// and we ship Windows as a plain zip that users extract and run from wherever they downloaded it —
+/// typically Downloads, which is exactly where attacker-supplied files land. So a `llama-server.exe`
+/// dropped beside `Ziqpu.exe` would be preferred over a genuine llama.cpp install, and it would run
+/// on the first click of "Benchmark this machine" with no network access and no download required.
+///
+/// Searching `PATH` here, and skipping the application directory while doing it, removes that
+/// preference without breaking any legitimate install — winget, brew and apt all put the binary on
+/// `PATH`, which is the only place this now looks.
+fn resolve_on_path(bin: &str) -> Option<std::path::PathBuf> {
+    let app_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+        .and_then(|dir| dir.canonicalize().ok());
+
+    for dir in std::env::split_paths(&std::env::var_os("PATH")?) {
+        // An empty `PATH` entry means "the current directory" on Windows. Never search it.
+        if dir.as_os_str().is_empty() {
+            continue;
+        }
+        if let (Some(app), Ok(here)) = (app_dir.as_deref(), dir.canonicalize()) {
+            if here == app {
+                continue;
+            }
+        }
+        let candidate = dir.join(bin);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 /// Run a small system probe with a hard timeout, returning its stdout on exit-within-timeout. `None`
@@ -503,13 +930,14 @@ fn system_cmd(win_rel: &str, unix: &str) -> String {
 /// *code* — the Windows registry query exits non-zero on a benign non-terminating error while still
 /// emitting valid lines, and each caller's parser rejects garbage/empty output on its own. Safe only
 /// for small outputs (well under the OS pipe buffer, so the wait-then-read can't deadlock) — exactly
-/// the GPU probes; the larger `curl` fetch keeps its own `--max-time`/`--max-filesize` instead.
+/// the GPU probes. The HTTP fetches do not use this at all any more — they are in-process and
+/// carry their own timeout and size caps (see [`crate::http`]).
 fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
     use std::io::Read;
     use std::process::{Command, Stdio};
     use std::time::Duration;
     use wait_timeout::ChildExt;
-    let mut child = no_window(Command::new(cmd))
+    let mut child = child_cmd(Command::new(cmd))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -530,32 +958,19 @@ fn run_capped(cmd: &str, args: &[&str], secs: u64) -> Option<String> {
 }
 
 /// Query the Hub for current GGUF repos matching `term` — **thin I/O, not unit-tested** (the parser
-/// is). HTTP is a `curl` subprocess (the repo's cross-platform, no-HTTP-crate convention), pinned to
-/// System32 on Windows (SEC-001), bounded by both `--max-time` and `--max-filesize` (SEC-004), and
-/// sent with a descriptive User-Agent. Degrades quietly to an empty list; callers fall back to the
-/// static pick. `.output()` reads stdout concurrently, so a large body can't deadlock the call.
+/// is). HTTP is **in-process** via [`crate::http`] — HTTPS-only, bounded by a timeout and a byte cap
+/// (SEC-004), and sent with a descriptive User-Agent. Degrades quietly to an empty list; callers fall
+/// back to the static pick.
+///
+/// This was a `curl` subprocess, described in this comment as "the repo's no-HTTP-crate convention".
+/// That convention had already ended — `crates/agents` moved to `ureq` — so the sentence outlived the
+/// rule it described, which is how the subprocess survived. SEC-001's System32 pinning no longer
+/// applies here because no process is spawned to pin.
 pub fn resolve_candidates(term: &str) -> Vec<Candidate> {
-    use std::process::Command;
-    let url = hf_api_url(term);
-    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "--max-time",
-            "8",
-            "--max-filesize",
-            "5000000",
-            "-A",
-            HF_USER_AGENT,
-            url.as_str(),
-        ])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !out.status.success() {
-        return Vec::new();
+    match http::get_text(&hf_api_url(term), Duration::from_secs(8), 5_000_000) {
+        Some(body) => parse_hf_models(&body),
+        None => Vec::new(),
     }
-    parse_hf_models(&String::from_utf8_lossy(&out.stdout))
 }
 
 /// Repo markers that disqualify a base model for a **guarded** agent. Ungasaga must refuse advice
@@ -670,30 +1085,14 @@ pub fn parse_repo_tree(json: &str) -> Vec<GgufOption> {
 }
 
 /// Fetch a repo's GGUF quants from the Hub (`/api/models/<repo>/tree/main`). Thin I/O (the parser is
-/// tested); same `curl` discipline as [`resolve_candidates`] (System32-pinned, time/size-bounded,
+/// tested); same in-process discipline as [`resolve_candidates`] (HTTPS-only, time/size-bounded,
 /// User-Agent). Empty on any failure (offline-safe).
 pub fn list_repo_ggufs(repo: &str) -> Vec<GgufOption> {
-    use std::process::Command;
     let url = format!("https://huggingface.co/api/models/{repo}/tree/main?recursive=1");
-    let Ok(out) = no_window(Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "--max-time",
-            "8",
-            "--max-filesize",
-            "5000000",
-            "-A",
-            HF_USER_AGENT,
-            url.as_str(),
-        ])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !out.status.success() {
-        return Vec::new();
+    match http::get_text(&url, Duration::from_secs(8), 5_000_000) {
+        Some(body) => parse_repo_tree(&body),
+        None => Vec::new(),
     }
-    parse_repo_tree(&String::from_utf8_lossy(&out.stdout))
 }
 
 /// Context window (tokens) the served model is capped to. `llama-server`'s default is 0 = "use the
@@ -1046,15 +1445,20 @@ pub fn llama_server_path() -> Option<std::path::PathBuf> {
     } else {
         "llama-server"
     };
-    // 1. On PATH? (a spawn that succeeds — the exit code doesn't matter).
-    let on_path = no_window(std::process::Command::new(bin))
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok();
-    if on_path {
-        return Some(std::path::PathBuf::from(bin));
+    // 1. On PATH? Resolved to an absolute path FIRST (see `resolve_on_path` for why a bare name is
+    //    not safe here), then probed with a spawn that succeeds — the exit code doesn't matter.
+    //    Returning the resolved path rather than the bare name also means the probe and the later
+    //    serve spawn can no longer disagree about which binary they meant.
+    if let Some(absolute) = resolve_on_path(bin) {
+        let runs = child_cmd(std::process::Command::new(&absolute))
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok();
+        if runs {
+            return Some(absolute);
+        }
     }
     // 2. Windows winget install location (off-PATH until a shell restart).
     #[cfg(windows)]
@@ -1132,23 +1536,20 @@ pub fn model_cached(repo: &str, quant: &str) -> bool {
 /// a server still running from a prior session on startup. Only `llama-server` answers `/health` with
 /// `"ok"` — LM Studio's server does not — so this never false-matches LM Studio on :1234.
 /// Runs at startup, before the window opens, so it probes up to 12 ports on every launch — which is
-/// why the spawn target is pinned via [`system_cmd`] like the file's other `curl` callers rather
-/// than left bare. (Known gap: on a machine with no `curl` at all this simply finds nothing and the
-/// app declines to reconnect — a soft, honest degrade, unlike the health probes in `agents`/`ui`
-/// which are now in-process.)
+/// why it matters that this is now in-process: it spawns nothing at all.
+///
+/// The known gap this comment used to describe — "on a machine with no `curl` at all this simply
+/// finds nothing and the app declines to reconnect" — is closed. There is no external binary left to
+/// be missing, and the probe is restricted to loopback so it cannot become a plaintext request to
+/// anywhere else.
 pub fn running_server_port() -> Option<u16> {
-    let curl = system_cmd("curl.exe", "curl");
     (1234u16..=1245).find(|&p| {
-        no_window(std::process::Command::new(&curl))
-            .args([
-                "-sS",
-                "--max-time",
-                "2",
-                &format!("http://127.0.0.1:{p}/health"),
-            ])
-            .output()
-            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("\"ok\""))
-            .unwrap_or(false)
+        http::get_text_loopback(
+            &format!("http://127.0.0.1:{p}/health"),
+            Duration::from_secs(2),
+            4096,
+        )
+        .is_some_and(|body| body.contains("\"ok\""))
     })
 }
 
@@ -1381,6 +1782,21 @@ fn llama_server_bin_name() -> &'static str {
 /// `llama-bNNNNN/` directory — and a depth-capped walk handles both without ever crawling a
 /// user's whole disk if the root is misconfigured.
 fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
+    let found = find_bin_unchecked(dir, bin, depth)?;
+    // The result of this search is **executed**, so it must be provably inside the tree we laid
+    // down. Canonicalizing both sides resolves `..` and follows symlinks first, which is the point:
+    // an archive member that is a link pointing out of the runtime root would otherwise pass a
+    // plain `starts_with` on the un-resolved path. Belt to the digest's braces — a verified archive
+    // cannot contain such a member today, but the check costs one syscall and outlives the pin.
+    let root = dir.canonicalize().ok()?;
+    let real = found.canonicalize().ok()?;
+    real.starts_with(&root).then_some(real)
+}
+
+/// The bounded depth-first search itself. Split out so [`find_bin_under`] can hold the containment
+/// check in one place rather than at each recursive step, where it would be re-derived and could
+/// disagree with itself.
+fn find_bin_unchecked(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::path::PathBuf> {
     let direct = dir.join(bin);
     if direct.is_file() {
         return Some(direct);
@@ -1392,7 +1808,58 @@ fn find_bin_under(dir: &std::path::Path, bin: &str, depth: u8) -> Option<std::pa
     entries
         .flatten()
         .filter(|e| e.path().is_dir())
-        .find_map(|e| find_bin_under(&e.path(), bin, depth - 1))
+        .find_map(|e| find_bin_unchecked(&e.path(), bin, depth - 1))
+}
+
+/// Copy the CUDA runtime libraries out of `staging` and beside `llama-server`, and nothing else.
+///
+/// The companion archive exists for one reason: the CUDA builds do not bundle `cudart`/`cublas`, so
+/// those DLLs have to sit next to the executable. That is a short, nameable list, which is what
+/// makes an allowlist the right instrument here — unlike grounded signals, where the set of valid
+/// shapes is open-ended and a blocklist was the honest choice.
+///
+/// Anything else in the archive is left in staging and deleted with it. A file that is not a CUDA
+/// runtime library has no business in an executable's DLL search path, whatever the archive says.
+fn copy_runtime_libs(staging: &std::path::Path, exe_dir: &std::path::Path) -> Result<(), String> {
+    fn is_runtime_lib(name: &str) -> bool {
+        let n = name.to_ascii_lowercase();
+        // The CUDA redistributables llama.cpp's cudart zips actually carry.
+        (n.starts_with("cudart64") || n.starts_with("cublas") || n.starts_with("cublaslt"))
+            && n.ends_with(".dll")
+    }
+
+    let mut copied = 0usize;
+    // Depth 2: the zips put the DLLs at the root, but a release has occasionally nested them one
+    // level. Bounded rather than unlimited, so a deep archive cannot turn this into a tree walk.
+    let mut dirs = vec![(staging.to_path_buf(), 2u8)];
+    while let Some((dir, depth)) = dirs.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if depth > 0 {
+                    dirs.push((path, depth - 1));
+                }
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if is_runtime_lib(name) && std::fs::copy(&path, exe_dir.join(name)).is_ok() {
+                copied += 1;
+            }
+        }
+    }
+    if copied == 0 {
+        return Err(
+            "the CUDA companion archive carried no runtime libraries — refusing to serve a CUDA \
+             build that will fail to start"
+                .to_string(),
+        );
+    }
+    Ok(())
 }
 
 /// A `llama-server` inside the managed runtime root, if one has been laid down. This is the
@@ -1671,7 +2138,175 @@ pub struct RuntimeRelease {
     pub assets: Vec<RuntimeAsset>,
 }
 
-/// Parse the GitHub `releases/latest` response. Pure; unit-tested against a fixture.
+/// The llama.cpp release this build of Ziqpu installs and runs.
+///
+/// **Why a pin rather than `releases/latest`.** This crate downloads a native binary and executes
+/// it. Following `latest` meant running whatever ggml-org published that morning — code no Ziqpu
+/// build had ever been tested against, and (before [`RUNTIME_DIGESTS`]) with no way to state what
+/// "correct" even was. Pinning turns the runtime into a dependency like any other: a known version,
+/// a known hash, changed deliberately.
+///
+/// **Bumping it** is a three-step chore, and all three steps are required:
+/// 1. Pick the new tag and re-run the digest listing for it (`GET
+///    api.github.com/repos/ggml-org/llama.cpp/releases/tags/<tag>`; each asset carries a
+///    `digest: "sha256:…"` field).
+/// 2. Replace `PINNED_RUNTIME_TAG` and every entry in [`RUNTIME_DIGESTS`] together — a stale digest
+///    beside a new tag fails closed, which is the right failure but a confusing one to debug.
+/// 3. Actually serve a model on at least one machine per family you claim to support.
+pub const PINNED_RUNTIME_TAG: &str = "b10321";
+
+/// SHA-256 of every release asset [`pick_runtime_asset_for`] is able to choose, at
+/// [`PINNED_RUNTIME_TAG`].
+///
+/// These are **shipped in the binary, not fetched alongside the download**, and that distinction is
+/// the entire point. GitHub's API does return a per-asset `digest`, but an attacker able to forge
+/// the API response supplies the asset *and* the digest that vouches for it — verifying one against
+/// the other only proves the response is self-consistent. A digest compiled into Ziqpu is a claim
+/// made at authoring time by someone who looked, and no runtime response can revise it.
+///
+/// The release carries 22 buildable assets; only these 13 are reachable from the picker, and an
+/// asset with no entry here is refused rather than trusted (see [`expected_digest`]).
+const RUNTIME_DIGESTS: &[(&str, &str)] = &[
+    // Windows x64 — NVIDIA (CUDA) plus the version-matched cudart companions.
+    (
+        "llama-b10321-bin-win-cuda-12.4-x64.zip",
+        "7d9c9bfd91e7073a0ba4f693e5ab14911f01577744c337b167a81e1b7653fc37",
+    ),
+    (
+        "llama-b10321-bin-win-cuda-13.3-x64.zip",
+        "b85a03d82bf801dbb3b3e915e144116486737b80367bca87db56a970027f1e9a",
+    ),
+    (
+        "cudart-llama-bin-win-cuda-12.4-x64.zip",
+        "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
+    ),
+    (
+        "cudart-llama-bin-win-cuda-13.3-x64.zip",
+        "1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e",
+    ),
+    // Windows — AMD/Intel (Vulkan), no-GPU (CPU), and ARM64.
+    (
+        "llama-b10321-bin-win-vulkan-x64.zip",
+        "5329bed07998380bdb13cb334f5f6ab2fd532e74391b1f6c22effa3668016f09",
+    ),
+    (
+        "llama-b10321-bin-win-cpu-x64.zip",
+        "3ca059fb8a1c836f00d062f42abbe32e26216833bb98199b904dcbb5b0720dc7",
+    ),
+    (
+        "llama-b10321-bin-win-cpu-arm64.zip",
+        "f2e425abd17f8e837dcd4f4dc4044c85594af9df7eda351cd15fbf1e53e38f50",
+    ),
+    // macOS — Metal rides in the arm64 build; Intel Macs get the x64 CPU build.
+    (
+        "llama-b10321-bin-macos-arm64.tar.gz",
+        "862563f1e317d672129e104633feac9530bb667b99165fb8b19d28c890ec9830",
+    ),
+    (
+        "llama-b10321-bin-macos-x64.tar.gz",
+        "273fa67db572b1bc57eb0f6472c010b64220c71453172303e89d2af73dbc716f",
+    ),
+    // Linux x64 and ARM64, Vulkan and CPU.
+    (
+        "llama-b10321-bin-ubuntu-vulkan-x64.tar.gz",
+        "15d59d82d7e59c0277212ece6032236e7eb6bb32334e2804766f4a669c58dbd3",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-x64.tar.gz",
+        "535f6f32b675463695d9ede510fa4756d0055a6b0d201fa947cb752a15827bdf",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-vulkan-arm64.tar.gz",
+        "212463a2d0f2c68633dd5734a71895f1e2d720dfbd7070d82113e88e6d4e0889",
+    ),
+    (
+        "llama-b10321-bin-ubuntu-arm64.tar.gz",
+        "bbb66eda80b35c4e06019ea37ca35d46c48c3dc2cbe766e7492ddb345c56539f",
+    ),
+];
+
+/// The digest this build expects for `asset`, or `None` if we make no claim about it.
+///
+/// `None` means refuse. An asset we have never hashed is exactly the case the pin exists to
+/// exclude, so "unknown" and "wrong" get the same answer.
+fn expected_digest(asset: &str) -> Option<&'static str> {
+    RUNTIME_DIGESTS
+        .iter()
+        .find(|(name, _)| *name == asset)
+        .map(|(_, digest)| *digest)
+}
+
+/// SHA-256 of a file on disk, lowercase hex. Streams in chunks — these archives run to hundreds of
+/// megabytes and must not be read into memory whole.
+fn sha256_file(path: &std::path::Path) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+
+    let mut file =
+        std::fs::File::open(path).map_err(|e| format!("couldn't open download ({e})"))?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let read = file
+            .read(&mut buf)
+            .map_err(|e| format!("couldn't read download ({e})"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buf[..read]);
+    }
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
+}
+
+/// Check a downloaded archive against the digest shipped in this binary, deleting it on any doubt.
+///
+/// Called **before extraction**, which is before anything from the archive touches disk and long
+/// before anything in it is executed. The file is removed on failure so a rejected download cannot
+/// be found and trusted by a later run.
+fn verify_download(path: &std::path::Path, asset: &str) -> Result<(), String> {
+    let expected = expected_digest(asset).ok_or_else(|| {
+        format!(
+            "{asset} is not an asset this build knows how to verify (expected a {PINNED_RUNTIME_TAG} build)"
+        )
+    })?;
+    let actual = sha256_file(path)?;
+    if !actual.eq_ignore_ascii_case(expected) {
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "{asset} does not match the digest this build expects — refusing to unpack or run it \
+             (expected {expected}, got {actual})"
+        ));
+    }
+    Ok(())
+}
+
+/// Whether a release-asset URL points where a llama.cpp release actually lives.
+///
+/// Belt to the digest's braces: it keeps a redirected or rewritten download from starting off at an
+/// arbitrary host. It used to be the *weaker* of the two checks, because `curl -L` followed redirects
+/// we never saw. Now [`crate::http::get_to_file`] applies this same predicate a second time to the
+/// URL actually reached after redirects, so a redirect off the allowlist is refused before any bytes
+/// land. The digest still decides whether the bytes are acceptable; this decides whether they are
+/// fetched at all.
+fn is_github_release_host(url: &str) -> bool {
+    let rest = url.strip_prefix("https://").unwrap_or("");
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host = host.rsplit_once('@').map(|(_, h)| h).unwrap_or(host);
+    let host = host.split(':').next().unwrap_or("").to_ascii_lowercase();
+    matches!(
+        host.as_str(),
+        "github.com"
+            | "objects.githubusercontent.com"
+            | "release-assets.githubusercontent.com"
+            | "api.github.com"
+    )
+}
+
+/// Parse the GitHub release response. Pure; unit-tested against a fixture.
 pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     let tag = v.get("tag_name")?.as_str()?.to_string();
@@ -1690,54 +2325,33 @@ pub fn parse_runtime_release(json: &str) -> Option<RuntimeRelease> {
     Some(RuntimeRelease { tag, assets })
 }
 
-/// GET the latest ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
-/// (the parser is). Same curl discipline as the HF calls: System32-pinned on Windows, bounded by
-/// `--max-time`/`--max-filesize`, descriptive UA. `None` = offline / rate-limited / drifted.
+/// GET the **pinned** ggml-org/llama.cpp release from the GitHub API — **thin I/O, not unit-tested**
+/// (the parser is). Same in-process discipline as the HF calls: HTTPS-only, time- and size-bounded,
+/// descriptive UA. `None` = offline / rate-limited / drifted.
+///
+/// This asks for [`PINNED_RUNTIME_TAG`] by name rather than `releases/latest`. The API is still only
+/// consulted for the download URLs and sizes — nothing it returns decides what is acceptable, since
+/// [`RUNTIME_DIGESTS`] already settled that at authoring time.
 pub fn fetch_runtime_release() -> Option<RuntimeRelease> {
-    let out = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "-L",
-            "--max-time",
-            "20",
-            "--max-filesize",
-            "3000000",
-            "-A",
-            HF_USER_AGENT,
-            "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
-        ])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    parse_runtime_release(&String::from_utf8_lossy(&out.stdout))
+    let url = format!(
+        "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{PINNED_RUNTIME_TAG}"
+    );
+    let body = http::get_text(&url, Duration::from_secs(20), 3_000_000)?;
+    parse_runtime_release(&body)
 }
 
-/// Download `url` to `dest` with curl (`-L --fail`, generous cap for the multi-hundred-MB CUDA
-/// bundles). Returns a human-readable reason on failure.
+/// Stream `url` to `dest` in-process, with a generous cap for the multi-hundred-MB CUDA bundles.
+/// Returns a human-readable reason on failure.
 fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
-    let status = no_window(std::process::Command::new(system_cmd("curl.exe", "curl")))
-        .args([
-            "-sS",
-            "-L",
-            "--fail",
-            "--max-time",
-            "3600",
-            "--max-filesize",
-            "800000000",
-            "-A",
-            HF_USER_AGENT,
-            "-o",
-            &dest.to_string_lossy(),
-            url,
-        ])
-        .status()
-        .map_err(|e| format!("couldn't run curl ({e})"))?;
-    if !status.success() {
-        return Err(format!("download failed ({status})"));
-    }
-    Ok(())
+    // The host is checked on the URL given AND on the one actually reached after redirects — the
+    // second check is the one `curl -L` could not make, and this comment used to concede it.
+    http::get_to_file(
+        url,
+        dest,
+        Duration::from_secs(3600),
+        800_000_000,
+        is_github_release_host,
+    )
 }
 
 /// Extract `archive` into `dir` with the system `tar` — which reads BOTH formats the release ships
@@ -1745,7 +2359,7 @@ fn download_to(url: &str, dest: &std::path::Path) -> Result<(), String> {
 /// Zero new dependencies, same pinned-path discipline as every other subprocess here.
 fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("couldn't create {} ({e})", dir.display()))?;
-    let status = no_window(std::process::Command::new(system_cmd("tar.exe", "tar")))
+    let status = child_cmd(std::process::Command::new(system_cmd("tar.exe", "tar")))
         .args([
             "-xf",
             &archive.to_string_lossy(),
@@ -1765,7 +2379,7 @@ fn extract_archive(archive: &std::path::Path, dir: &std::path::Path) -> Result<(
 /// instead of later inside a serve — where the Windows loader kills it invisibly under
 /// CREATE_NO_WINDOW and the user sees only "exited early".
 fn runtime_self_check(bin: &std::path::Path) -> bool {
-    no_window(std::process::Command::new(bin))
+    child_cmd(std::process::Command::new(bin))
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -1823,6 +2437,20 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
         .ok_or("picked asset vanished from the release")?;
 
     // Lay the build down under a dir named for the asset, so what is installed is legible on disk.
+    // The name is a remote string, and below it becomes the archive path, the extraction directory,
+    // and — on any failure — the target of a recursive delete. Check it is a plain file name before
+    // any of that, not after.
+    if !is_plain_file_name(&pick.asset) {
+        return Err(format!(
+            "release asset has an unusable name: {}",
+            pick.asset
+        ));
+    }
+    if let Some(companion) = &pick.companion {
+        if !is_plain_file_name(companion) {
+            return Err(format!("companion asset has an unusable name: {companion}"));
+        }
+    }
     let stem = pick
         .asset
         .trim_end_matches(".zip")
@@ -1836,6 +2464,12 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
         asset.size as f64 / 1_048_576.0
     ));
     download_to(&asset.url, &archive)?;
+
+    // Before extraction, and therefore before anything from the archive reaches disk or runs.
+    progress("verifying the download…");
+    verify_download(&archive, &pick.asset).inspect_err(|_| {
+        let _ = std::fs::remove_file(&archive);
+    })?;
     progress("unpacking…");
 
     // Everything from extraction onward runs inside this closure so that ONE failure branch below
@@ -1863,7 +2497,26 @@ pub fn ensure_runtime(progress: &mut dyn FnMut(&str)) -> Result<std::path::PathB
                 casset.size as f64 / 1_048_576.0
             ));
             download_to(&casset.url, &carchive)?;
-            let cextracted = extract_archive(&carchive, exe_dir);
+            // The companion gets the same check as the main archive, and it matters more here: it
+            // is extracted straight into `llama-server.exe`'s own directory, which is exactly where
+            // the Windows loader resolves that executable's DLLs from.
+            verify_download(&carchive, companion).inspect_err(|_| {
+                let _ = std::fs::remove_file(&carchive);
+            })?;
+            // Extract to a staging directory and copy ONLY the runtime libraries across.
+            //
+            // The companion used to be unpacked straight into `exe_dir`, and `exe_dir` is where the
+            // Windows loader resolves `llama-server.exe`'s DLLs from — so every member of a
+            // third-party zip landed in that executable's own search path, whatever it happened to
+            // be named. A zip carrying `version.dll` or `dbghelp.dll` would be loaded in preference
+            // to the system copy the next time the server started. The archive is digest-verified
+            // now, so this is no longer reachable from outside, but "we bulk-extract a downloaded
+            // archive into a DLL search path" is not a sentence that should stay true of this code.
+            let staging = root.join(format!("{stem}-cudart-staging"));
+            let _ = std::fs::remove_dir_all(&staging);
+            let cextracted = extract_archive(&carchive, &staging)
+                .and_then(|()| copy_runtime_libs(&staging, exe_dir));
+            let _ = std::fs::remove_dir_all(&staging);
             let _ = std::fs::remove_file(&carchive);
             cextracted?;
         }
@@ -2746,6 +3399,36 @@ mod tests {
         let sub = spec(4.0, 2, None, None);
         assert!(runnable_models(&sub).is_empty());
         assert_eq!(max_runnable(&sub), None);
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_constants)] // SUBFLOOR_PICK is const; asserting its caps is intended
+    fn every_recommended_model_is_tool_capable_but_the_subfloor_is_not() {
+        // N3-readiness: every tier's recommended pick can drive the tool-calling loop, so the
+        // origin-resolver works on any machine the ledger recommends a model for.
+        for m in all_models() {
+            assert!(
+                m.caps.tools,
+                "{} must be tool-capable (N3 needs it)",
+                m.name
+            );
+        }
+        // The forced sub-floor 3B is honestly marked as NOT a reliable tool-caller (below the bar).
+        assert!(!SUBFLOOR_PICK.caps.tools);
+
+        // badges() leads with tool-calling when present and always ends with the context window.
+        let qwen14 = all_models().iter().find(|m| m.name == "Qwen3 14B").unwrap();
+        let b = qwen14.caps.badges();
+        assert_eq!(b.first().map(String::as_str), Some("tool-calling"));
+        assert!(b.iter().any(|s| s == "reasoning"));
+        assert!(b.last().unwrap().ends_with("ctx"), "{b:?}");
+        // A non-reasoning pick (Gemma 3 4B) omits the reasoning chip; no local pick claims vision.
+        let gemma = all_models()
+            .iter()
+            .find(|m| m.name.starts_with("Gemma"))
+            .unwrap();
+        assert!(!gemma.caps.badges().iter().any(|s| s == "reasoning"));
+        assert!(all_models().iter().all(|m| !m.caps.vision));
     }
 
     #[test]

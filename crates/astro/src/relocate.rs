@@ -15,11 +15,19 @@ use ephemeris::ascendant_mc;
 pub fn relocate(chart: &NatalChart, latitude: f64, longitude: f64) -> NatalChart {
     let (ascendant, midheaven) = if chart.time_known {
         let (asc, mc) = ascendant_mc(chart.jd_ut, latitude, longitude);
-        (Some(asc), Some(mc))
+        // `ascendant_mc` speaks tropical, and the bodies being carried over do not necessarily.
+        // Recomputing angles without re-applying the source chart's zodiac would put them a whole
+        // sign away from the planets sitting beside them in the same chart.
+        (
+            Some(chart.zodiac.from_tropical(asc, chart.jd_ut)),
+            Some(chart.zodiac.from_tropical(mc, chart.jd_ut)),
+        )
     } else {
         (None, None)
     };
     NatalChart {
+        // A relocation moves the place, not the frame of reference.
+        zodiac: chart.zodiac,
         jd_ut: chart.jd_ut,
         latitude,
         longitude,

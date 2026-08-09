@@ -40,12 +40,17 @@ Open the `.dmg` and drag Ziqpu out.
 
 ### Linux — `Ziqpu-<version>-linux-x64.tar.gz`
 
-`tar -xzf` and run `./ziqpu-ui`.
+`tar -xzf` and run **`./ziqpu`** (not `./ziqpu-ui`).
 
-- **Needs WebKitGTK at runtime.** If it exits with a missing-library error, install it:
-  - Debian / Ubuntu — `sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0`
-  - Fedora — `sudo dnf install webkit2gtk4.1 gtk3`
-  - Arch — `sudo pacman -S webkit2gtk-4.1 gtk3`
+`./ziqpu` is a small launcher. It asks the dynamic loader whether anything is missing before
+starting the app, and if something is, it names the library and prints the exact install command for
+your distribution. It installs nothing and changes nothing — it only tells you. If everything is
+present it hands straight over to the app, so there is no reason to run the binary directly.
+
+- **WebKitGTK is a system library on Linux** and is not bundled. On Debian/Ubuntu that is
+  `sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0`; Fedora `sudo dnf install webkit2gtk4.1 gtk3`;
+  Arch `sudo pacman -S webkit2gtk-4.1 gtk3`. The launcher will tell you this at the right moment,
+  for the right distribution, so you do not need to remember it now.
 - A desktop session is required; there is no headless mode.
 
 ## What you get with nothing set up
@@ -64,7 +69,10 @@ For written readings from a model, three roads:
   shown back to you.
 - **A local model** — Ziqpu benchmarks your machine, installs the right llama.cpp build for your
   GPU **automatically** (one-time, per-user, no admin rights), and offers only models your machine
-  can actually run. Below the minimum floor it tells you plainly and installs nothing.
+  can actually run (each tagged with what it can do — tool-calling, reasoning, context). Below the
+  minimum floor it tells you plainly and installs nothing. The model you serve is **remembered
+  across restarts** — next launch reconnects to it, or offers a one-click re-serve, and a Stop frees
+  its memory when you're done.
 
 ## Known limitations in this build
 

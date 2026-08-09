@@ -18,10 +18,14 @@ or email the maintainer. You'll get an acknowledgement within a few days.
 
 ## Accepted advisories
 
-- **RUSTSEC-2023-0071** (`rsa` "Marvin" timing attack) — pulled transitively by `sqlx-postgres`;
-  no fixed `rsa` release exists. Not exploitable here: the sidecar authenticates to a local/private
-  Postgres via SCRAM/md5 and never performs RSA key operations. Scoped-ignored in `.cargo/audit.toml`
-  so the audit still fails on any *other* advisory. To be removed when a patched `rsa` ships.
+None. The list held one entry — **RUSTSEC-2023-0071** (`rsa` "Marvin" timing attack), reachable
+only through `sqlx-postgres` — and it retired itself when the Postgres sidecar and the `db/`
+scaffolding were removed: `rsa` and `sqlx` are no longer in `Cargo.lock`. `cargo audit` and
+`cargo deny check advisories` both run with an empty exception list.
+
+The unmaintained-crate acceptances (build-time proc macros, the GTK3 stack under the desktop
+webview) live in `deny.toml` with dated reasoning; they are informational advisories, not
+vulnerabilities.
 
 ## Agent-to-agent handoff channel (defense-in-depth)
 

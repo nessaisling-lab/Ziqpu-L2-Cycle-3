@@ -5,7 +5,7 @@
 use crate::types::{Confidence, DayBeat, Fit, GroundedSignals, Measures, TransitBeat};
 use chrono::NaiveDate;
 
-const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
+pub(crate) const REMINDER: &str = "REMINDER: measured, not fate — not financial advice.";
 
 /// The interpreter seam. Never computes; never advises.
 pub trait Interpreter {
@@ -19,6 +19,28 @@ pub trait Interpreter {
         name: &str,
         grounded: &GroundedSignals,
     ) -> String;
+
+    /// The live reading **without** the template fallback — `Some` only when a real model produced
+    /// usable prose. Defaults to `None`, which is correct for the deterministic template: it never
+    /// "tries", it always succeeds.
+    ///
+    /// These exist so a failover wrapper can tell "the model declined" from "the template wrote it".
+    /// [`Interpreter::fit_read`] hides that distinction by design — every live interpreter falls back
+    /// internally — and a wrapper that could not see through it would have nothing to react to.
+    fn try_fit_read(&self, _measures: &Measures, _fit: Fit, _name: &str) -> Option<String> {
+        None
+    }
+
+    /// The grounded counterpart of [`Interpreter::try_fit_read`].
+    fn try_grounded_brief(
+        &self,
+        _measures: &Measures,
+        _fit: Fit,
+        _name: &str,
+        _grounded: &GroundedSignals,
+    ) -> Option<String> {
+        None
+    }
 
     /// The flagship long-form **Report** reading — measured → meaning → confidence → reminder.
     /// Defaulted so real-model interpreters (e.g. [`crate::AnthropicInterpreter`]) compile
@@ -80,6 +102,18 @@ impl Interpreter for Box<dyn Interpreter> {
         grounded: &GroundedSignals,
     ) -> String {
         (**self).grounded_brief(measures, fit, name, grounded)
+    }
+    fn try_fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> Option<String> {
+        (**self).try_fit_read(measures, fit, name)
+    }
+    fn try_grounded_brief(
+        &self,
+        measures: &Measures,
+        fit: Fit,
+        name: &str,
+        grounded: &GroundedSignals,
+    ) -> Option<String> {
+        (**self).try_grounded_brief(measures, fit, name, grounded)
     }
     fn report_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         (**self).report_read(measures, fit, name)
@@ -268,10 +302,22 @@ fn threads_line(measures: &Measures) -> String {
 /// `GROUNDED (...)` items printed right above it. Instead it points at the actual record as the thing
 /// to weigh. (The live model, which does read the signal text, writes a substantive reality sentence.)
 fn reality_sentence(grounded: &GroundedSignals) -> &'static str {
-    if grounded.items.is_empty() {
-        "this is what reality says: the record is quiet right now — nothing on file to set beside the chart"
-    } else {
+    // `has_real_signals`, not `items.is_empty()`. A placeholder is a non-empty string, so the empty
+    // check passed it straight through to the "actual record" branch — and the template announced
+    // that a CI fixture reading "recent filings for TSLA would appear here" was the actual record.
+    //
+    // That is worse than the same error in a model's prose. This is the FLOOR: the rung that writes
+    // the reading when every model is down, with no key and no network, and the one the honesty
+    // ladder degrades to precisely because it is supposed to be trustworthy by construction. It was
+    // making an unconditional claim about data it never looked at.
+    //
+    // Found by comparing two providers on identical mock signals: the frontier model noticed the
+    // placeholder and said "treat the reality column as empty", while the template asserted the
+    // opposite. The strongest model was the only one being honest about empty data.
+    if grounded.has_real_signals() {
         "this is what reality says: the filings above are the actual record — weigh those, not the sky, for the numbers"
+    } else {
+        "this is what reality says: the record is quiet right now — nothing on file to set beside the chart"
     }
 }
 
@@ -318,6 +364,10 @@ impl Interpreter for TemplateInterpreter {
     fn fit_read(&self, measures: &Measures, fit: Fit, name: &str) -> String {
         // Warm, plain prose a normal person gets — a staked verdict on the fit, plus one plain
         // "why:" line. The raw aspects/orbs/degrees stay out of the reading (they live in Backstage).
+        //
+        // The name is sanitised on the way to the SCREEN, not only on the way to the model. Since
+        // the N3 resolver it can come from a world-editable Wikidata label.
+        let name = crate::types::safe_display_name(name);
         format!(
             "FIT: {} ({} / 100) — {name}\n{}\n  {}{}\n  {REMINDER}",
             fit.label(),
@@ -335,13 +385,24 @@ impl Interpreter for TemplateInterpreter {
         name: &str,
         grounded: &GroundedSignals,
     ) -> String {
-        let signals = if grounded.items.is_empty() {
+        // Same vetting as every other citation path — the template is not exempt just because it
+        // is deterministic; the hostile bytes are in the data, not the writer.
+        let (facts, withheld) = grounded.fact_shaped_items();
+        let signals = if facts.is_empty() {
             format!("no recent signals from {}", grounded.source)
+        } else if withheld > 0 {
+            format!(
+                "{} [{withheld} fetched item(s) withheld: not fact-shaped]",
+                facts.join("; ")
+            )
         } else {
-            grounded.items.join("; ")
+            facts.join("; ")
         };
+        // The signals were vetted above; the NAME was not, and since the N3 resolver it can come
+        // from a world-editable Wikidata label. See [`crate::types::safe_display_name`].
+        let name = crate::types::safe_display_name(name);
         format!(
-            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}\n  {REMINDER}",
+            "FIT: {} ({} / 100) — {name}\n{}\n  {}\n  GROUNDED ({}): {}\n  {}{}\n  {REMINDER}",
             fit.label(),
             measures.score,
             warm_prose(fit),
@@ -349,6 +410,7 @@ impl Interpreter for TemplateInterpreter {
             grounded.source,
             signals,
             reality_sentence(grounded),
+            measures.time_caveat(),
         )
     }
 
@@ -455,6 +517,70 @@ fn weekly_summary_template(
 }
 
 #[cfg(test)]
+mod reality_honesty {
+    use super::*;
+
+    fn signals(items: Vec<&str>) -> GroundedSignals {
+        GroundedSignals {
+            choice: "TSLA".into(),
+            source: "mock (recorded fixture)".into(),
+            items: items.into_iter().map(String::from).collect(),
+        }
+    }
+
+    /// The floor must not claim a placeholder is the record.
+    ///
+    /// Found by running the same input through two providers on identical mock signals. The frontier
+    /// model read "recent filings for TSLA would appear here" and wrote *"treat the reality column
+    /// as empty"*. The deterministic template wrote *"the filings above are the actual record"* —
+    /// about a CI fixture.
+    ///
+    /// It matters more here than in a model's prose. This is the rung the honesty ladder degrades to
+    /// when every model is down, with no key and no network, precisely because it is supposed to be
+    /// trustworthy by construction — and it was making an unconditional claim about data it never
+    /// inspected. The check was `items.is_empty()`, and a placeholder is a non-empty string.
+    #[test]
+    fn a_placeholder_is_never_called_the_actual_record() {
+        for placeholder in [
+            vec!["recent filings for TSLA would appear here"],
+            vec!["grounded-source mock — no live network in CI"],
+            vec!["no public signals available"],
+            vec!["no recent signals from SEC EDGAR"],
+            vec![],
+        ] {
+            let line = reality_sentence(&signals(placeholder.clone()));
+            assert!(
+                !line.contains("actual record"),
+                "claimed a placeholder was real: {placeholder:?} -> {line}"
+            );
+            assert!(line.contains("quiet right now"), "{line}");
+        }
+
+        // A real signal still gets the substantive sentence — the fix must not mute genuine data.
+        let real = reality_sentence(&signals(vec!["recent filing: Form 10-Q on 2026-07-23"]));
+        assert!(real.contains("actual record"), "{real}");
+    }
+
+    /// One answer, two callers. The ladder and the template must agree about what counts as real, or
+    /// a reading can be badged unsourced while its own reality line calls the data the record.
+    #[test]
+    fn the_template_and_the_ladder_agree_on_what_is_real() {
+        let placeholder = signals(vec!["grounded-source mock — no live network in CI"]);
+        let real = signals(vec!["revenue: $28.24B (Q2 2026)"]);
+        assert!(!placeholder.has_real_signals());
+        assert!(real.has_real_signals());
+        assert_eq!(
+            reality_sentence(&placeholder).contains("actual record"),
+            placeholder.has_real_signals()
+        );
+        assert_eq!(
+            reality_sentence(&real).contains("actual record"),
+            real.has_real_signals()
+        );
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::{AspectHit, Confidence};
@@ -476,6 +602,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::High,
+            time_known: true,
         }
     }
 
@@ -499,6 +626,7 @@ mod tests {
             theme: None,
             patterns: vec![],
             confidence: Confidence::Low,
+            time_known: true,
         };
         let read = interp.fit_read(&quiet, Fit::Mixed, "Coca-Cola");
 

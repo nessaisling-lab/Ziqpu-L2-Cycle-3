@@ -96,31 +96,40 @@ impl SavedProfile {
 /// is created if missing (best-effort — a failure still returns the intended path, and the later
 /// read/write simply fails softly). Never panics.
 pub fn data_dir() -> Option<PathBuf> {
-    let dir = if cfg!(target_os = "windows") {
-        PathBuf::from(std::env::var("APPDATA").ok()?).join("Ziqpu")
-    } else if cfg!(target_os = "macos") {
-        PathBuf::from(std::env::var("HOME").ok()?)
-            .join("Library")
-            .join("Application Support")
-            .join("Ziqpu")
-    } else {
-        // Linux/other: prefer $XDG_DATA_HOME (when non-empty), else ~/.local/share.
-        match std::env::var("XDG_DATA_HOME") {
-            Ok(x) if !x.is_empty() => PathBuf::from(x).join("ziqpu"),
-            _ => PathBuf::from(std::env::var("HOME").ok()?)
-                .join(".local")
-                .join("share")
-                .join("ziqpu"),
-        }
-    };
-    let _ = std::fs::create_dir_all(&dir);
-    Some(dir)
+    // One answer to "where does this app keep its state", and it lives in `agents` because the CLI
+    // surfaces need it too. A second implementation here is exactly the duplicated decision that has
+    // drifted three times in this codebase.
+    agents::prefs::data_dir()
 }
 
 /// `<data_dir>/profile.json` — the birth-input draft file, on every OS. Returns `None` when
 /// [`data_dir`] can't resolve a base directory. See [`data_dir`] for the per-OS paths.
 pub fn profile_path() -> Option<PathBuf> {
     Some(data_dir()?.join("profile.json"))
+}
+
+/// Delete the saved chart — birth date, time, place, coordinates, basket and handle.
+///
+/// **Why this exists.** The app wrote a birth moment to disk and had no way to remove it: nothing in
+/// the tree called `remove_file` on `profile.json`, so a seeker could not erase their own birth data
+/// from inside the product, and uninstalling left it behind. The contrast made the gap plain — an
+/// API key already got the OS vault *and* a two-step confirmed delete, while a birth moment, which
+/// is more personal and cannot be rotated, got neither.
+///
+/// Returns whether anything was removed, so the UI can say "deleted" rather than guess. A missing
+/// file is `true`: the seeker asked for it gone and it is gone.
+pub fn forget_profile() -> bool {
+    let Some(path) = profile_path() else {
+        return false;
+    };
+    // The trace buffer is memory-only and dies with the process, so this is belt to that brace —
+    // but a seeker who asks to be forgotten while the app is still running should not have their
+    // chart sitting in a debug buffer afterwards. A debug artifact must not outlive its subject.
+    agents::trace::clear();
+    match std::fs::remove_file(&path) {
+        Ok(()) => true,
+        Err(e) => e.kind() == std::io::ErrorKind::NotFound,
+    }
 }
 
 /// Read + deserialize the saved draft. Returns `None` on any missing/corrupt-file error — never
