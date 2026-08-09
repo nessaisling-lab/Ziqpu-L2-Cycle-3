@@ -13,6 +13,12 @@ pub use chart::{
 pub mod synastry;
 pub use synastry::{body_weight, dignity_modifier, planet_nature, score_synastry_aspect, Nature};
 
+pub mod vedic;
+pub use vedic::{
+    nakshatra_of, DashaPeriod, DashaTimeline, Nakshatra, WholeSignHouses, NAKSHATRAS,
+    NAKSHATRA_ARC, VIMSHOTTARI, VIMSHOTTARI_YEARS,
+};
+
 pub mod patterns;
 pub use patterns::{detect_patterns, Member, Pattern, PatternOrbs, Placed, Who};
 
