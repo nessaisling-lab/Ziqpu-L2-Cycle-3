@@ -88,7 +88,7 @@ Everything below is for **building from source**.
 | **MCP + profile** — run the loop from any MCP host | ✅ `make_profile` · `chart` · `recommend` · `pull_grounded_signals` (checkpoint) |
 | **UI** — Dioxus 0.6 desktop app | ✅ shipped · onboarding, weekly readings, checkpoint, Raw/Local/Live, layered grounding, in-app model panel |
 
-Stable **v1.4.1** on `main`; build-ahead **v1.6.0** on `nightfall`. Full history in
+Stable **v1.6.1** on `main`; build-ahead on `nightfall`. Full history in
 [CHANGELOG.md](CHANGELOG.md); release + two-track governance in [RELEASING.md](RELEASING.md).
 
 ## Architecture

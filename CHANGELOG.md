@@ -5,6 +5,21 @@ All notable changes to Ziqpu are recorded here. Format follows
 **major.feature-phase.fix** (see [RELEASING.md](RELEASING.md)). Two tracks: `main` = stable
 (GitHub "Latest"), `nightfall` = build-ahead pre-releases (never "Latest").
 
+## [1.6.1] — 2026-08-09 · stable
+
+**The 1.6.0 content, promoted to stable.** No code changed between the two tags —
+`main`'s tree is byte-identical to `nightfall`'s at the point of promotion (PR #35, merged with a
+merge commit per RELEASING.md).
+
+The separate version exists because `v1.6.0` was already published as a **pre-release** off
+`nightfall`, and GitHub decides "Latest" from a tag's ancestry at the moment it is created. A tag
+cannot be reclassified after the fact, and moving a tag that a release already points at silently
+demotes that release to an untagged draft — which happened once during this release and had to be
+republished. So the stable line gets its own tag rather than a rewritten one.
+
+Nothing here is a fix. Recording it as a version bump with an empty fix list would be tidier and
+would also be a small lie about what changed; see [1.6.0] for the actual content.
+
 ## [1.6.0] — 2026-08-08 · nightfall pre-release
 
 **The measurements get authoritative, and every "approved" learns to say who approved it.** Sixty-five
